@@ -58,24 +58,27 @@ if (r==1):
    rhome = getEnvVar('RHOME', '/usr/local/lib/R/')
    # Get the installation directory of R site-library
    # Note: Will assume /usr/local/lib/R/site-library if RSITELIBHOME is unset
-   rsite = getEnvVar('RSITELIBHOME', '/usr/local/lib/R/library')
-   env.Append(CCFLAGS = '-I'+rsite+'/RInside/include')
-   env.Append(CCFLAGS = '-I'+rsite+'/Rcpp/include')
+   rsites = []
+   rsites.append(getEnvVar('RLIBHOME', rhome+'/library/'))
+   rsites.append(getEnvVar('RSITELIBHOME', rhome+'/site-library/'))
+   for rsite in rsites:
+      env.Append(CCFLAGS = '-I'+rsite+'/RInside/include')
+      env.Append(CCFLAGS = '-I'+rsite+'/Rcpp/include')
+      env.Append(LIBPATH = [rsite+'/RInside/lib'])
+      env.Append(LIBPATH = [rsite+'/Rcpp/libs'])
    env.Append(CCFLAGS = '-I'+rhome+'/include')
    env.Append(CCFLAGS = '-DHAVE_R')
-   env.Append(LIBPATH = [rsite+'/RInside/lib'])
-   env.Append(LIBPATH = [rsite+'/Rcpp/libs'])
    env.Append(LIBPATH = [rhome+'/lib'])
    if not conf.CheckLib('R'):
-      print "[PluMA] Required library R not installed.  Recompile with r=0."
+      print "[PluMA] Required library R not installed.  Either set RHOME or recompile with r=0."
       Exit(1)
-   else:
-      env.Append(LIBS = ['R'])
+   #else:
+   #   env.Append(LIBS = ['R'])
    if not conf.CheckLib('RInside'):
-      print "[PluMA] Required library RInside not installed.  Recompile with r=0."
+      print "[PluMA] Required library RInside not installed.  Set RLIBHOME if location it outside R installation, or recompile with r=0."
       Exit(1)
-   else:
-      env.Append(LIBS = ['RInside'])
+   #else:
+   #   env.Append(LIBS = ['RInside'])
 ###################################################################
 
 ###################################################################
@@ -175,9 +178,9 @@ if (docuda==1):
 #####################################################
 
 # Main Executable
-folder_sets = [['.', 'languages'], ['PluginGenerator']] 
+folder_sets = [['.', 'languages'], ['PluGen']] 
 sources = [[], []]
-targets = ['pluma', 'PluginGenerator/generate']
+targets = ['pluma', 'PluGen/plugen']
 
 for i in range(0,len(targets)):
    for folder in folder_sets[i]:

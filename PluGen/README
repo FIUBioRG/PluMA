@@ -8,7 +8,7 @@ Note: This will produce a plugin in one of the following locations (in order):
 2. PLUMA_PLUGIN_PATH; using directories in order.
 
 The usage is:
-./PluGen (pluginname) (command to run)
+./plugen (pluginname) (command to run)
 
 (pluginname) is the name of the new plugin.
 (command to run) must be at least one word, and is the command to run the 
