@@ -54,8 +54,8 @@ env.Append(LIBS = ['python'+python_version])
 if (r==1):
    # Get the installation directory of R
    # Note: Will assume /usr/share/R if RHOME is unset
-   #rhome = getEnvVar('RHOME', '/usr/share/R')
    rhome = getEnvVar('RHOME', '/usr/local/lib/R/')
+   rshare = getEnvVar('RSHARE', '/usr/share/R')
    # Get the installation directory of R site-library
    # Note: Will assume /usr/local/lib/R/site-library if RSITELIBHOME is unset
    rsites = []
@@ -67,6 +67,7 @@ if (r==1):
       env.Append(LIBPATH = [rsite+'/RInside/lib'])
       env.Append(LIBPATH = [rsite+'/Rcpp/libs'])
    env.Append(CCFLAGS = '-I'+rhome+'/include')
+   env.Append(CCFLAGS = '-I'+rshare+'/include')
    env.Append(CCFLAGS = '-DHAVE_R')
    env.Append(LIBPATH = [rhome+'/lib'])
    if not conf.CheckLib('R'):
