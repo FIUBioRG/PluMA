@@ -33,6 +33,11 @@ r = ARGUMENTS.get('r', 1)
 perl = ARGUMENTS.get('perl', 1)
 
 ###################################################################
+# USED TO CHECK FOR LIBRARIES
+###################################################################
+conf = Configure(env)
+
+###################################################################
 # PYTHON INFORMATION
 python_dir = sys.exec_prefix
 python_version = sys.version[0:3]
@@ -42,6 +47,7 @@ env.Append(CCFLAGS = python_include)
 env.Append(LIBPATH = [python_lib])
 env.Append(LIBS = ['python'+python_version])
 ###################################################################
+
 
 ###################################################################
 # R (IF INSTALLED)
@@ -53,7 +59,6 @@ if (r==1):
    # Get the installation directory of R site-library
    # Note: Will assume /usr/local/lib/R/site-library if RSITELIBHOME is unset
    rsite = getEnvVar('RSITELIBHOME', '/usr/local/lib/R/library')
- 
    env.Append(CCFLAGS = '-I'+rsite+'/RInside/include')
    env.Append(CCFLAGS = '-I'+rsite+'/Rcpp/include')
    env.Append(CCFLAGS = '-I'+rhome+'/include')
@@ -61,8 +66,16 @@ if (r==1):
    env.Append(LIBPATH = [rsite+'/RInside/lib'])
    env.Append(LIBPATH = [rsite+'/Rcpp/libs'])
    env.Append(LIBPATH = [rhome+'/lib'])
-   env.Append(LIBS = ['R'])
-   env.Append(LIBS = ['RInside'])
+   if not conf.CheckLib('R'):
+      print "[PluMA] Required library R not installed.  Recompile with r=0."
+      Exit(1)
+   else:
+      env.Append(LIBS = ['R'])
+   if not conf.CheckLib('RInside'):
+      print "[PluMA] Required library RInside not installed.  Recompile with r=0."
+      Exit(1)
+   else:
+      env.Append(LIBS = ['RInside'])
 ###################################################################
 
 ###################################################################
