@@ -29,6 +29,7 @@ envPlugin.Append(SHCCFLAGS = '-std=c++11')
 # Note we have 'pluma.cpp' and scons, so I must assume they have C++
 # and Python
 docuda = ARGUMENTS.get('cuda', 1)
+print docuda
 r = ARGUMENTS.get('r', 1)
 perl = ARGUMENTS.get('perl', 1)
 
@@ -70,16 +71,17 @@ if (r==1):
    env.Append(CCFLAGS = '-I'+rshare+'/include')
    env.Append(CCFLAGS = '-DHAVE_R')
    env.Append(LIBPATH = [rhome+'/lib'])
-   if not conf.CheckLib('R'):
-      print "[PluMA] Required library R not installed.  Either set RHOME or recompile with r=0."
-      Exit(1)
+   # Note CheckLib does not work on Mac which has .dylib.  Haven't found a fix yet TMC
+   #if not conf.CheckLib('R', symbol='None'):
+   #   print "[PluMA] Required library R not installed.  Either set RHOME or recompile with r=0."
+   #   Exit(1)
    #else:
-   #   env.Append(LIBS = ['R'])
-   if not conf.CheckLib('RInside'):
-      print "[PluMA] Required library RInside not installed.  Set RLIBHOME if location it outside R installation, or recompile with r=0."
-      Exit(1)
+   env.Append(LIBS = ['R'])
+   #if not conf.CheckLib('RInside'):
+   #   print "[PluMA] Required library RInside not installed.  Set RLIBHOME if location it outside R installation, or recompile with r=0."
+   #   Exit(1)
    #else:
-   #   env.Append(LIBS = ['RInside'])
+   env.Append(LIBS = ['RInside'])
 ###################################################################
 
 ###################################################################
@@ -156,7 +158,7 @@ print "PLUGIN DIRECTORIES: ", pluginpath
 # C++ Plugins
 for folder in pluginpath:
  env.Append(CCFLAGS = '-I'+folder)
- if (docuda):
+ if (docuda==1):
     envPluginCUDA.Append(NVCCFLAGS = '-I'+folder)
  #pluginlist_cpp = Glob('plugins/*/*.cpp')
  pluginlist_cpp = Glob(folder+'/*/*.cpp')
