@@ -19,3 +19,12 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+------------------------------------------------------------------------------
+Citation Information
+
+All professional work making use of PluMA or its features should cite: 
+
+T. Cickovski, V. Aguiar-Pulido, W. Huang, S. Mahmoud, and G. Narasimhan.  Lightweight
+Microbiome Analysis Pipelines.  In Proceedings of International Work Conference on
+Bioinformatics and Biomedical Engineering (IWBBIO16), Granada, Spain, April 2016.
