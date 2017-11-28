@@ -88,7 +88,7 @@ def generate(env):
                 for path in paths:
                         if os.path.isdir(path):
                                 pathFound = True
-                                print 'scons: CUDA Toolkit found in ' + path
+                                #print 'scons: CUDA Toolkit found in ' + path
                                 cudaToolkitPath = path
                                 break
                 if not pathFound:
