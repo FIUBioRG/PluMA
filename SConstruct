@@ -4,7 +4,7 @@ import subprocess
 #######################################################################
 # HELPER FUNCTION
 def getEnvVar(name, default):
-   if (os.environ.has_key(name)):
+   if (os.environ.__contains__(name)):
       return os.environ[name]
    else:
       return default
