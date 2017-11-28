@@ -29,14 +29,15 @@
 
 #include "Py.h"
 #include "PluginManager.h"
+#ifdef HAVE_PYTHON
 #include "Python.h"
-
+#endif
 
 Py::Py(std::string language, std::string ext, std::string p) : Language(language, ext, p) {} 
 
 
 void Py::executePlugin(std::string pluginname, std::string inputname, std::string outputname) {
-
+#ifdef HAVE_PYTHON
       char* buffer = new char[100];
       std::string cwd = getcwd(buffer, 100);
       if (!Py_IsInitialized()) Py_Initialize();
@@ -67,10 +68,12 @@ void Py::executePlugin(std::string pluginname, std::string inputname, std::strin
       //Py_Finalize();
       PluginManager::getInstance().log("[PluMA] Python Plugin "+pluginname+" complted successfully.");
       delete buffer;
-
+#endif
 
 }
 
 void Py::unload() {
+#ifdef HAVE_PYTHON
    if (Py_IsInitialized()) Py_Finalize();
+#endif
 }
