@@ -45,8 +45,9 @@ class R : public Language {
       void executePlugin(std::string pluginname, std::string inputname, std::string outputname);
       void unload();
    private:
+#ifdef HAVE_R
       RInside* myR;
-
+#endif
 };
 
 }
