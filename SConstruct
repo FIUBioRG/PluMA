@@ -29,7 +29,7 @@ envPlugin.Append(SHCCFLAGS = '-std=c++11')
 # Note we have 'pluma.cpp' and scons, so I must assume they have C++
 # and Python
 docuda = ARGUMENTS.get('cuda', 1)
-print docuda
+#print docuda
 r = ARGUMENTS.get('r', 1)
 perl = ARGUMENTS.get('perl', 1)
 
@@ -153,7 +153,7 @@ miamipluginpath = getEnvVar('PLUMA_PLUGIN_PATH', '')
 if (miamipluginpath != ''):
    pluginpaths = miamipluginpath.split(':') #+ ":" + pluginpath
    pluginpath += pluginpaths
-print "PLUGIN DIRECTORIES: ", pluginpath
+#print "PLUGIN DIRECTORIES: ", pluginpath
 ######################################################
 # C++ Plugins
 for folder in pluginpath:
@@ -163,9 +163,9 @@ for folder in pluginpath:
  #pluginlist_cpp = Glob('plugins/*/*.cpp')
  pluginlist_cpp = Glob(folder+'/*/*.cpp')
  for plugin in pluginlist_cpp:
-   print plugin
+   #print plugin
    x = envPlugin.SharedLibrary(source=plugin)
-   print x
+   #print x
 ######################################################
 ######################################################
 # CUDA Plugins
@@ -189,7 +189,7 @@ for i in range(0,len(targets)):
    for folder in folder_sets[i]:
       env.Append(CCFLAGS = '-I'+folder)
       sources[i].append(Glob(folder+'/*.cpp'))
-   print "ST: ", sources[i], targets[i]
+   #print "ST: ", sources[i], targets[i]
    env.Program(source=sources[i], target=targets[i])   
 
 #for folder in folders:
