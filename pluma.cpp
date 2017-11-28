@@ -33,7 +33,6 @@
 #include "Plugin.h"
 #include "PluginManager.h"
 #include "PluginProxy.h"
-#include "Python.h"
 #include "languages/Compiled.h"
 #include "languages/Py.h"
 #include "languages/R.h"
