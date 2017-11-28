@@ -43,8 +43,8 @@ conf = Configure(env)
 # PYTHON INFORMATION
 python_dir = sys.exec_prefix
 python_version = sys.version[0:3]
-python_include = '-I'+python_dir+'/include/python'+python_version
-python_lib = python_dir+'/lib/python'+python_version+'/config'
+python_include = '-I'+getEnvVar('PYTHON_INCLUDE_DIR', python_dir+'/include/python'+python_version)
+python_lib = getEnvVar('PYTHON_LIB_DIR', python_dir+'/lib/python'+python_version+'/config')
 if (python == 1):
    env.Append(CCFLAGS = python_include)
    env.Append(LIBPATH = [python_lib])
