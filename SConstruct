@@ -32,6 +32,7 @@ docuda = ARGUMENTS.get('cuda', 1)
 #print docuda
 r = ARGUMENTS.get('r', 1)
 perl = ARGUMENTS.get('perl', 1)
+python = ARGUMENTS.get('python', 1)
 
 ###################################################################
 # USED TO CHECK FOR LIBRARIES
@@ -44,9 +45,11 @@ python_dir = sys.exec_prefix
 python_version = sys.version[0:3]
 python_include = '-I'+python_dir+'/include/python'+python_version
 python_lib = python_dir+'/lib/python'+python_version+'/config'
-env.Append(CCFLAGS = python_include)
-env.Append(LIBPATH = [python_lib])
-env.Append(LIBS = ['python'+python_version])
+if (python == 1):
+   env.Append(CCFLAGS = python_include)
+   env.Append(LIBPATH = [python_lib])
+   env.Append(LIBS = ['python'+python_version])
+   env.Append(CCFLAGS = '-DHAVE_PYTHON')
 ###################################################################
 
 
