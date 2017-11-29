@@ -52,6 +52,7 @@ if (python == 1):
    env.Append(CCFLAGS = '-DHAVE_PYTHON')
    env.Append(LIBS = ['pthread'])
    env.Append(LIBS = ['util'])
+   env.Append(LIBS = ['rt'])
 ###################################################################
 
 
