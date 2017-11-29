@@ -110,22 +110,21 @@ if (perl==1):
    # Get the installation directory of Perl
    # Note: Will assume /usr/ if PERLHOME is unset
    # Also need pthreads, assuming /usr/local is PTHREADHOME is unset
-   perlhome = getEnvVar('PERLHOME', '/usr/')
+   #perlhome = getEnvVar('PERLHOME', '/usr/')
+   perl_lib = getEnvVar('PERL_LIB_DIR', '/usr/lib/')
    pthreadhome = getEnvVar('PTHREADHOME', '/usr/local/')
    getversion = subprocess.check_output(['perl', '-V']).split(' ')
    perlversion = getversion[5]+'.'+getversion[7]
    perlarch = getEnvVar('PERLARCH', '')
 
    env.Append(CCFLAGS = '-DHAVE_PERL')
-   env.Append(LIBPATH = [perlhome+'/lib'])
+   env.Append(LIBPATH = [perl_lib])
    env.Append(CCFLAGS = '-Wl,-E')
    env.Append(CCFLAGS = '-fstack-protector')
    if (env['PLATFORM'] != 'darwin'):
-     env.Append(LIBPATH = [perlhome+'/lib'])
-     env.Append(LIBPATH = [perlhome+'/perl/'+perlversion+'/CORE'])
+     env.Append(LIBPATH = [perl_lib+'../perl/'+perlversion+'/CORE'])
    else:
-     env.Append(LIBPATH = [perlhome+'/lib'])
-     env.Append(LIBPATH = [perlhome+'/lib/perl'+getversion[5]+'/'+perlversion+'.0/'+perlarch+'/CORE'])
+     env.Append(LIBPATH = [perl_lib+'/perl'+getversion[5]+'/'+perlversion+'.0/'+perlarch+'/CORE'])
    env.Append(LIBPATH = [pthreadhome+'/lib/'])
    env.Append(LIBS = ['perl'])
    env.Append(LIBS = ['dl'])
@@ -144,9 +143,9 @@ if (perl==1):
    env.Append(CCFLAGS = '-DLARGEFILE_SOURCE')
    env.Append(CCFLAGS = '-D_FILE_OFFSET_BITS=64')
    if (env['PLATFORM'] != 'darwin'):
-      env.Append(CCFLAGS = '-I'+perlhome+'/lib/perl/'+perlversion+'/CORE')
+      env.Append(CCFLAGS = '-I'+perl_lib+'/perl/'+perlversion+'/CORE')
    else:
-      env.Append(CCFLAGS = '-I'+perlhome+'/lib/perl'+getversion[5]+'/'+perlversion+'.0/'+perlarch+'/CORE')
+      env.Append(CCFLAGS = '-I'+perl_lib+'/perl'+getversion[5]+'/'+perlversion+'.0/'+perlarch+'/CORE')
 ###################################################################
 # Finally, compile!
 
