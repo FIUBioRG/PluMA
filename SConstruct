@@ -112,7 +112,7 @@ if (perl==1):
    # Also need pthreads, assuming /usr/local is PTHREADHOME is unset
    #perlhome = getEnvVar('PERLHOME', '/usr/')
    pthreadhome = getEnvVar('PTHREADHOME', '/usr/local/')
-   getversion = subprocess.check_output(['perl', '-V']).split(' ')
+   getversion = str(subprocess.check_output(['perl', '-V'])).split(' ')
    perlversion = getversion[5]+'.'+getversion[7]
    perlarch = getEnvVar('PERLARCH', '')
    if (env['PLATFORM'] != 'darwin'):
