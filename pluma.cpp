@@ -30,6 +30,7 @@
 #include <dlfcn.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include "Plugin.h"
 #include "PluginManager.h"
 #include "PluginProxy.h"
