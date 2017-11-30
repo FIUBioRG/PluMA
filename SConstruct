@@ -70,6 +70,7 @@ if (r==1):
    env.Append(CCFLAGS = '-I'+r_include)
    env.Append(CCFLAGS = '-I'+rinside_include)
    env.Append(CCFLAGS = '-I'+rcpp_include)
+   env.Append(LIBPATH = [r_lib])
    env.Append(LIBPATH = [rinside_lib])
    env.Append(CCFLAGS = '-DHAVE_R')
    env.Append(LIBS = ['R'])
