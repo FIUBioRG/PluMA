@@ -61,32 +61,18 @@ if (python == 1):
 if (r==1):
    # Get the installation directory of R
    # Note: Will assume /usr/share/R if RHOME is unset
-   rhome = getEnvVar('RHOME', '/usr/local/lib/R/')
-   rshare = getEnvVar('RSHARE', '/usr/share/R')
-   # Get the installation directory of R site-library
-   # Note: Will assume /usr/local/lib/R/site-library if RSITELIBHOME is unset
-   rsites = []
-   rsites.append(getEnvVar('RLIBHOME', rhome+'/library/'))
-   rsites.append(getEnvVar('RSITELIBHOME', rhome+'/site-library/'))
-   for rsite in rsites:
-      env.Append(CCFLAGS = '-I'+rsite+'/RInside/include')
-      env.Append(CCFLAGS = '-I'+rsite+'/Rcpp/include')
-      env.Append(LIBPATH = [rsite+'/RInside/lib'])
-      env.Append(LIBPATH = [rsite+'/Rcpp/libs'])
-   env.Append(CCFLAGS = '-I'+rhome+'/include')
-   env.Append(CCFLAGS = '-I'+rshare+'/include')
+   r_lib = getEnvVar('R_LIB_DIR', '/usr/local/lib/R/')
+   r_include = getEnvVar('R_INCLUDE_DIR', '/usr/share/R/include/')
+   rinside_lib = getEnvVar('RINSIDE_LIB_DIR', r_lib+'/site-library/RInside/lib')
+   rinside_include = getEnvVar('RINSIDE_INCLUDE_DIR', r_lib+'/site-library/RInside/include')
+   rcpp_include = getEnvVar('RCPP_INCLUDE_DIR', r_lib+'/site-library/Rcpp/include')
+
+   env.Append(CCFLAGS = '-I'+r_include)
+   env.Append(CCFLAGS = '-I'+rinside_include)
+   env.Append(CCFLAGS = '-I'+rcpp_include)
+   env.Append(LIBPATH = [rinside_lib])
    env.Append(CCFLAGS = '-DHAVE_R')
-   env.Append(LIBPATH = [rhome+'/lib'])
-   # Note CheckLib does not work on Mac which has .dylib.  Haven't found a fix yet TMC
-   #if not conf.CheckLib('R', symbol='None'):
-   #   print "[PluMA] Required library R not installed.  Either set RHOME or recompile with r=0."
-   #   Exit(1)
-   #else:
    env.Append(LIBS = ['R'])
-   #if not conf.CheckLib('RInside'):
-   #   print "[PluMA] Required library RInside not installed.  Set RLIBHOME if location it outside R installation, or recompile with r=0."
-   #   Exit(1)
-   #else:
    env.Append(LIBS = ['RInside'])
 ###################################################################
 
@@ -111,7 +97,8 @@ if (perl==1):
    # Note: Will assume /usr/ if PERLHOME is unset
    # Also need pthreads, assuming /usr/local is PTHREADHOME is unset
    #perlhome = getEnvVar('PERLHOME', '/usr/')
-   pthreadhome = getEnvVar('PTHREADHOME', '/usr/local/')
+   pthread_lib = getEnvVar('PTHREAD_LIB_DIR', '/usr/local/lib')
+   pthread_include = getEnvVar('PTHREAD_LIB_DIR', '/usr/local/include')
    getversion = str(subprocess.check_output(['perl', '-V'])).split(' ')
    perlversion = getversion[5]+'.'+getversion[7]
    perlarch = getEnvVar('PERLARCH', '')
@@ -127,7 +114,7 @@ if (perl==1):
    #env.Append(LIBPATH = [perl_lib])
    env.Append(CCFLAGS = '-Wl,-E')
    env.Append(CCFLAGS = '-fstack-protector')
-   env.Append(LIBPATH = [pthreadhome+'/lib/'])
+   env.Append(LIBPATH = [pthread_lib])
    env.Append(LIBS = ['perl'])
    env.Append(LIBS = ['dl'])
    env.Append(LIBS = ['m'])
@@ -141,7 +128,7 @@ if (perl==1):
    env.Append(CCFLAGS = '-Wno-literal-suffix')
    env.Append(CCFLAGS = '-fno-strict-aliasing')
    env.Append(CCFLAGS = '-pipe')
-   env.Append(CCFLAGS = '-I'+pthreadhome+'/include/')
+   env.Append(CCFLAGS = '-I'+pthread_include)
    env.Append(CCFLAGS = '-DLARGEFILE_SOURCE')
    env.Append(CCFLAGS = '-D_FILE_OFFSET_BITS=64')
 ###################################################################
