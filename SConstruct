@@ -50,9 +50,10 @@ if (python == 1):
    env.Append(LIBPATH = [python_lib])
    env.Append(LIBS = ['python'+python_version])
    env.Append(CCFLAGS = '-DHAVE_PYTHON')
-   env.Append(LIBS = ['pthread'])
-   env.Append(LIBS = ['util'])
-   env.Append(LIBS = ['rt'])
+   if (python_version[0] == 3):
+      env.Append(LIBS = ['pthread'])
+      env.Append(LIBS = ['util'])
+      env.Append(LIBS = ['rt'])
 ###################################################################
 
 
