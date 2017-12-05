@@ -13,7 +13,6 @@ def getEnvVar(name, default):
 # Gets the environment variables set by the user
 env = Environment(ENV = os.environ)
 envPlugin = Environment(ENV = os.environ)
-
 env.Append(CCFLAGS = '-std=c++0x')
 env.Append(LIBS = ['m', 'dl'])
 if (env['PLATFORM'] != 'darwin'):
