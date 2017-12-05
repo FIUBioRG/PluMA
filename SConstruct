@@ -21,7 +21,7 @@ if (env['PLATFORM'] != 'darwin'):
 
 envPlugin.Append(SHCCFLAGS = '-fpermissive')
 envPlugin.Append(SHCCFLAGS = '-I'+os.environ['PWD'])
-envPlugin.Append(SHCCFLAGS = '-std=c++11')
+envPlugin.Append(SHCCFLAGS = '-std=c++0x')
 #envPlugin.Append(LIBS = ['gsl'])
 
 # Language arguments
