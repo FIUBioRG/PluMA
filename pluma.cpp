@@ -97,8 +97,8 @@ int main(int argc, char** argv)
          pluginpath += getenv("PLUMA_PLUGIN_PATH");
    }
    pluginpath += ":";
-   pluginpath += "/usr/local/bin/plugins/:/usr/bin/plugins/";
-   pluginpath += ":";
+   //pluginpath += "/usr/local/bin/plugins/:/usr/bin/plugins/";
+   //pluginpath += ":";
    std::cout << "PluginPath: " << pluginpath << std::endl;
    ///////////////////////////////////////////////////////////////////////////////////////////////
 
