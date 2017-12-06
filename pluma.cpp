@@ -78,7 +78,7 @@ int main(int argc, char** argv)
    std::cout << "*                                                                                 *" << std::endl;
    std::cout << "*            [Plu]gin-based [M]icrobiome [A]nalysis (formerly MiAMi)              *" << std::endl;
    std::cout << "*    (C) 2016 Bioinformatics Research Group, Florida International University     *" << std::endl;
-   std::cout << "*          Under GNU General Public License (GPL), All Rights Reserved.           *" << std::endl;
+   std::cout << "*    Under MIT License From Open Source Initiative (OSI), All Rights Reserved.    *" << std::endl;
    std::cout << "*                                                                                 *" << std::endl;
    std::cout << "*    Any professionally published work using PluMA should cite the following:     *" << std::endl;
    std::cout << "*    T. Cickovski, V. Aguiar-Pulido, W. Huang, S. Mahmoud and G. Narasimhan.      *" << std::endl;
@@ -165,7 +165,7 @@ int main(int argc, char** argv)
    // Get the current time, and setup the initial log file
    time_t t = time(0);
    struct tm* now = localtime( &t );
-   std::string currentTime = toString(now->tm_year + 1900) + "-" + toString(now->tm_mon + 1) + "-" + toString(now->tm_mday);
+   std::string currentTime = toString(now->tm_year + 1900) + "-" + toString(now->tm_mon + 1) + "-" + toString(now->tm_mday) + "@" + toString(now->tm_hour) + ":" + toString(now->tm_min) + ":" + toString(now->tm_sec);
    std::string mylog = "logs/"+currentTime+".log.txt";
    PluginManager::getInstance().setLogFile(mylog);
    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
