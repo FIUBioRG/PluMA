@@ -147,12 +147,25 @@ if (miamipluginpath != ''):
 #print "PLUGIN DIRECTORIES: ", pluginpath
 ######################################################
 # C++ Plugins
+toExport = ['envPlugin']
+if (docuda == 1):
+   toExport.append('envPluginCUDA')
 for folder in pluginpath:
  env.Append(CCFLAGS = '-I'+folder)
  if (docuda==1):
     envPluginCUDA.Append(NVCCFLAGS = '-I'+folder)
+ #if (os.path.isfile(folder+'/SConscript')):
+ #   SConscript(folder+'/SConscript')
+ #else:
+ #   print "NOT A FILE: ", folder+'/SConscript'
+ sconscripts = Glob(folder+'/*/SConscript')
  #pluginlist_cpp = Glob('plugins/*/*.cpp')
  pluginlist_cpp = Glob(folder+'/*/*.cpp')
+ if (len(pluginlist_cpp) != 0 and len(sconscripts) != 0):
+   #print "READY TO RUN"
+   for sconscript in sconscripts:
+     SConscript(sconscript, exports=toExport)
+   #print "DONE"
  for plugin in pluginlist_cpp:
    #print plugin
    x = envPlugin.SharedLibrary(source=plugin)
@@ -162,7 +175,16 @@ for folder in pluginpath:
 # CUDA Plugins
 if (docuda==1):
  for folder in pluginpath:
+   #sconscripts = Glob(folder+'/*/SConscript')
+   #for sconscript in sconscripts:
+   #  SConscript(sconscript, exports = 'envPluginCUDA')
    pluginlist_cu = Glob(folder+'/*/*.cu')
+   #if (len(pluginlist_cu) != 0 and len(sconscripts) != 0):
+     #print "READY TO RUN AGAIN"
+     #print pluginlist_cu[0], sconscripts[0]
+     #for sconscript in sconscripts:
+     #  SConscript(sconscript, exports='envPluginCUDA')
+     #print "DONE"
    for plugin in pluginlist_cu:
       envPluginCUDA.Object(source=plugin)
       pluginname = plugin.path[0:len(plugin.path)-3]
