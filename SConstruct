@@ -53,6 +53,11 @@ if (python == 1):
       env.Append(LIBS = ['pthread'])
       env.Append(LIBS = ['util'])
       env.Append(LIBS = ['rt'])
+   # Interface
+   if not env.GetOption('clean'):
+     os.system("make -f Makefile.interface PYTHON_INCLUDE="+python_include+" python")
+   else:
+     os.system("make -f Makefile.interface pythonclean")
 ###################################################################
 
 
@@ -60,7 +65,6 @@ if (python == 1):
 # R (IF INSTALLED)
 if (r==1):
    # Get the installation directory of R
-   # Note: Will assume /usr/share/R if RHOME is unset
    r_lib = getEnvVar('R_LIB_DIR', '/usr/local/lib/R/')
    r_include = getEnvVar('R_INCLUDE_DIR', '/usr/share/R/include/')
    rinside_lib = getEnvVar('RINSIDE_LIB_DIR', r_lib+'/site-library/RInside/lib')
@@ -75,6 +79,10 @@ if (r==1):
    env.Append(CCFLAGS = '-DHAVE_R')
    env.Append(LIBS = ['R'])
    env.Append(LIBS = ['RInside'])
+   if not env.GetOption('clean'):
+     os.system("make -f Makefile.interface R_INCLUDE=-I"+r_include+" R_LIB=-L"+r_lib+" r")
+   else:
+     os.system("make -f Makefile.interface rclean")
 ###################################################################
 
 ###################################################################
@@ -121,7 +129,9 @@ if (perl==1):
    env.Append(LIBS = ['m'])
    env.Append(LIBS = ['pthread'])
    env.Append(LIBS = ['c'])
-   #env.Append(LIBS = ['crypt'])
+   env.Append(LIBS = ['crypt'])
+   env.Append(LIBS = ['util'])
+   env.Append(LIBS = ['nsl'])
    env.Append(CCFLAGS = '-DREENTRANT')
    env.Append(CCFLAGS = '-D_GNU_SOURCE')
    env.Append(CCFLAGS = '-DDEBIAN')
@@ -132,6 +142,12 @@ if (perl==1):
    env.Append(CCFLAGS = '-I'+pthread_include)
    env.Append(CCFLAGS = '-DLARGEFILE_SOURCE')
    env.Append(CCFLAGS = '-D_FILE_OFFSET_BITS=64')
+
+   # Interface
+   if not env.GetOption('clean'):
+     os.system("make -f Makefile.interface perl")
+   else:
+     os.system("make -f Makefile.interface perlclean")
 ###################################################################
 # Finally, compile!
 
