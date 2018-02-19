@@ -49,7 +49,7 @@ if (python == 1):
    env.Append(LIBPATH = [python_lib])
    env.Append(LIBS = ['python'+python_version])
    env.Append(CCFLAGS = '-DHAVE_PYTHON')
-   if (python_version[0] == 3):
+   if (python_version[0] == '3'):
       env.Append(LIBS = ['pthread'])
       env.Append(LIBS = ['util'])
       env.Append(LIBS = ['rt'])
@@ -112,10 +112,10 @@ if (perl==1):
    perlversion = getversion[5]+'.'+getversion[7]
    perlarch = getEnvVar('PERLARCH', '')
    if (env['PLATFORM'] != 'darwin'):
-      perl_lib = getEnvVar('PERL_LIB_DIR', '/usr/lib/perl/'+perlversion+'/CORE')
+      perl_include = getEnvVar('PERL_INCLUDE_DIR', '/usr/lib/perl/'+perlversion+'/CORE')
    else:
-      perl_lib = getEnvVar('PERL_LIB_DIR', '/usr/perl'+getversion[5]+'/'+perlversion+'.0/'+perlarch+'/CORE')
-   perl_include = getEnvVar('PERL_INCLUDE_DIR', perl_lib)
+      perl_include = getEnvVar('PERL_INCLUDE_DIR', '/usr/perl'+getversion[5]+'/'+perlversion+'.0/'+perlarch+'/CORE')
+   perl_lib = getEnvVar('PERL_LIB_DIR', perl_include)
    
    env.Append(LIBPATH = [perl_lib])
    env.Append(CCFLAGS = '-I'+perl_include)
