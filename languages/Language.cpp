@@ -31,7 +31,7 @@
 #include <dlfcn.h>
 
 void Language::loadPlugin(std::string path, glob_t* globbuf, std::map<std::string, std::string>* pluginLanguages, bool list=false) {
-   std::string pathGlob = path + "/" + "*/*" + "." + extension;
+   std::string pathGlob = path + "/" + "*/*" + "Plugin." + extension;
    int ext_len = extension.length()+2;
    if (glob(pathGlob.c_str(), 0, NULL, &(*globbuf)) == 0) {
       for (unsigned int i = 0; i < globbuf->gl_pathc; i++) {
