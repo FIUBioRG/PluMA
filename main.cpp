@@ -179,7 +179,6 @@ int main(int argc, char** argv)
    bool restartFlag = false;
    std::string prefix = "";
    while (!infile.eof()) {
-      std::cout << "READING FILE" << std::endl;
       ///////////////////////////////////////////////////////
       // Read one line
       // Plugin (Name) inputfile (input file) outputfile (output file)
@@ -206,6 +205,7 @@ int main(int argc, char** argv)
          bool executed = false;
          for (int i = 0; i < supported.size() && !executed; i++)
             if (pluginLanguages[name+"Plugin"] == supported[i]->lang()) {
+               std::cout << "[PluMA] Running Plugin: " << name << std::endl;
                supported[i]->executePlugin(name, prefix+inputname, prefix+outputname);
                executed = true;
             }
