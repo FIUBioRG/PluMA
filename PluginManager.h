@@ -34,13 +34,15 @@
 
 #include <string>
 #include <map>
+#include <set>
 #include <iostream>
 #include <fstream>
 
 class PluginManager {
-   std::map<std::string, Maker*> makers;
- 
+    
    public:
+   std::map<std::string, Maker*> makers;
+   std::set<std::string> installed;
    static PluginManager& getInstance()
         {
             static PluginManager    instance; // Guaranteed to be destroyed.
@@ -57,6 +59,8 @@ class PluginManager {
       makers[name] = maker;
    }
   
+   void add(std::string name) {installed.insert(name);}
+
    Plugin* create(std::string name) {
       return makers[name]->create();
    }
@@ -66,12 +70,19 @@ class PluginManager {
       logfile = new std::ofstream(lf.c_str(), std::ios::out);
    }
    
-   void log(std::string msg) { *logfile << "[PluMA] " << msg << std::endl; }
+
+   static void log(std::string msg) { *(getInstance().logfile) << "[PluMA] " << msg << std::endl; }
+
+   static void dependency(std::string plugin) {if (getInstance().installed.count(plugin) == 0) {*(getInstance().logfile) << "[PluMA] Plugin dependency " << plugin << " not met.  Exiting..." << std::endl;  exit(1);}
+                                                  else {*(getInstance().logfile) << "[PluMA] Plugin dependency " << plugin << " met." << std::endl;}}
 
    private:
       std::ofstream* logfile;
 };
 
 //static __declspec(dllexport) PluginManager pluginManager;
+
+//   PluginManager::getInstance().log(msg);
+//}
 
 #endif 

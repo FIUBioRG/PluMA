@@ -32,7 +32,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include "Plugin.h"
-#include "PluginManager.h"
+//#include "PluginManager.h"
 #include "PluginProxy.h"
 #include "languages/Compiled.h"
 #include "languages/Py.h"
@@ -144,6 +144,9 @@ int main(int argc, char** argv)
       }
       for (int i = 0; i < supported.size(); i++)
          supported[i]->loadPlugin(path, &globbuf, &pluginLanguages, list);
+      std::map<std::string, std::string>::iterator itr;
+      for (itr = pluginLanguages.begin(); itr != pluginLanguages.end(); itr++) 
+           PluginManager::getInstance().add(itr->first.substr(0, itr->first.length()-6));
       globfree(&globbuf);
       pluginpath = pluginpath.substr(pluginpath.find_first_of(":")+1, pluginpath.length());
       path = pluginpath.substr(0, pluginpath.find_first_of(":"));
@@ -176,7 +179,6 @@ int main(int argc, char** argv)
    bool restartFlag = false;
    std::string prefix = "";
    while (!infile.eof()) {
-      std::cout << "READING FILE" << std::endl;
       ///////////////////////////////////////////////////////
       // Read one line
       // Plugin (Name) inputfile (input file) outputfile (output file)
@@ -207,6 +209,7 @@ int main(int argc, char** argv)
          bool executed = false;
          for (int i = 0; i < supported.size() && !executed; i++)
             if (pluginLanguages[name+"Plugin"] == supported[i]->lang()) {
+               std::cout << "[PluMA] Running Plugin: " << name << std::endl;
                supported[i]->executePlugin(name, inputname, outputname);
                executed = true;
             }

@@ -33,7 +33,26 @@
 #ifdef HAVE_PERL
 #include <EXTERN.h>
 #include <perl.h>
+
+EXTERN_C void xs_init (pTHX);
+
+EXTERN_C void boot_DynaLoader (pTHX_ CV* cv);
+
+EXTERN_C void
+xs_init(pTHX)
+{
+    static const char file[] = __FILE__;
+    dXSUB_SYS;
+    PERL_UNUSED_CONTEXT;
+
+    /* DynaLoader is a special case */
+    newXS("DynaLoader::boot_DynaLoader", boot_DynaLoader, file);
+}
+
+
 static PerlInterpreter *my_perl;
+
+
 #endif
 
 Perl::Perl(std::string language, std::string ext, std::string pp) : Language(language, ext, pp) {} 
@@ -66,8 +85,10 @@ void Perl::executePlugin(std::string pluginname, std::string inputname, std::str
             PERL_SYS_INIT3(&argc2,&argv2,&env);
             my_perl = perl_alloc();
             perl_construct(my_perl);
-            perl_parse(my_perl, NULL, argc2, argv2, NULL);
+            perl_parse(my_perl, xs_init, argc2, argv2, NULL);
+            //perl_parse(my_perl, NULL, argc2, argv2, NULL);
             PL_exit_flags |= PERL_EXIT_DESTRUCT_END;
+            //eval_pv("use lib \'.\';", TRUE);
             /*** skipping perl_run() ***/
             PluginManager::getInstance().log("Executing input() For Perl Plugin "+pluginname);
             call_argv("input", G_DISCARD, args_input);
