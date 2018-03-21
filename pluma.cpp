@@ -184,7 +184,11 @@ int main(int argc, char** argv)
       infile >> junk;
       if (junk[0] == '#') {getline(infile, junk); continue;} // comment
       else if (junk == "Prefix") {infile >> prefix; prefix += "/"; continue;} // prefix
-      else infile >> name >> junk >> inputname >> junk >> outputname;  
+      else infile >> name >> junk >> inputname >> junk >> outputname;
+      if (inputname[0] != '/')
+         inputname = prefix + inputname;
+      if (outputname[0] != '/')
+         outputname = prefix + outputname;  
       //////////////////////////////////////////////////////
 
       ////////////////////////////////////////////////////////////////////////////
@@ -203,7 +207,7 @@ int main(int argc, char** argv)
          bool executed = false;
          for (int i = 0; i < supported.size() && !executed; i++)
             if (pluginLanguages[name+"Plugin"] == supported[i]->lang()) {
-               supported[i]->executePlugin(name, prefix+inputname, prefix+outputname);
+               supported[i]->executePlugin(name, inputname, outputname);
                executed = true;
             }
          ///////////////////////////////////////////////////////////////////////////////////////////////////////
