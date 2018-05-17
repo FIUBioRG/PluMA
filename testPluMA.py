@@ -96,11 +96,17 @@ for plugin in plugins:
            if (outputfile != "none"):
               outputfile = "plugins/"+plugin+"/example/" + outputfile
               expected = outputfile+".expected"  # Get expected output
-              os.system("./pluma plugins/"+plugin+"/example/config.txt > /dev/null 2>&1") # Run PluMA
-              result = filecmp.cmp(outputfile, expected) # Compare expected and actual output
-              if (not result):
-                 err("Output does not match expected")
+              if (not os.path.exists(expected)):
+                 warn("No expected output present")
               else:
-                 passed()
+                 os.system("./pluma plugins/"+plugin+"/example/config.txt > plugins/"+plugin+"/example/pluma_output.txt 2 >& 1") # Run PluMA
+                 if (not os.path.exists(outputfile)):
+                    err("Output file did not generate, see example/pluma_output.txt")
+                 else:
+                     result = filecmp.cmp(outputfile, expected) # Compare expected and actual output
+                     if (not result):
+                        err("Output does not match expected")
+                     else:
+                        passed()
            else:
               warn("Screen output test not implemented yet")
