@@ -47,8 +47,6 @@ void Py::executePlugin(std::string pluginname, std::string inputname, std::strin
       std::string tmppath = pluginpath;
       std::string path = tmppath.substr(0, pluginpath.find_first_of(":"));
       while (path.length() > 0) {
-         std::cout << "Plugin Path: " << tmppath << std::endl;
-         std::cout << "Python Path: " << path << std::endl;
          PyRun_SimpleString(("sys.path.append(\""+path+pluginname+"/\")").c_str());
          PyRun_SimpleString(("sys.path.append(\""+path+"/\")").c_str());
          tmppath = tmppath.substr(tmppath.find_first_of(":")+1, tmppath.length());

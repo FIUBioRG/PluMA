@@ -99,7 +99,7 @@ int main(int argc, char** argv)
    pluginpath += ":";
    //pluginpath += "/usr/local/bin/plugins/:/usr/bin/plugins/";
    //pluginpath += ":";
-   std::cout << "PluginPath: " << pluginpath << std::endl;
+   //std::cout << "PluginPath: " << pluginpath << std::endl;
    ///////////////////////////////////////////////////////////////////////////////////////////////
 
    /////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -135,8 +135,8 @@ int main(int argc, char** argv)
    std::string path = pluginpath.substr(0, pluginpath.find_first_of(":"));
    bool list = false;
    while (path.length() > 0) {
-      std::cout << "Plugin Path: " << pluginpath << std::endl;
-      std::cout << "Path: " << path << std::endl;
+      //std::cout << "Plugin Path: " << pluginpath << std::endl;
+      //std::cout << "Path: " << path << std::endl;
       glob_t globbuf;
       if (std::string(argv[1]) == "plugins") {
          std::cout << "[PluMA] Current plugin list: " << std::endl;

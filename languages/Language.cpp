@@ -41,7 +41,7 @@ void Language::loadPlugin(std::string path, glob_t* globbuf, std::map<std::strin
         if (pos != std::string::npos) name = filename.substr(pos + prefix.length()+1, filename.length()-pos-prefix.length()-ext_len);
         else name = filename.substr(prefix.length(), filename.length()-pos-ext_len);
         if (name == "__init__") continue;
-        std::cout << "Plugin: " << name.substr(0, name.length()-6) << " Language: " << language << " Path: " << path << std::endl;
+        //std::cout << "Plugin: " << name.substr(0, name.length()-6) << " Language: " << language << " Path: " << path << std::endl;
         if (!list) {
            if (extension == "so") {
               void* handle = dlopen(filename.c_str(), RTLD_LAZY | RTLD_GLOBAL);
