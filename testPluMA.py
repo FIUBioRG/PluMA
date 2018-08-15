@@ -1,6 +1,8 @@
 ############################################################################
 # EXAMPLE OF TEXT FORMATTING OUTPUT IN PYTHON
 import sys
+import glob
+import subprocess
 
 BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN, WHITE = range(8)
 
@@ -51,18 +53,26 @@ def passed():
    printout("[PASSED] ", GREEN)
    print("")
 
+def disabled():
+   printout("[DISABLED] ", BLUE)
+   print("")
+
+def incompat(msg):
+   printout("[INCOMPATIBLE] ", CYAN)
+   print(msg)
+
+def localplugin():
+   printout("[LOCAL] ", MAGENTA)
+   print("")
+
+
+turnedoff = []
+local = ["FilterPathway","PathwayFilter","PhiLR"]
 # Get installed plugins
-plugins = os.listdir("plugins")
-
-
-#print '{:<10}'.format('test'),
-#print '{:>10}'.format('good')
-#print '{:<10}'.format('test'),
-#print '{:>10}'.format('good')
-#print '{:<10}'.format('test'),
-#print '{:>10}'.format('good')
-#print '{:<10}'.format('test'),
-#print '{:>10}'.format('good')
+if (len(sys.argv) > 1):
+   plugins = [sys.argv[1]]
+else:
+   plugins = os.listdir("plugins")
 
 for plugin in plugins:
  if (os.path.isdir("plugins/"+plugin)):
@@ -70,9 +80,13 @@ for plugin in plugins:
    files = os.listdir("plugins/"+plugin)
    print '{:<50}'.format("Testing "+plugin+"..."), 
    sys.stdout.flush()
-   if ("example" not in files):
+   if (plugin in turnedoff):
+       disabled()
+   elif (plugin in local):
+       localplugin()
+   elif ("example" not in files):
        # Test case not present, issue a warning
-       warn("No example directory Installed")
+       warn("No example directory installed")
    elif (not os.path.exists("plugins/"+plugin+"/example/config.txt")):
        # Example exists, but no config file
        warn("No config.txt Present")
@@ -93,20 +107,52 @@ for plugin in plugins:
            warn("Config File Does Not Test Plugin")
        else:
            # File output
-           if (outputfile != "none"):
+           if (os.path.exists("plugins/"+plugin+"/example/interactive")):
+              incompat("User-interactive plugins not supported by tests")
+           elif (outputfile != "none"):
+              #oldoutputfile = outputfile
               outputfile = "plugins/"+plugin+"/example/" + outputfile
-              expected = outputfile+".expected"  # Get expected output
-              if (not os.path.exists(expected)):
+              expect = glob.glob(outputfile+"*.expected")
+              #expected = outputfile+".expected"  # Get expected output
+              #if (not os.path.exists(expected)):
+              if (len(expect) == 0):
                  warn("No expected output present")
               else:
-                 os.system("./pluma plugins/"+plugin+"/example/config.txt > plugins/"+plugin+"/example/pluma_output.txt 2 >& 1") # Run PluMA
+               anyfail = False
+               os.system("./pluma plugins/"+plugin+"/example/config.txt > plugins/"+plugin+"/example/pluma_output.txt 2>/dev/null") # Run PluMA
+               for expected in expect:
+                 outputfile = expected[0:len(expected)-9]
                  if (not os.path.exists(outputfile)):
-                    err("Output file did not generate, see example/pluma_output.txt")
+                    err("Output file "+outputfile+" did not generate, see example/pluma_output.txt")
                  else:
                      result = filecmp.cmp(outputfile, expected) # Compare expected and actual output
                      if (not result):
-                        err("Output does not match expected")
+                        #err("Output "+outputfile+" does not match expected, see example/diff_output.txt")
+                        #print "diff <(sort "+outputfile+") <(sort "+expected+") > plugins/"+plugin+"/example/diff_output.txt"
+                        #os.system("diff <(sort "+outputfile+") <(sort "+expected+") > plugins/"+plugin+"/example/diff_output.txt")  # Run diff
+                        subprocess.call(["bash", "-c", "diff <(sort "+outputfile+") <(sort "+expected+") > plugins/"+plugin+"/example/diff_output.txt"])
+                        diffsize = os.path.getsize("plugins/"+plugin+"/example/diff_output.txt")
+                        if (diffsize > 0):
+                           err("Output "+outputfile+" does not match expected, see example/diff_output.txt")
+                           anyfail = True
+                        else:
+                           os.system("rm plugins/"+plugin+"/example/diff_output.txt")
+                     #else:
+                     #   passed()
+               if (not anyfail):
+                    passed()
+           else:
+              expected = "plugins/"+plugin+"/example/screen.expected"
+              if (not os.path.exists(expected)):
+                 warn("No expected output present")
+              else:
+                     outputfile = "plugins/"+plugin+"/example/pluma_output.txt"
+                     os.system("./pluma plugins/"+plugin+"/example/config.txt > plugins/"+plugin+"/example/pluma_output.txt 2>/dev/null") # Run PluMA
+                     result = filecmp.cmp(outputfile, expected) # Compare expected and actual output
+                     if (not result):
+                        err("Output does not match expected, see example/diff_output.txt")
+                        os.system("diff <(sort "+outputfile+") <(sort "+expected+") > plugins/"+plugin+"/example/diff_output.txt")  # Run diff
                      else:
                         passed()
-           else:
-              warn("Screen output test not implemented yet")
+
+
