@@ -67,7 +67,7 @@ def localplugin():
 
 
 turnedoff = []
-local = ["FilterPathway","PathwayFilter","PhiLR"]
+local = ["CSV2PathwayTools","FilterPathway","PathwayFilter","PhiLR"]
 # Get installed plugins
 if (len(sys.argv) > 1):
    plugins = [sys.argv[1]]
@@ -105,6 +105,7 @@ for plugin in plugins:
                  err("Config File Not Formatted Right")
        if (outputfile == ""):
            warn("Config File Does Not Test Plugin")
+c
        else:
            # File output
            if (os.path.exists("plugins/"+plugin+"/example/interactive")):
