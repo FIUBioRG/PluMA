@@ -29,7 +29,18 @@
 
 #include "R.h"
 //#include "Python.h"
+
+#ifdef _WIN32
+
+#include "../PluginManager.h"
+
+#else
+
 #include "PluginManager.h"
+
+#endif // _WIN32
+
+
 
 namespace MiAMi {
 
