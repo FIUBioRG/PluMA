@@ -15,6 +15,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#define _CRT_SECURE_NO_WARNINGS 1
+
 #include "win32-glob.h"
 #include <stdlib.h>
 #include <stdio.h>

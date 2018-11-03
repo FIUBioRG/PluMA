@@ -1,5 +1,1 @@
-﻿  main.cpp
-c:\users\gbarq004\source\repos\pluma\main.cpp(208): warning C4018: '<': signed/unsigned mismatch
-c:\users\gbarq004\source\repos\pluma\main.cpp(284): warning C4018: '<': signed/unsigned mismatch
-c:\users\gbarq004\source\repos\pluma\main.cpp(315): warning C4018: '<': signed/unsigned mismatch
-c:\users\gbarq004\source\repos\pluma\main.cpp(236): error C4700: uninitialized local variable 'now' used
+﻿  PluMa Windows.vcxproj -> C:\Users\guill\Source\Repos\PluMA\Debug\PluMa Windows.exe
