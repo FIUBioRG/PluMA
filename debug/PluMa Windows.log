@@ -1,1 +1,5 @@
-﻿  PluMa Windows.vcxproj -> C:\Users\guill\Source\Repos\PluMA\Debug\PluMa Windows.exe
+﻿  main.cpp
+c:\users\guill\source\repos\pluma\main.cpp(217): warning C4018: '<': signed/unsigned mismatch
+c:\users\guill\source\repos\pluma\main.cpp(294): warning C4018: '<': signed/unsigned mismatch
+c:\users\guill\source\repos\pluma\main.cpp(325): warning C4018: '<': signed/unsigned mismatch
+  PluMa Windows.vcxproj -> C:\Users\guill\Source\Repos\PluMA\Debug\PluMa Windows.exe
