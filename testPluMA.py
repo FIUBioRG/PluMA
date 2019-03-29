@@ -78,7 +78,7 @@ for plugin in plugins:
  if (os.path.isdir("plugins/"+plugin)):
    # We are going to assume everything to be tested is in plugins/
    files = os.listdir("plugins/"+plugin)
-   print '{:<50}'.format("Testing "+plugin+"..."), 
+   print ('{:<50}'.format("Testing "+plugin+"..."), end='') 
    sys.stdout.flush()
    if (plugin in turnedoff):
        disabled()
@@ -119,17 +119,23 @@ for plugin in plugins:
                  warn("No expected output present")
               else:
                anyfail = False
+               for expected in expect:
+                  outputfile = expected[0:len(expected)-9]
+                  if (os.path.exists(outputfile)):
+                     os.system("rm "+outputfile)  # In case it was there already
                os.system("./pluma plugins/"+plugin+"/example/config.txt > plugins/"+plugin+"/example/pluma_output.txt 2>/dev/null") # Run PluMA
                for expected in expect:
                  outputfile = expected[0:len(expected)-9]
                  if (not os.path.exists(outputfile)):
                     err("Output file "+outputfile+" did not generate, see example/pluma_output.txt")
+                    anyfail = True
                  else:
                      result = filecmp.cmp(outputfile, expected) # Compare expected and actual output
                      if (not result):
                         #err("Output "+outputfile+" does not match expected, see example/diff_output.txt")
                         #print "diff <(sort "+outputfile+") <(sort "+expected+") > plugins/"+plugin+"/example/diff_output.txt"
                         #os.system("diff <(sort "+outputfile+") <(sort "+expected+") > plugins/"+plugin+"/example/diff_output.txt")  # Run diff
+                        #print outputfile, expected
                         subprocess.call(["bash", "-c", "diff <(sort "+outputfile+") <(sort "+expected+") > plugins/"+plugin+"/example/diff_output.txt"])
                         diffsize = os.path.getsize("plugins/"+plugin+"/example/diff_output.txt")
                         if (diffsize > 0):
@@ -151,6 +157,7 @@ for plugin in plugins:
                      result = filecmp.cmp(outputfile, expected) # Compare expected and actual output
                      if (not result):
                         err("Output does not match expected, see example/diff_output.txt")
+                        #print outputfile, expected
                         os.system("diff <(sort "+outputfile+") <(sort "+expected+") > plugins/"+plugin+"/example/diff_output.txt")  # Run diff
                      else:
                         passed()
