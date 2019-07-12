@@ -55,9 +55,15 @@ if (python == 1):
       env.Append(LIBS = ['rt'])
    # Interface
    if not env.GetOption('clean'):
-     os.system("make -f Makefile.interface PYTHON_INCLUDE="+python_include+" python")
+      if (env['PLATFORM'] == 'darwin'):
+         os.system("make -f Makefile.darwin.interface PYTHON_VERSION="+python_version+" PYTHON_LIB="+python_lib+" PYTHON_INCLUDE="+python_include+" python")
+      else:
+         os.system("make -f Makefile.interface PYTHON_INCLUDE="+python_include+" python")
    else:
-     os.system("make -f Makefile.interface pythonclean")
+     if (env['PLATFORM'] == 'darwin'):
+        os.system("make -f Makefile.darwin.interface pythonclean")
+     else:
+        os.system("make -f Makefile.interface pythonclean")
 ###################################################################
 
 
