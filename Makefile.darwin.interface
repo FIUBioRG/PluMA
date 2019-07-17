@@ -21,7 +21,7 @@ r: PluMA.cpp RPluMA_wrap.cxx
 	#swig -c++ -r -o RPluMA_wrap.cxx RPluMA.i 
 	g++ -std=c++0x ${R_INCLUDE} -DNDEBUG     -g -O2  -fpermissive -fpic  -g -O2 -fstack-protector --param=ssp-buffer-size=4 -Wformat -Wformat-security -Werror=format-security -D_FORTIFY_SOURCE=2 -g  -c RPluMA_wrap.cxx -o RPluMA_wrap.o
 	g++ -std=c++0x ${R_INCLUDE} -DNDEBUG     -g -O2  -fpermissive -fpic  -g -O2 -fstack-protector --param=ssp-buffer-size=4 -Wformat -Wformat-security -Werror=format-security -D_FORTIFY_SOURCE=2 -g  -c PluMA.cpp -o RPluMA.o
-	g++ -std=c++0x -shared -Wl,-Bsymbolic-functions -Wl,-z,relro -o RPluMA.so RPluMA_wrap.o RPluMA.o ${R_LIB} -lR
+	g++ -std=c++0x -shared -o RPluMA.so RPluMA_wrap.o RPluMA.o ${R_LIB} -lR
 
 rclean:
 	rm RPluMA.o RPluMA_wrap.o RPluMA.so
