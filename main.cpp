@@ -1,30 +1,34 @@
 /********************************************************************************\
 
-       Microbiome Analysis Using Signatures for Undocumented Microbes (MiAMi)
+                   Plugin-based Microbiome Analysis (PluMA)
 
-              Copyright (C) 2016 Bioinformatics Research Group (BioRG)
-                        Florida International University
+        Copyright (C) 2016, 2018 Bioinformatics Research Group (BioRG)
+                       Florida International University
 
-          This program is free software; you can redistribute it and/or
-           modify it under the terms of the GNU General Public License
-          as published by the Free Software Foundation; either version 3
-              of the License, or (at your option) any later version.
 
-         This program is distributed in the hope that it will be useful,
-         but WITHOUT ANY WARRANTY; without even the implied warranty of
-         MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-                GNU General Public License for more details.
+     Permission is hereby granted, free of charge, to any person obtaining 
+          a copy of this software and associated documentation files 
+        (the "Software"), to deal in the Software without restriction, 
+      including without limitation the rights to use, copy, modify, merge, 
+      publish, distribute, sublicense, and/or sell copies of the Software, 
+       and to permit persons to whom the Software is furnished to do so, 
+                    subject to the following conditions:
 
-         You should have received a copy of the GNU General Public License
-            along with this program; if not, write to the Free Software
-           Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
-                             02110-1335, USA.
+    The above copyright notice and this permission notice shall be included 
+            in all copies or substantial portions of the Software.
+
+        THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, 
+      EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF 
+    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. 
+     IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY 
+     CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, 
+      TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE 
+           SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
        For information regarding this software, please contact lead architect
                     Trevor Cickovski at tcickovs@fiu.edu
 
 \*********************************************************************************/
-
 
 #include <glob.h>
 #include <dlfcn.h>
@@ -66,7 +70,7 @@ int main(int argc, char** argv)
    std::cout << "***********************************************************************************" << std::endl;
    std::cout << "*                                                                                 *" << std::endl;
    std::cout << "*  PPPPPPPPPPPP    L               U           U   M           M         A        *" << std::endl;
-   std::cout << "*  P           P   L               U           U   M          MM        A A       *" << std::endl;
+   std::cout << "*  P           P   L               U           U   MM         MM        A A       *" << std::endl;
    std::cout << "*  P           P   L               U           U   M M       M M       A   A      *" << std::endl;
    std::cout << "*  P           P   L               U           U   M  M     M  M      A     A     *" << std::endl;
    std::cout << "*  P           P   L               U           U   M   M   M   M     A       A    *" << std::endl;
@@ -77,14 +81,14 @@ int main(int argc, char** argv)
    std::cout << "*  P               LLLLLLLLLLLLL    UUUUUUUUUUU    M           M   A           A  *" << std::endl;
    std::cout << "*                                                                                 *" << std::endl;
    std::cout << "*            [Plu]gin-based [M]icrobiome [A]nalysis (formerly MiAMi)              *" << std::endl;
-   std::cout << "*    (C) 2016 Bioinformatics Research Group, Florida International University     *" << std::endl;
+   std::cout << "* (C) 2016, 2018 Bioinformatics Research Group, Florida International University  *" << std::endl;
    std::cout << "*    Under MIT License From Open Source Initiative (OSI), All Rights Reserved.    *" << std::endl;
    std::cout << "*                                                                                 *" << std::endl;
    std::cout << "*    Any professionally published work using PluMA should cite the following:     *" << std::endl;
-   std::cout << "*    T. Cickovski, V. Aguiar-Pulido, W. Huang, S. Mahmoud and G. Narasimhan.      *" << std::endl;
-   std::cout << "*         Lightweight Microbiome Analysis Pipelines.  In Proceedings of           *" << std::endl;
-   std::cout << "* 4th International Work-Conference on Bioinformatics and Biomedical Engineering  *" << std::endl;
-   std::cout << "*                   (IWBBIO16), Granada, Spain, April 2016.                       *" << std::endl;  
+   std::cout << "*                        T. Cickovski and G. Narasimhan.                          *" << std::endl;
+   std::cout << "*                Constructing Lightweight and Flexible Pipelines                  *" << std::endl;
+   std::cout << "*                 Using Plugin-Based Microbiome Analysis (PluMA)                  *" << std::endl;
+   std::cout << "*                     Bioinformatics 34(17):2881-2888, 2018                       *" << std::endl;  
    std::cout << "*                                                                                 *" << std::endl;
    std::cout << "***********************************************************************************" << std::endl;
 
