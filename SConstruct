@@ -86,9 +86,15 @@ if (r==1):
    env.Append(LIBS = ['R'])
    env.Append(LIBS = ['RInside'])
    if not env.GetOption('clean'):
-     os.system("make -f Makefile.interface R_INCLUDE=-I"+r_include+" R_LIB=-L"+r_lib+" r")
+     if (env['PLATFORM'] == 'darwin'):
+        os.system("make -f Makefile.darwin.interface R_INCLUDE=-I"+r_include+" R_LIB=-L"+r_lib+" r")
+     else:
+        os.system("make -f Makefile.interface R_INCLUDE=-I"+r_include+" R_LIB=-L"+r_lib+" r")
    else:
-     os.system("make -f Makefile.interface rclean")
+     if (env['PLATFORM'] == 'darwin'):
+        os.system("make -f Makefile.darwin.interface rclean")
+     else:
+        os.system("make -f Makefile.interface rclean")
 ###################################################################
 
 ###################################################################
@@ -135,9 +141,11 @@ if (perl==1):
    env.Append(LIBS = ['m'])
    env.Append(LIBS = ['pthread'])
    env.Append(LIBS = ['c'])
-   env.Append(LIBS = ['crypt'])
+   if (env['PLATFORM'] != 'darwin'):
+      env.Append(LIBS = ['crypt'])
    env.Append(LIBS = ['util'])
-   env.Append(LIBS = ['nsl'])
+   if (env['PLATFORM'] != 'darwin'):
+      env.Append(LIBS = ['nsl'])
    env.Append(CCFLAGS = '-DREENTRANT')
    env.Append(CCFLAGS = '-D_GNU_SOURCE')
    env.Append(CCFLAGS = '-DDEBIAN')
@@ -151,9 +159,15 @@ if (perl==1):
 
    # Interface
    if not env.GetOption('clean'):
-     os.system("make -f Makefile.interface perl")
+     if (env['PLATFORM'] == 'darwin'):
+        os.system("make -f Makefile.darwin.interface perl")
+     else:
+        os.system("make -f Makefile.interface perl")
    else:
-     os.system("make -f Makefile.interface perlclean")
+     if (env['PLATFORM'] == 'darwin'):
+        os.system("make -f Makefile.darwin.interface perlclean")
+     else:
+        os.system("make -f Makefile.interface perlclean")
 ###################################################################
 # Finally, compile!
 
