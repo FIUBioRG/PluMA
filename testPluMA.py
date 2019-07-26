@@ -5,6 +5,7 @@ import glob
 import subprocess
 
 BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN, WHITE = range(8)
+EPS=1e-8
 
 #following from Python cookbook, #475186
 def has_colours(stream):
@@ -21,6 +22,61 @@ def has_colours(stream):
         return False
 has_colours = has_colours(sys.stdout)
 
+
+def is_number(s):
+   try:
+      float(s)
+      return True
+   except ValueError:
+      return False
+
+def check(file1, file2, filetype):
+   noa1 = open(file1, 'r')
+   noa2 = open(file2, 'r')
+
+   lines1 = []
+   lines2 = []
+   for line in noa1:
+      lines1.append(line)
+
+   for line in noa2:
+      lines2.append(line)
+
+   lines1.sort()
+   lines2.sort()
+
+   if (len(lines1) != len(lines2)):
+      return False
+   else:
+      for i in range(0, len(lines1)):
+         if (filetype == "CSV"):
+            data1 = lines1[i].split(',')
+            data2 = lines2[i].split(',')
+         else:
+            data1 = lines1[i].split()
+            data2 = lines2[i].split()
+         if (len(data1) != len(data2)):
+            return False
+         else:
+            for j in range(0, len(data1)):
+               if (not is_number(data1[j])):
+                  if data1[j] != data2[j]:
+                     return False
+               else:
+                  print(data1[j])
+                  print(data2[j])
+                  print(abs(float(data2[j])-float(data1[j])))
+                  if (abs(float(data2[j])-float(data1[j])) > EPS): 
+                     return False
+            return True
+
+
+
+def checkAccuracy(file1, file2):
+   if (file1.endswith("csv")):
+      return check(file1, file2, "CSV")
+   elif (file1.endswith("noa")):
+      return check(file1, file2, "NOA")
 
 def printout(text, colour=WHITE):
         if has_colours:
@@ -139,8 +195,9 @@ for plugin in plugins:
                         subprocess.call(["bash", "-c", "diff <(sort "+outputfile+") <(sort "+expected+") > plugins/"+plugin+"/example/diff_output.txt"])
                         diffsize = os.path.getsize("plugins/"+plugin+"/example/diff_output.txt")
                         if (diffsize > 0):
-                           err("Output "+outputfile+" does not match expected, see example/diff_output.txt")
-                           anyfail = True
+                           if (not checkAccuracy(outputfile, expected)):
+                              err("Output "+outputfile+" does not match expected, see example/diff_output.txt")
+                              anyfail = True
                         else:
                            os.system("rm plugins/"+plugin+"/example/diff_output.txt")
                      #else:
