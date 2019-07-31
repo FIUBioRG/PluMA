@@ -51,7 +51,6 @@ void R::executePlugin(std::string pluginname, std::string inputname, std::string
         do {
            if (infile) delete infile;
            infile = new std::ifstream(path+"/"+pluginname+"/"+pluginname+"Plugin.R", std::ios::in);
-           std::cout << "INFILE: " << path+"/"+pluginname+"/"+pluginname+"Plugin.R" << std::endl;
            tmppath = tmppath.substr(tmppath.find_first_of(":")+1, tmppath.length());
            path = tmppath.substr(0, tmppath.find_first_of(":"));
         } while (!(*infile) && path.length() > 0);// {
@@ -70,7 +69,6 @@ void R::executePlugin(std::string pluginname, std::string inputname, std::string
         txt += "input(\"" + inputname + "\");\n";
         txt += "run();";
         txt += "output(\"" + outputname + "\");\n";
-
         myR->parseEvalQ(txt);
         PluginManager::getInstance().log("R Plugin "+pluginname+" completed successfully.");
 
