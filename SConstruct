@@ -51,7 +51,7 @@ if (python == 1):
    env.Append(CCFLAGS = '-DHAVE_PYTHON')
    env.Append(LIBS = ['pthread'])
    env.Append(LIBS = ['util'])
-   if (python_version[0] == '3'):
+   if (python_version[0] == '3' and env['PLATFORM'] != 'darwin'):
       env.Append(LIBS = ['rt'])
    # Interface
    if not env.GetOption('clean'):
