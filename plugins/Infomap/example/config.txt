@@ -1,0 +1,2 @@
+Prefix plugins/Infomap/example
+Plugin Infomap inputfile ninetriangles.net outputfile output
