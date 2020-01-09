@@ -40,8 +40,14 @@ class Perl : public Language {
 
    public:
       Perl(std::string language, std::string ext, std::string pp);
+      ~Perl();
       void executePlugin(std::string pluginname, std::string inputname, std::string outputname);
       void unload() {} // Empty
+
+   private:
+      char** env;
+      int argc2;
+      char** argv2;    
 };
 
 
