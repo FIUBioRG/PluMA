@@ -63,9 +63,6 @@ def check(file1, file2, filetype):
                   if data1[j] != data2[j]:
                      return False
                else:
-                  print(data1[j])
-                  print(data2[j])
-                  print(abs(float(data2[j])-float(data1[j])))
                   if (abs(float(data2[j])-float(data1[j])) > EPS): 
                      return False
             return True
@@ -121,8 +118,8 @@ def localplugin():
    printout("[LOCAL] ", MAGENTA)
    print("")
 
-
 turnedoff = []
+#turnedoff = ['SparCC', 'Ensemble']
 local = ["CSV2PathwayTools","EM","FilterPathway","PathwayFilter","PhiLR"]
 # Get installed plugins
 if (len(sys.argv) > 1):
@@ -168,7 +165,8 @@ for plugin in plugins:
            elif (outputfile != "none"):
               #oldoutputfile = outputfile
               outputfile = "plugins/"+plugin+"/example/" + outputfile
-              expect = glob.glob(outputfile+"*.expected")
+              #expect = glob.glob(outputfile+"*.expected")
+              expect = glob.glob("plugins/"+plugin+"/example/*.expected")
               #expected = outputfile+".expected"  # Get expected output
               #if (not os.path.exists(expected)):
               if (len(expect) == 0):

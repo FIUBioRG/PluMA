@@ -202,9 +202,28 @@ for folder in pluginpath:
    for sconscript in sconscripts:
      SConscript(sconscript, exports=toExport)
    #print "DONE"
+ cur_folder = ''
+ firsttime = True
  for plugin in pluginlist_cpp:
+   if (plugin.get_dir() != cur_folder):  # New context
+    if (not firsttime):
+      if (len(pluginName) == 0):
+         print("WARNING: NULL PLUGIN IN FOLDER: "+folder+", IGNORING")
+      else:
+         x = envPlugin.SharedLibrary(pluginName, sourcefiles)
+    cur_folder = plugin.get_dir()
+    pluginName = ''
+    sourcefiles = []
+   firsttime = False
+   filename = plugin.get_path()
+   if (filename.endswith('Plugin.cpp')):
+      pluginName = filename[0:filename.find('.cpp')]
+   sourcefiles.append(filename)
+ if (len(pluginName) == 0):
+         print("WARNING: NULL PLUGIN IN FOLDER: "+folder+", IGNORING")
+ else:
+         x = envPlugin.SharedLibrary(pluginName, sourcefiles)
    #print plugin
-   x = envPlugin.SharedLibrary(source=plugin)
    #print x
 ######################################################
 ######################################################
@@ -221,13 +240,65 @@ if (docuda==1):
      #for sconscript in sconscripts:
      #  SConscript(sconscript, exports='envPluginCUDA')
      #print "DONE"
+   cur_folder = ''
+   firsttime = True
    for plugin in pluginlist_cu:
-      envPluginCUDA.Object(source=plugin)
-      pluginname = plugin.path[0:len(plugin.path)-3]
-      pluginfile = plugin.name[0:len(plugin.name)-3]
-      sharedpluginname = pluginname.replace(pluginfile, 'lib'+pluginfile)
-      envPluginCUDA.Command(sharedpluginname+".so", pluginname+".o", "nvcc -o $TARGET -shared $SOURCE")
+     if (plugin.get_dir() != cur_folder):  # New context
+      if (not firsttime):
+        if (len(sharedpluginname) == 0):
+         print("WARNING: NULL PLUGIN IN FOLDER: "+folder+", IGNORING")
+        else:
+         x = envPluginCUDA.Command(sharedpluginname+".so", sourcefiles, "nvcc -o $TARGET -shared "+srcstring+"-std=c++11 -arch=sm_30 --ptxas-options=-v -Xcompiler -fpic -I"+os.environ['PWD'])
+      cur_folder = plugin.get_dir()
+      sharedpluginname = ''
+      sourcefiles = []
+      srcstring = ''
+     firsttime = False
+     filename = plugin.get_path()
+     if (filename.endswith('Plugin.cu')):
+       name = filename.replace(str(plugin.get_dir()), '')
+       sharedpluginname = str(plugin.get_dir())+"/lib"+name[1:name.find('.cu')]
+     sourcefiles.append(filename)
+     srcstring += filename+' '
+   if (len(sharedpluginname) == 0):
+         print("WARNING: NULL PLUGIN IN FOLDER: "+folder+", IGNORING")
+   else:
+         x = envPluginCUDA.Command(sharedpluginname+".so", sourcefiles, "nvcc -o $TARGET -shared "+srcstring+"-std=c++11 -arch=sm_30 --ptxas-options=-v -Xcompiler -fpic -I"+os.environ['PWD'])
+
+
+      #envPluginCUDA.Object(source=plugin)
+      #pluginname = plugin.path[0:len(plugin.path)-3]
+      #pluginfile = plugin.name[0:len(plugin.name)-3]
+      #sharedpluginname = pluginname.replace(pluginfile, 'lib'+pluginfile)
+      #envPluginCUDA.Command(sharedpluginname+".so", pluginname+".o", "nvcc -o $TARGET -shared $SOURCE")
 #####################################################
+
+ cur_folder = ''
+ firsttime = True
+ for plugin in pluginlist_cpp:
+   if (plugin.get_dir() != cur_folder):  # New context
+    if (not firsttime):
+      if (len(pluginName) == 0):
+         print("WARNING: NULL PLUGIN IN FOLDER: "+folder+", IGNORING")
+      else:
+         x = envPlugin.SharedLibrary(pluginName, sourcefiles)
+    cur_folder = plugin.get_dir()
+    pluginName = ''
+    sourcefiles = []
+   firsttime = False
+   filename = plugin.get_path()
+   if (filename.endswith('Plugin.cpp')):
+      pluginName = filename[0:filename.find('.cpp')]
+   sourcefiles.append(filename)
+ if (len(pluginName) == 0):
+         print("WARNING: NULL PLUGIN IN FOLDER: "+folder+", IGNORING")
+ else:
+         x = envPlugin.SharedLibrary(pluginName, sourcefiles)
+
+
+
+
+
 
 # Main Executable
 folder_sets = [['.', 'languages'], ['PluGen']] 
