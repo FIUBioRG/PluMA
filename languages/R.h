@@ -37,8 +37,10 @@
 #include "Language.h"
 
 #ifdef HAVE_R
-#include "RInside.h"
+class RInside;
+//#include "RInside.h"
 #endif
+
 
 namespace MiAMi {
 
