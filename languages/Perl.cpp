@@ -60,18 +60,31 @@ static PerlInterpreter *my_perl;
 
 #endif
 
-Perl::Perl(std::string language, std::string ext, std::string pp) : Language(language, ext, pp) {} 
+Perl::Perl(std::string language, std::string ext, std::string pp) : Language(language, ext, pp) {
+   argc2 = 2;
+   argv2 = new char*[2];
+   PERL_SYS_INIT3(&argc2, &argv2, &env);
+   //my_perl = perl_alloc();
+   //perl_construct(my_perl);
+} 
 
+Perl::~Perl() {
+            if (argv2) delete[] argv2;
+            PERL_SYS_TERM();
+}
 
 void Perl::executePlugin(std::string pluginname, std::string inputname, std::string outputname) {
 #ifdef HAVE_PERL
+            //PerlInterpreter *my_perl;
             PluginManager::getInstance().log("Trying to run Perl plugin: "+pluginname+"."); 
-            char** env;
-            int argc2 = 2;
-            char *args_input[] = { (char*) inputname.c_str() };
+            //char** env;
+            //int argc2 = 2;
+            char *args_input[] = { (char*) inputname.c_str(), NULL };
+            //char* args_input[1];
+            //args_input[0] = (char*) inputname.c_str();
             char *args_run[] = { NULL };
-            char *args_output[] = { (char*) outputname.c_str() };
-            char **argv2 = new char*[2];
+            char *args_output[] = { (char*) outputname.c_str(), NULL };
+            //char **argv2 = new char*[2];
             std::string tmppath = pluginpath;
             std::string path = tmppath.substr(0, pluginpath.find_first_of(":"));
             std::string filename;
@@ -85,9 +98,10 @@ void Perl::executePlugin(std::string pluginname, std::string inputname, std::str
             } while (!(*infile) && path.length() > 0);// {
             delete infile;
             //argv2[1] = (char*) ("plugins/"+pluginname+"/"+pluginname+"Plugin.pl").c_str();
+            argv2[0] = "";
             argv2[1] = (char*) filename.c_str();
-
-            PERL_SYS_INIT3(&argc2,&argv2,&env);
+            //printf("%s\n", args_input[0]);
+            //PERL_SYS_INIT3(&argc2,&argv2,&env);
             my_perl = perl_alloc();
             perl_construct(my_perl);
             perl_parse(my_perl, xs_init, argc2, argv2, NULL);
@@ -103,7 +117,7 @@ void Perl::executePlugin(std::string pluginname, std::string inputname, std::str
             call_argv("output", G_DISCARD, args_output);
             perl_destruct(my_perl);
             perl_free(my_perl);
-            PERL_SYS_TERM();
+            //PERL_SYS_TERM();
             PluginManager::getInstance().log("Perl Plugin "+pluginname+" completed successfully.");
 #endif
 
