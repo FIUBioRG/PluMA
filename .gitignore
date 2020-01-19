@@ -279,3 +279,5 @@ Cargo.lock
 **/*.rs.bk
 
 # End of https://www.gitignore.io/api/c,r,c++,cuda,perl,python,rust
+.sconsign.dblite
+.env

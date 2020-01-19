@@ -1,27 +1,44 @@
+# Copyright (C) Florida International University 2017-2019
+# SPDX-License-Identifier: MIT
+
+CC ?= gcc
+CXX ?= g++
+
+CFLAGS ?= ""
+CXXFLAGS ?= -std=c++11 -fPIC -g -O2
+LDFLAGS ?= ""
+LDDLFLAGS ?= ""
+
+.PHONY: all clean perl python r
+
+all: perl python r
 
 perl: PluMA.cpp PerlPluMA_wrap.cxx
 	#swig -perl5 -c++ -o PerlPluMA_wrap.cxx PerlPluMA.i
-	g++ -c `perl -MConfig -e 'print join(" ", @Config{qw(ccflags optimize cccdlflags)}, "-I$$Config{archlib}/CORE")'` PluMA.cpp -std=c++0x -o PerlPluMA.o
-	g++ -c `perl -MConfig -e 'print join(" ", @Config{qw(ccflags optimize cccdlflags)}, "-I$$Config{archlib}/CORE")'` PerlPluMA_wrap.cxx -std=c++0x -o PerlPluMA_wrap.o
-	g++ `perl -MConfig -e 'print $$Config{lddlflags}'` PerlPluMA.o PerlPluMA_wrap.o -o PerlPluMA.so
+	$(CXX) $(CXXFLAGS) -c `perl -MConfig -e 'print join(" ", @Config{qw(ccflags optimize cccdlflags)}, "-I$$Config{archlib}/CORE")'` PluMA.cpp -o PerlPluMA.o
+	$(CXX) $(CXXFLAGS) -c `perl -MConfig -e 'print join(" ", @Config{qw(ccflags optimize cccdlflags)}, "-I$$Config{archlib}/CORE")'`  PerlPluMA_wrap.cxx -o PerlPluMA_wrap.o
+	$(CXX) `perl -MConfig -e 'print $$Config{lddlflags}'` $(CXXFLAGS) $(LDFLAGS) PerlPluMA.o PerlPluMA_wrap.o -o PerlPluMA.so
 
 perlclean:
 	rm PerlPluMA.o PerlPluMA_wrap.o PerlPluMA.so
 
 python: PluMA.cpp PyPluMA_wrap.cxx
 	#swig -python -c++ -o PyPluMA_wrap.cxx PyPluMA.i
-	g++ -fPIC -c PluMA.cpp ${PYTHON_INCLUDE} -std=c++0x -o PyPluMA.o
-	g++ -fPIC -c PyPluMA_wrap.cxx ${PYTHON_INCLUDE} -std=c++0x  -o PyPluMA_wrap.o
-	g++ -shared PyPluMA.o PyPluMA_wrap.o -o _PyPluMA.so
+	$(CXX) $(CXXFLAGS) -c PluMA.cpp ${PYTHON_INCLUDE} -o PyPluMA.o
+	$(CXX) $(CXXFLAGS) -c PyPluMA_wrap.cxx ${PYTHON_INCLUDE} -o PyPluMA_wrap.o
+	$(CXX) $(CXXFLAGS) -shared PyPluMA.o PyPluMA_wrap.o -o _PyPluMA.so
 
 pythonclean:
 	rm PyPluMA.o PyPluMA_wrap.o _PyPluMA.so
 
 r: PluMA.cpp RPluMA_wrap.cxx
-	#swig -c++ -r -o RPluMA_wrap.cxx RPluMA.i 
-	g++ -std=c++0x ${R_INCLUDE} -DNDEBUG     -g -O2  -fpermissive -fpic  -g -O2 -fstack-protector --param=ssp-buffer-size=4 -Wformat -Wformat-security -Werror=format-security -D_FORTIFY_SOURCE=2 -g  -c RPluMA_wrap.cxx -o RPluMA_wrap.o
-	g++ -std=c++0x ${R_INCLUDE} -DNDEBUG     -g -O2  -fpermissive -fpic  -g -O2 -fstack-protector --param=ssp-buffer-size=4 -Wformat -Wformat-security -Werror=format-security -D_FORTIFY_SOURCE=2 -g  -c PluMA.cpp -o RPluMA.o
-	g++ -std=c++0x -shared -Wl,-Bsymbolic-functions -Wl,-z,relro -o RPluMA.so RPluMA_wrap.o RPluMA.o ${R_LIB} -lR
+	#swig -c++ -r -o RPluMA_wrap.cxx RPluMA.
+	CXXFLAGS = "-DNDEBUG -fpermissive -fstack-protector --param=ssp-buffer-size=4 -Wformat -Wformat-security -Werror=format-security -D_FORTIFY_SOURCE=2 $(CXXFLAGS)"
+	$(CXX) $(CXXFLAGS) ${R_INCLUDE} -c RPluMA_wrap.cxx -o RPluMA_wrap.o
+	$(CXX) $(CXXFLAGS) ${R_INCLUDE} -c PluMA.cpp -o RPluMA.o
+	$(CXX) $(CXXFLAGS) ${R_INCLUDE} $(LDFLAGS) $(LDDLFLAGS) $(R_LIB) -lR -shared -Wl,-Bsymbolic-functions -Wl,-z,relro -o RPluMA.so RPluMA_wrap.o RPluMA.o
 
 rclean:
 	rm RPluMA.o RPluMA_wrap.o RPluMA.so
+
+clean: perlclean pythonclean rclean

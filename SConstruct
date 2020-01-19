@@ -82,6 +82,7 @@ if (r==1):
    env.Append(CCFLAGS = '-I'+rcpp_include)
    env.Append(LIBPATH = [r_lib])
    env.Append(LIBPATH = [rinside_lib])
+   env.Append(rpath = ','+rinside_lib)
    env.Append(CCFLAGS = '-DHAVE_R')
    env.Append(LIBS = ['R'])
    env.Append(LIBS = ['RInside'])
@@ -89,7 +90,7 @@ if (r==1):
      if (env['PLATFORM'] == 'darwin'):
         os.system("make -f Makefile.darwin.interface R_INCLUDE=-I"+r_include+" R_LIB=-L"+r_lib+" r")
      else:
-        os.system("make -f Makefile.interface R_INCLUDE=-I"+r_include+" R_LIB=-L"+r_lib+" r")
+        os.system("make -f Makefile.interface R_INCLUDE=-I"+r_include+" R_LIB=-L"+r_lib+" rpath=,"+rinside_lib+" r")
    else:
      if (env['PLATFORM'] == 'darwin'):
         os.system("make -f Makefile.darwin.interface rclean")
@@ -105,7 +106,7 @@ if (docuda==1):
    envPluginCUDA.Tool('cuda')
    envPluginCUDA.Append(NVCCFLAGS = '-I'+os.environ['PWD'])
    envPluginCUDA.Append(NVCCFLAGS = ['-arch=sm_30'])
-   envPluginCUDA.Append(NVCCFLAGS = ['--ptxas-options=-v']) 
+   envPluginCUDA.Append(NVCCFLAGS = ['--ptxas-options=-v'])
    envPluginCUDA.Append(NVCCFLAGS = ['-std=c++11'])
    envPluginCUDA.Append(NVCCFLAGS = ['-Xcompiler'])
    envPluginCUDA.Append(NVCCFLAGS = ['-fpic'])
@@ -128,7 +129,7 @@ if (perl==1):
    else:
       perl_include = getEnvVar('PERL_INCLUDE_DIR', '/usr/perl'+getversion[5]+'/'+perlversion+'.0/'+perlarch+'/CORE')
    perl_lib = getEnvVar('PERL_LIB_DIR', perl_include)
-   
+
    env.Append(LIBPATH = [perl_lib])
    env.Append(CCFLAGS = '-I'+perl_include)
    env.Append(CCFLAGS = '-DHAVE_PERL')
@@ -295,13 +296,8 @@ if (docuda==1):
  else:
          x = envPlugin.SharedLibrary(pluginName, sourcefiles)
 
-
-
-
-
-
 # Main Executable
-folder_sets = [['.', 'languages'], ['PluGen']] 
+folder_sets = [['.', 'languages'], ['PluGen']]
 sources = [[], []]
 targets = ['pluma', 'PluGen/plugen']
 
@@ -310,7 +306,7 @@ for i in range(0,len(targets)):
       env.Append(CCFLAGS = '-I'+folder)
       sources[i].append(Glob(folder+'/*.cpp'))
    #print "ST: ", sources[i], targets[i]
-   env.Program(source=sources[i], target=targets[i])   
+   env.Program(source=sources[i], target=targets[i])
 
 #for folder in folders:
 #   env.Append(CCFLAGS = '-I'+folder)
