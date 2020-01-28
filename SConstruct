@@ -13,6 +13,11 @@ def getEnvVar(name, default):
 # Gets the environment variables set by the user
 env = Environment(ENV = os.environ)
 envPlugin = Environment(ENV = os.environ)
+env.Append(CC = os.getenv("CC", "gcc"))
+env.Append(CXX = os.getenv("CXX", "g++"))
+env.Append(CFLAGS = os.getenv("CFLAGS", ""))
+env.Append(CXXFLAGS = os.getenv("CXXFLAGS", "-std=c++11 -fPIC -g -O2"))
+env.Append(LDFLAGS = os.getenv("LDFLAGS", ""))
 env.Append(CCFLAGS = '-std=c++0x')
 env.Append(LIBS = ['m', 'dl'])
 if (env['PLATFORM'] != 'darwin'):
@@ -32,6 +37,8 @@ docuda = ARGUMENTS.get('cuda', 1)
 r = ARGUMENTS.get('r', 1)
 perl = ARGUMENTS.get('perl', 1)
 python = ARGUMENTS.get('python', 1)
+
+env.Append(CC = )
 
 ###################################################################
 # USED TO CHECK FOR LIBRARIES
@@ -318,5 +325,3 @@ for i in range(0,len(targets)):
 #env.Program(source=['miami.cpp', Glob('languages/*.cpp')], target='miami')
 
 ###################################################################
-
-

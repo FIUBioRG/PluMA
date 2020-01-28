@@ -1,14 +1,6 @@
 # Copyright (C) Florida International University 2017-2019
 # SPDX-License-Identifier: MIT
 
-CC ?= gcc
-CXX ?= g++
-
-CFLAGS ?= ""
-CXXFLAGS ?= -std=c++11 -fPIC -g -O2
-LDFLAGS ?= ""
-LDDLFLAGS ?= ""
-
 .PHONY: all clean perl python r
 
 all: perl python r
