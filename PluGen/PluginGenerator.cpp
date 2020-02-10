@@ -6,23 +6,23 @@
                        Florida International University
 
 
-     Permission is hereby granted, free of charge, to any person obtaining 
-          a copy of this software and associated documentation files 
-        (the "Software"), to deal in the Software without restriction, 
-      including without limitation the rights to use, copy, modify, merge, 
-      publish, distribute, sublicense, and/or sell copies of the Software, 
-       and to permit persons to whom the Software is furnished to do so, 
+     Permission is hereby granted, free of charge, to any person obtaining
+          a copy of this software and associated documentation files
+        (the "Software"), to deal in the Software without restriction,
+      including without limitation the rights to use, copy, modify, merge,
+      publish, distribute, sublicense, and/or sell copies of the Software,
+       and to permit persons to whom the Software is furnished to do so,
                     subject to the following conditions:
 
-    The above copyright notice and this permission notice shall be included 
+    The above copyright notice and this permission notice shall be included
             in all copies or substantial portions of the Software.
 
-        THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, 
-      EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF 
-    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. 
-     IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY 
-     CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, 
-      TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE 
+        THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+      EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+     IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+     CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+      TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
            SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
        For information regarding this software, please contact lead architect
@@ -47,7 +47,7 @@ PluginGenerator::PluginGenerator(std::string path, bool literal) {
 void PluginGenerator::generate(std::string pluginname, std::vector<std::string>& command) {
    makeDirectory(pluginname);
    makeHeaderFile(pluginname);
-   makeSourceFile(pluginname, command);   
+   makeSourceFile(pluginname, command);
 }
 
 void PluginGenerator::makeDirectory(std::string pluginname) {
@@ -111,7 +111,7 @@ void PluginGenerator::makeSourceFile(std::string pluginname, std::vector<std::st
       cppfile << "   ifile >> key;" << std::endl;
       cppfile << "   ifile >> value;" << std::endl;
       cppfile << "   parameters[key] = value;" << std::endl;
-      cppfile << " }" << std::endl;  
+      cppfile << " }" << std::endl;
    }
    cppfile << "}" << std::endl;
    cppfile << std::endl;
@@ -120,9 +120,9 @@ void PluginGenerator::makeSourceFile(std::string pluginname, std::vector<std::st
    cppfile << "void " << pluginname << "Plugin::output(std::string file) {" << std::endl;
    cppfile << " std::string outputfile = file;" << std::endl;
    cppfile << " std::string myCommand = \"\";" << std::endl;
-    
+
    cppfile << "myCommand += \"" << command[0] << "\";" << std::endl;
-   cppfile << "myCommand += \" \";" << std::endl; 
+   cppfile << "myCommand += \" \";" << std::endl;
    for (int i = 1; i < command.size(); i++) {
       if (myLiteral && command[i] == "inputfile")
          cppfile << "myCommand += inputfile + \" \";" << std::endl;
@@ -155,4 +155,3 @@ void PluginGenerator::makeSourceFile(std::string pluginname, std::vector<std::st
    cppfile << std::endl;
    cppfile << proxycommand << std::endl;
 }
-

@@ -19,7 +19,7 @@ Support
 
 This work was partially supported by grants from the Department of
 Defense Contract W911NF-16-1-0494, NIH grant 1R15AI128714-01,
-and NIJ grant 2017-NE-BX-0001.  
+and NIJ grant 2017-NE-BX-0001.
 
 Additional support provided by the Florida Department of Health (FDOH 09KW-10),
 the Alpha-One Foundation, NVIDIA, The College of Engineering and Computer Science

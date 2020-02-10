@@ -27,43 +27,43 @@
 ######################################################################
 
 dyn.load("RPluMA.so");
-if(length(getClassDef("RSWIGStruct")) == 0) 
+if(length(getClassDef("RSWIGStruct")) == 0)
   setClass("RSWIGStruct", representation("VIRTUAL"))
 
 
 
-if(length(getClassDef("ExternalReference")) == 0) 
+if(length(getClassDef("ExternalReference")) == 0)
 # Should be virtual but this means it loses its slots currently
 #representation("VIRTUAL")
   setClass("ExternalReference", representation( ref = "externalptr"))
 
 
 
-if(length(getClassDef("NativeRoutinePointer")) == 0) 
-  setClass("NativeRoutinePointer", 
+if(length(getClassDef("NativeRoutinePointer")) == 0)
+  setClass("NativeRoutinePointer",
               representation(parameterTypes = "character",
                              returnType = "character",
-                             "VIRTUAL"), 
+                             "VIRTUAL"),
               contains = "ExternalReference")
 
-if(length(getClassDef("CRoutinePointer")) == 0) 
+if(length(getClassDef("CRoutinePointer")) == 0)
   setClass("CRoutinePointer", contains = "NativeRoutinePointer")
 
 
-if(length(getClassDef("EnumerationValue")) == 0) 
+if(length(getClassDef("EnumerationValue")) == 0)
   setClass("EnumerationValue", contains = "integer")
 
 
-if(!isGeneric("copyToR")) 
+if(!isGeneric("copyToR"))
  setGeneric("copyToR",
-            function(value, obj = new(gsub("Ref$", "", class(value)))) 
+            function(value, obj = new(gsub("Ref$", "", class(value))))
                standardGeneric("copyToR"
            ))
 
 setGeneric("delete", function(obj) standardGeneric("delete"))
 
 
-SWIG_createNewRef = 
+SWIG_createNewRef =
 function(className, ..., append = TRUE)
 {
   f = get(paste("new", className, sep = "_"), mode = "function")
@@ -71,14 +71,14 @@ function(className, ..., append = TRUE)
   f(...)
 }
 
-if(!isGeneric("copyToC")) 
- setGeneric("copyToC", 
+if(!isGeneric("copyToC"))
+ setGeneric("copyToC",
              function(value, obj = SWIG_createNewRef(class(value)))
               standardGeneric("copyToC"
             ))
 
 
-# 
+#
 defineEnumeration =
 function(name, .values, where = topenv(parent.frame()), suffix = "Value")
 {
@@ -98,7 +98,7 @@ enumToInteger <- function(name,type)
    ans <- as.integer(get(paste(".__E__", type, sep = ""))[name])
    if (is.na(ans)) {warning("enum not found ", name, " ", type)}
    ans
-   } 
+   }
 }
 
 enumFromInteger =
@@ -109,7 +109,7 @@ function(i,type)
 }
 
 coerceIfNotSubclass =
-function(obj, type) 
+function(obj, type)
 {
     if(!is(obj, type)) {as(obj, type)} else obj
 }
@@ -123,7 +123,7 @@ setMethod("length", "SWIGArray", function(x) x@dims[1])
 defineEnumeration("SCopyReferences",
                    .values = c( "FALSE" = 0, "TRUE" = 1, "DEEP" = 2))
 
-assert = 
+assert =
 function(condition, message = "")
 {
   if(!condition)
@@ -167,14 +167,14 @@ setClass('C++Reference', contains = 'ExternalReference')
 
 
 setMethod('[', "ExternalReference",
-function(x,i,j, ..., drop=TRUE) 
-if (!is.null(x$"__getitem__")) 
+function(x,i,j, ..., drop=TRUE)
+if (!is.null(x$"__getitem__"))
 sapply(i, function(n) x$"__getitem__"(i=as.integer(n-1))))
 
 setMethod('[<-' , "ExternalReference",
-function(x,i,j, ..., value) 
+function(x,i,j, ..., value)
 if (!is.null(x$"__setitem__")) {
-sapply(1:length(i), function(n) 
+sapply(1:length(i), function(n)
 x$"__setitem__"(i=as.integer(i[n]-1), x=value[n]))
 x
 })
@@ -189,9 +189,9 @@ function(x) {print(as(x, "character"))})))
 
 `log` = function(msg)
 {
-  msg = as(msg, "character"); 
+  msg = as(msg, "character");
   ;.Call('R_swig_log', msg, PACKAGE='RPluMA');
-  
+
 }
 
 attr(`log`, 'returnType') = 'void'
@@ -202,13 +202,11 @@ class(`log`) = c("SWIGFunction", class('log'))
 
 `dependency` = function(plugin)
 {
-  plugin = as(plugin, "character"); 
+  plugin = as(plugin, "character");
   ;.Call('R_swig_dependency', plugin, PACKAGE='RPluMA');
-  
+
 }
 
 attr(`dependency`, 'returnType') = 'void'
 attr(`dependency`, "inputTypes") = c('character')
 class(`dependency`) = c("SWIGFunction", class('dependency'))
-
-

@@ -1,0 +1,27 @@
+[submodule "BIOM2CSV"]
+	url = https://github.com/verociraptor/BIOM2CSV
+	path = plugins/BIOM2CSV
+[submodule "CSV2GML"]
+	url = https://github.com/movingpictures83/CSV2GML
+	path = plugins/CSV2GML
+[submodule "CSVNormalize"]
+	url = https://github.com/movingpictures83/CSVNormalize
+	path = plugins/CSVNormalize
+[submodule "CSVPad"]
+	url = https://github.com/movingpictures83/CSVPad
+	path = plugins/CSVPad
+[submodule "CountTableProcessing"]
+	url = https://github.com/movingpictures83/CountTableProcessing
+	path = plugins/CountTableProcessing
+[submodule "Cytoscape"]
+	url = https://github.com/movingpictures83/Cytoscape
+	path = plugins/Cytoscape
+[submodule "Mothur"]
+	url = https://github.com/movingpictures83/Mothur
+	path = plugins/Mothur
+[submodule "Spearman"]
+	url = https://github.com/movingpictures83/Spearman
+	path = plugins/Spearman
+[submodule "GPUATria"]
+	url = https://github.com/movingpictures83/GPUATria
+	path = plugins/GPUATria

@@ -11,9 +11,8 @@ The usage is:
 ./plugen (pluginname) (command to run)
 
 (pluginname) is the name of the new plugin.
-(command to run) must be at least one word, and is the command to run the 
+(command to run) must be at least one word, and is the command to run the
 software that you want wrapped.
 This command can use 'inputfile' and 'outputfile' as placeholders for the information
 provided in the configuration file when the plugin is actually used.
 ____________________________________________________________________________________
-

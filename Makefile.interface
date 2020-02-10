@@ -1,5 +1,7 @@
 # Copyright (C) Florida International University 2017-2019
 # SPDX-License-Identifier: MIT
+#
+# TODO: Continue moving build variables for C(XX)FLAGS into Scons files.
 
 .PHONY: all clean perl python r
 
@@ -12,7 +14,7 @@ perl: PluMA.cpp PerlPluMA_wrap.cxx
 	$(CXX) `perl -MConfig -e 'print $$Config{lddlflags}'` $(CXXFLAGS) $(LDFLAGS) PerlPluMA.o PerlPluMA_wrap.o -o PerlPluMA.so
 
 perlclean:
-	rm PerlPluMA.o PerlPluMA_wrap.o PerlPluMA.so
+	$(RM) PerlPluMA.o PerlPluMA_wrap.o PerlPluMA.so
 
 python: PluMA.cpp PyPluMA_wrap.cxx
 	#swig -python -c++ -o PyPluMA_wrap.cxx PyPluMA.i
@@ -21,7 +23,7 @@ python: PluMA.cpp PyPluMA_wrap.cxx
 	$(CXX) $(CXXFLAGS) -shared PyPluMA.o PyPluMA_wrap.o -o _PyPluMA.so
 
 pythonclean:
-	rm PyPluMA.o PyPluMA_wrap.o _PyPluMA.so
+	$(RM) PyPluMA.o PyPluMA_wrap.o _PyPluMA.so
 
 r: PluMA.cpp RPluMA_wrap.cxx
 	#swig -c++ -r -o RPluMA_wrap.cxx RPluMA.
@@ -31,6 +33,6 @@ r: PluMA.cpp RPluMA_wrap.cxx
 	$(CXX) $(CXXFLAGS) ${R_INCLUDE} $(LDFLAGS) $(LDDLFLAGS) $(R_LIB) -lR -shared -Wl,-Bsymbolic-functions -Wl,-z,relro -o RPluMA.so RPluMA_wrap.o RPluMA.o
 
 rclean:
-	rm RPluMA.o RPluMA_wrap.o RPluMA.so
+	$(RM) RPluMA.o RPluMA_wrap.o RPluMA.so
 
 clean: perlclean pythonclean rclean

@@ -6,23 +6,23 @@
                        Florida International University
 
 
-     Permission is hereby granted, free of charge, to any person obtaining 
-          a copy of this software and associated documentation files 
-        (the "Software"), to deal in the Software without restriction, 
-      including without limitation the rights to use, copy, modify, merge, 
-      publish, distribute, sublicense, and/or sell copies of the Software, 
-       and to permit persons to whom the Software is furnished to do so, 
+     Permission is hereby granted, free of charge, to any person obtaining
+          a copy of this software and associated documentation files
+        (the "Software"), to deal in the Software without restriction,
+      including without limitation the rights to use, copy, modify, merge,
+      publish, distribute, sublicense, and/or sell copies of the Software,
+       and to permit persons to whom the Software is furnished to do so,
                     subject to the following conditions:
 
-    The above copyright notice and this permission notice shall be included 
+    The above copyright notice and this permission notice shall be included
             in all copies or substantial portions of the Software.
 
-        THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, 
-      EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF 
-    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. 
-     IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY 
-     CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, 
-      TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE 
+        THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+      EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+     IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+     CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+      TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
            SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
        For information regarding this software, please contact lead architect
@@ -63,7 +63,7 @@ std::string toString(int val) {
 
 
 
-int main(int argc, char** argv) 
+int main(int argc, char** argv)
 {
    /////////////////////////////////////////////////////////////////////////////////////////////////////////////
    // Display opening screen.
@@ -88,7 +88,7 @@ int main(int argc, char** argv)
    std::cout << "*                        T. Cickovski and G. Narasimhan.                          *" << std::endl;
    std::cout << "*                Constructing Lightweight and Flexible Pipelines                  *" << std::endl;
    std::cout << "*                 Using Plugin-Based Microbiome Analysis (PluMA)                  *" << std::endl;
-   std::cout << "*                     Bioinformatics 34(17):2881-2888, 2018                       *" << std::endl;  
+   std::cout << "*                     Bioinformatics 34(17):2881-2888, 2018                       *" << std::endl;
    std::cout << "*                                                                                 *" << std::endl;
    std::cout << "***********************************************************************************" << std::endl;
 
@@ -122,7 +122,7 @@ int main(int argc, char** argv)
       std::cout << "[PluMA] Usage: ./pluma (config file) (optional restart point)" << std::endl;
       std::cout << "Arguments: help: display this message" << std::endl;
       std::cout << "           version: display release information" << std::endl;
-      std::cout << "           plugins: list your installed plugins and location" << std::endl;           
+      std::cout << "           plugins: list your installed plugins and location" << std::endl;
       exit(0);
    }
    else if (std::string(argv[1]) == "help") { // Help
@@ -149,7 +149,7 @@ int main(int argc, char** argv)
       for (int i = 0; i < supported.size(); i++)
          supported[i]->loadPlugin(path, &globbuf, &pluginLanguages, list);
       std::map<std::string, std::string>::iterator itr;
-      for (itr = pluginLanguages.begin(); itr != pluginLanguages.end(); itr++) 
+      for (itr = pluginLanguages.begin(); itr != pluginLanguages.end(); itr++)
            PluginManager::getInstance().add(itr->first.substr(0, itr->first.length()-6));
       globfree(&globbuf);
       pluginpath = pluginpath.substr(pluginpath.find_first_of(":")+1, pluginpath.length());
@@ -176,7 +176,7 @@ int main(int argc, char** argv)
    std::string mylog = "logs/"+currentTime+".log.txt";
    PluginManager::getInstance().setLogFile(mylog);
    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-   
+
    /////////////////////////////////////////////////////////////////////
    // Read configuration file and make appropriate plugins
    std::ifstream infile(argv[1], std::ios::in);
@@ -194,7 +194,7 @@ int main(int argc, char** argv)
       if (inputname[0] != '/')
          inputname = prefix + inputname;
       if (outputname[0] != '/')
-         outputname = prefix + outputname;  
+         outputname = prefix + outputname;
       //////////////////////////////////////////////////////
 
       ////////////////////////////////////////////////////////////////////////////
@@ -250,4 +250,3 @@ int main(int argc, char** argv)
    return 0;
    /////////////////////////////////////////////////////////////////////
 }
-
