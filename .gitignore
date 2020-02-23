@@ -284,3 +284,5 @@ Cargo.lock
 
 pluma
 PluGen/plugen
+plugins
+!plugins/{getPool.py,README}
