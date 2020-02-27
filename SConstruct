@@ -153,17 +153,16 @@ else:
 
 env = config.Finish()
 
-envPluginPython = copy(env)
+envPlugin = copy(env)
 
-envPluginPython.Append(SHCCFLAGS = ['-fpermissive', '-I'+os.getcwd()],
+envPlugin.Append(SHCCFLAGS = ['-fpermissive', '-I'+os.getcwd()],
     SHCXXFLAGS = ['std=c++11''-fpermissive', '-I'+os.getcwd()])
 
+envPluginPython = copy(envPlugin)
 envPluginPerl = copy(envPluginPython)
 envPluginR = copy(envPluginPython)
 
-envPluginCudaShared = copy(envPluginCuda)
-envPluginCudaShared.Append(NVCCFLAGS = ['-shared'])
-
+# Not checking for existance of `python` since this is a python script.
 if not GetOption('without-python'):
     config = Configure(envPluginPython)
 
@@ -185,7 +184,12 @@ if not GetOption('without-python'):
 
     envPluginPython = config.Finish()
 
+# Checking for existance of `perl`.
 if not GetOption('without-perl'):
+    if not env.WhereIs('perl'):
+        logging.error('!! Perl executables not found')
+        Exit(1)
+
     config = Configure(envPluginPerl)
     config.env.Append(PERL_INCLUDE_DIR = os.getenv('PERL_INCLUDE_DIR', ''),
         PERL_LIB_DIR = os.getenv('PERL_LIB_DIR', ''))
@@ -207,10 +211,12 @@ if not GetOption('without-perl'):
 
     envPluginPerl = config.Finish()
 
-if not GetOption('without-r') and not env.WhereIs('R') and not env.WhereIs('Rscript'):
-    logging.error('!! R executables not found')
-    Exit(1)
-else:
+# Checking for existance of `R` and `Rscript`.
+if not GetOption('without-r'):
+    if not env.WhereIs('R') and not env.WhereIs('Rscript'):
+        logging.error('!! R executables not found')
+        Exit(1)
+
     config = Configure(envPluginR)
 
     r_lib = subprocess.check_output(['pkg-config', '--libs-only-L', 'libR']).decode('ascii')
@@ -231,9 +237,10 @@ else:
 
 
 ###################################################################
-# Execute complications for our plugins.
+# Execute compilation for our plugins.
 # Note: CUDA is already prepared from the initial environment setup.
 ###################################################################
+
 ###################################################################
 # PYTHON PLUGINS
 # # if not GetOption('without-python'):
