@@ -9,7 +9,7 @@ all: perl python r
 
 clean: perlclean pythonclean rclean
 
-python: PluMA.cpp PyPluMA_wrap.cxx
+python: PluMA.cxx PyPluMA_wrap.cxx
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(LIBPATH) $(LIBS) -c PluMA.cpp -o PyPluMA.o
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(LIBPATH) $(LIBS) -c PyPluMA_wrap.cxx -o PyPluMA_wrap.o
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(LIBPATH) $(LIBS) -shared PyPluMA.o PyPluMA_wrap.o -o _PyPluMA.so
@@ -29,7 +29,7 @@ perl: PluMA.cxx PerlPluMA_wrap.cxx
 perlclean:
 	$(RM) PerlPluMA.o PerlPluMA_wrap.o PerlPluMA.so
 
-r: PluMA.cpp RPluMA_wrap.cxx
+r: PluMA.cxx RPluMA_wrap.cxx
 	$(CXX) $(CXXFLAGS) $(R_INCLUDE) $(LDFLAGS) $(LIBS) -c RPluMA_wrap.cxx \
         -o RPluMA_wrap.o
 	$(CXX) $(CXXFLAGS) $(R_INCLUDE) $(LDFLAGS) $(LIBS) -c PluMA.cpp -o RPluMA.o
