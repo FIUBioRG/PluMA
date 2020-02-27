@@ -1,1 +1,6 @@
 Plugins placed in this folder will be added by default.
+
+## BREAKING CHANGE
+Plugins loaded from this folder that are written in C++ are now expected to use
+the `.cxx` suffix instead of the `.cpp` suffix. Please update any plugins that
+rely on this filetype as support for `.cpp` will be eventually deprecated.

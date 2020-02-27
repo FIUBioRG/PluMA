@@ -98,13 +98,16 @@ if not sys.platform.startswith('darwin'):
 envPluginCuda = Environment(
     ENV = os.environ,
     CUDA_PATH = [os.getenv('CUDA_PATH', '/usr/local/cuda')],
-    NVCCFLAGS = [os.getenv('NVCCFLAGS', [
-        '-I'+os.getcwd(),
-        '-arch=sm_30',
-        '--ptxas-options=-v',
-        '-std=c++11',
-        '-Xcompiler',
-        '-fPIC'])
+    NVCCFLAGS = [
+        os.getenv('NVCCFLAGS', [
+            '-I'+os.getcwd(),
+            '-arch=sm_30',
+            '--ptxas-options=-v',
+            '-std=c++11',
+            '-Xcompiler',
+            '-fPIC'
+            '-I'+os.getcwd()
+        ])
     ]
 )
 envPluginCuda.Tool('cuda')
@@ -248,24 +251,31 @@ if not GetOption('without-r'):
 #         os.system('make -f Makefile.darwin.interface python')
 #     else:
 #         os.system('make -f Makefile.interface python')
-envPlugin.Object(source = 'PluMA.cpp', target = 'PyPluMA.o')
+envPlugin.Object(source = 'PluMA.cxx', target = 'PyPluMA.o')
 envPlugin.Object(source = 'PyPluMA_wrap.cxx', target = 'PyPluMA_wrap.o')
 ###################################################################
 
 ###################################################################
 # PERL PLUGINS
 if not GetOption('without-perl'):
-    if (env['PLATFORM'] == 'darwin'):
-        os.system('make -f Makefile.darwin.interface perl')
-    else:
-        os.system('make -f Makefile.interface perl')
+    # if (env['PLATFORM'] == 'darwin'):
+    #     os.system('make -f Makefile.darwin.interface perl')
+    # else:
+    #     os.system('make -f Makefile.interface perl')
+    envPluginPerl.Object(source = 'PluMA.cxx', target = 'PerlPluMA.o')
+    envPluginPerl.Object(source = 'PerlPluMA_wrap.cxx', target = 'PerlPluMA_wrap.o')
+    envPluginPerl.SharedLibrary(srouce = 'PerlPluMA_wrap.cxx', target = 'PerlPluMA_wrap.so')
 ###################################################################
 # R PLUGINS
 if not GetOption('without-r'):
-    if (sys.platform.startswith('darwin')):
-        os.system('make -f Makefile.darwin.interface r')
-    else:
-        os.system('make -f Makefile.interface r')
+    # if (sys.platform.startswith('darwin')):
+    #     os.system('make -f Makefile.darwin.interface r')
+    # else:
+    #     os.system('make -f Makefile.interface r')
+    envPluginR.Object(source = 'PluMA.cxx', target = 'RPluMA.o')
+    envPluginR.Object(source = 'RPluMA_wrap.cxx', target = 'RPluMA_wrap.o')
+    envPluginR.Append(CXXFLAGS = ['-Wl,-Bsymbolic-functions', '-Wl,-z,relro'])
+    envPluginR.SharedLibrary(source = 'RPluMA_wrap.cxx', target = 'RPluma_wrap.so')
 ###################################################################
 
 ###################################################################
@@ -276,45 +286,45 @@ if not GetOption('without-r'):
 ###################################################################
 # Assemble plugin path
 ###################################################################
-pluginpath = ['plugins/']
+pluginPath = Glob('plugins/**')
 
 ###################################################################
 
 ###################################################################
 # C++ Plugins
-toExport = ['envPlugin']
+toExport = ['envPlugin', 'envPluginPython', 'envPluginPerl', 'envPluginR']
 if GetOption('with-cuda'):
     toExport.append('envPluginCUDA')
-for folder in pluginpath:
-    env.AppendUnique(CCFLAGS = ['-I'+folder])
+for folder in pluginPath:
+    envPlugin.AppendUnique(CCFLAGS = ['-I'+folder])
     if GetOption('with-cuda'):
         envPluginCUDA.AppendUnique(NVCCFLAGS = ['-I'+folder])
     sconscripts = Glob(folder+'/*/SConscript')
-    pluginlist_cpp = Glob(folder+'/*/*.cpp')
-    if (len(pluginlist_cpp) != 0 and len(sconscripts) != 0):
+    pluginListCXX = Glob(folder+'/*/*.{cpp, cxx}')
+    if (len(pluginListCXX) != 0 and len(sconscripts) != 0):
         for sconscript in sconscripts:
-            SConscript(sconscript, exports=toExport)
-    cur_folder = ''
-    firsttime = True
-    for plugin in pluginlist_cpp:
-        if (plugin.get_dir() != cur_folder):  # New context
-            if (not firsttime):
+            SConscript(sconscript, exports = toExport)
+    curFolder = ''
+    firstTime = True
+    for plugin in pluginListCXX:
+        if (plugin.get_dir() != curFolder):  # New context
+            if (not firstTime):
                 if (len(pluginName) == 0):
                     print('WARNING: NULL PLUGIN IN FOLDER: %s, IGNORING' % folder)
                 else:
-                    x = envPlugin.SharedLibrary(pluginName, sourcefiles)
-            cur_folder = plugin.get_dir()
+                    envPlugin.SharedLibrary(pluginName, sourceFiles)
+            curFolder = plugin.get_dir()
             pluginName = ''
-            sourcefiles = []
-        firsttime = False
+            sourceFiles = []
+        firstTime = False
         filename = plugin.get_path()
         if (filename.endswith('Plugin.cpp')):
             pluginName = filename[0:filename.find('.cpp')]
-        sourcefiles.append(filename)
+        sourceFiles.append(filename)
     if (len(pluginName) == 0):
          print('WARNING: NULL PLUGIN IN FOLDER: %s, IGNORING' % folder)
     else:
-         x = envPlugin.SharedLibrary(pluginName, sourcefiles)
+         envPlugin.SharedLibrary(pluginName, sourceFiles)
 ###################################################################
 
 ###################################################################
@@ -323,72 +333,72 @@ for folder in pluginpath:
 # TODO: Compress if-else statements?
 if GetOption('with-cuda'):
     for folder in pluginpath:
-        pluginlist_cu = Glob(folder+'/*/*.cu')
-        cur_folder = ''
-        firsttime = True
-        for plugin in pluginlist_cu:
-            if (plugin.get_dir() != cur_folder):  # New context
-                if (not firsttime):
-                    if (len(sharedpluginname) == 0):
+        pluginsCUDA = Glob(folder+'/*/*.cu')
+        curFolder = ''
+        firstTime = True
+        for plugin in pluginsCUDA:
+            if (plugin.get_dir() != curFolder):  # New context
+                if (not firstTime):
+                    if (len(sharedPluginName) == 0):
                         logging.warning('WARNING: NULL PLUGIN IN FOLDER: %s, IGNORING' % folder)
                     else:
-                        x = envPluginCUDA.Command(sharedpluginname+'.so', sourcefiles, 'nvcc -o $TARGET -shared '+srcstring+'-std=c++11 -arch=sm_30 --ptxas-options=-v -Xcompiler -fpic -I'+os.getcwd())
-            cur_folder = plugin.get_dir()
-            sharedpluginname = ''
-            sourcefiles = []
-            srcstring = ''
-        firsttime = False
+                        envPluginCUDA.SharedLibrary(sharedPluginName, sourceFiles)
+            curFolder = plugin.get_dir()
+            sharedPluginName = ''
+            sourceFiles = []
+            srcStr = ''
+        firstTime = False
         filename = plugin.get_path()
         if (filename.endswith('Plugin.cu')):
             name = filename.replace(str(plugin.get_dir()), '')
-            sharedpluginname = str(plugin.get_dir())+'/lib'+name[1:name.find('.cu')]
-        sourcefiles.append(filename)
-        srcstring += filename+' '
-    if (len(sharedpluginname) == 0):
+            sharedPluginName = str(plugin.get_dir())+'/lib'+name[1:name.find('.cu')]
+        sourceFiles.append(filename)
+        srcStr += filename+' '
+    if (len(sharedPluginName) == 0):
         logging.warning('WARNING: NULL PLUGIN IN FOLDER: %s, IGNORING' % folder)
     else:
-        x = envPluginCUDA.Command(sharedpluginname+'.so', sourcefiles, 'nvcc -o $TARGET -shared '+srcstring+'-std=c++11 -arch=sm_30 --ptxas-options=-v -Xcompiler -fpic -I'+os.getcwd())
+        envPluginCUDA.Command(sharedPluginName, sourceFiles)
 
-    # Repeat of CPP plugins?
-    cur_folder = ''
-    firsttime = True
-    for plugin in pluginlist_cpp:
-        if (plugin.get_dir() != cur_folder):  # New context
-            if (not firsttime):
+    # Repeat of C++ plugins?
+    # Consider DRY-ing?
+    curFolder = ''
+    firstTime= True
+    for plugin in pluginListCXX:
+        if (plugin.get_dir() != curFolder):  # New context
+            if (not firstTime):
                 if (len(pluginName) == 0):
                     logging.warning('WARNING: NULL PLUGIN IN FOLDER: %s, IGNORING' % folder)
                 else:
-                    x = envPlugin.SharedLibrary(pluginName, sourcefiles)
-            cur_folder = plugin.get_dir()
+                    envPlugin.SharedLibrary(pluginName, sourcefiles)
+            curFolder = plugin.get_dir()
             pluginName = ''
-            sourcefiles = []
-        firsttime = False
+            sourceFiles = []
+        firstTime = False
         filename = plugin.get_path()
         if (filename.endswith('Plugin.cpp')):
             pluginName = filename[0:filename.find('.cpp')]
-        sourcefiles.append(filename)
+        sourceFiles.append(filename)
     if (len(pluginName) == 0):
         logging.warn('WARNING: NULL PLUGIN IN FOLDER: %s, IGNORING', folder)
     else:
-        x = envPlugin.SharedLibrary(pluginName, sourcefiles)
+        envPlugin.SharedLibrary(pluginName, sourceFiles)
 ###################################################################
-# Main Executable
-folder_sets = [['.', 'languages'], ['PluGen']]
-sources = [[], []]
-targets = ['pluma', 'PluGen/plugen']
+# Main Executable & PluGen
+# folder_sets = [[os.path.relpath('languages')], [os.path.relpath('PluGen')]]
+# sources = [[], []]
+# targets = ['pluma', 'PluGen/plugen']
 
-for i in range(0,len(targets)):
-    for folder in folder_sets[i]:
-        env.Append(CCFLAGS = ['-I'+folder])
-        sources[i].append(Glob(folder+'/*.{cpp,cxx}'))
-    env.Program(target = targets[i], source = sources[i])
+languages = Glob('./languages/**/*.{cpp,cxx}')
+env.Append(CXXFLAGS = ['-I'+os.path.relapth('languages')])
+env.Program(target = 'pluma', source = languages)
 
-# for folder in folders:
-#     env.Append(CCFLAGS = '-I'+folder)
-#     sources.append(Glob(folder+'/*.cpp'))
-# env.Program(source=sources, target='miami')
-# env.Append(CCFLAGS = '-I.')
-# env.Append(CCFLAGS = '-Ilanguages')
+plugen = Glob('./PluGen/**/*.{cpp,cxx}')
+env.Append(CXXFLAGS = ['-I'+os.path.relpath('PluGen')])
+env.Program(target = 'PluGen/plugen', source = plugen)
 
-# env.Program(source=['miami.cpp', Glob('languages/*.cpp')], target='miami')
+# for i in range(0,len(targets)):
+#     for folder in folder_sets[i]:
+#         env.Append(CCFLAGS = ['-I'+folder])
+#         sources[i].append(Glob(folder+'/*.{cpp,cxx}'))
+#     env.Program(target = targets[i], source = sources[i])
 ###################################################################

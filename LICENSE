@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2017 FIUBioRG
+Copyright (c) 2017-2020 FIUBioRG
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -23,7 +23,7 @@ SOFTWARE.
 ------------------------------------------------------------------------------
 Citation Information
 
-All professional work making use of PluMA or its features should cite: 
+All professional work making use of PluMA or its features should cite:
 
 T. Cickovski, V. Aguiar-Pulido, W. Huang, S. Mahmoud, and G. Narasimhan.  Lightweight
 Microbiome Analysis Pipelines.  In Proceedings of International Work Conference on
@@ -37,8 +37,7 @@ and NIJ grant 2017-NE-BX-0001.  Additional support provided by:
 
 Florida Department of Health (FDOH 09KW-10)
 Alpha-One Fundation
-NVIDIA 
+NVIDIA
 The College of Engineering and Computer Science, Florida International University
 The Natural Sciences Collegium, Eckerd College
 ------------------------------------------------------------------------------
-
