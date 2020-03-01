@@ -28,26 +28,26 @@
        For information regarding this software, please contact lead architect
                     Trevor Cickovski at tcickovs@fiu.edu
 
-       Note: This particular file adapted from CompuCell, a software framework
-              for multimodel simulations of biocomplexity problems
-           (C) 2003 University of Notre Dame under license from GNU GPL
+               Note: This particular file adapted from BasicUtils
+               (C) 2003 Joseph Coffland under license from GNU GPL
 
 \*********************************************************************************/
 
+#ifndef PLUGINPROXY_H
+#define PLUGINPROXY_H
 
-#ifndef PLUGIN_H
-#define PLUGIN_H
+#include "PluginMaker.h"
+#include "PluginManager.h"
 
 #include <string>
 
-class Plugin {
-  public:
-  Plugin(){}
-  //virtual std::string toString(){return "Plugin";}
-  virtual ~Plugin(){}
-  virtual void input(std::string file) {}
-  virtual void run() {}
-  virtual void output(std::string file) {}
+class Proxy {};
+
+template<class T>
+class PluginProxy : public Proxy
+{
+   public:
+   PluginProxy(std::string keyword, PluginManager& mgr) {mgr.addMaker(keyword, new PluginMaker<T>());};
 };
 
 #endif

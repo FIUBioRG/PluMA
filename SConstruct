@@ -6,12 +6,12 @@
 #
 # TODO: Test portability with Windows systems using MSVC.
 # TODO: Merge variable assignments.
-import os
-import sys
-import subprocess
+from copy import copy, deepcopy
 import logging
+import os
+import subprocess
+import sys
 import warnings
-from copy import copy
 
 # The current Sconstruct does not support windows variants.
 if sys.platform.startswith('windows'):
@@ -20,7 +20,8 @@ if sys.platform.startswith('windows'):
 
 ###################################################################
 # HELPER FUNCTIONS
-
+def SourcePath(p):
+    return os.path.relpath('./src/'+p)
 ###################################################################
 
 ###################################################################
@@ -68,14 +69,6 @@ if 'clean' in sys.argv:
 ###################################################################
 
 ###################################################################
-# Clean stage. Completes previous compilation cleaning and exits.
-if GetOption('clean'):
-    if (sys.platform.startswith('darwin')):
-        os.system('make -f Makefile.darwin.interface clean')
-    else:
-        os.system('make -f Makefile.interface clean')
-    Exit(0)
-###################################################################
 
 ###################################################################
 # Gets the environment variables set by the user on the OS level or
@@ -85,12 +78,17 @@ env = Environment(
     ENV = os.environ,
     CC = os.getenv('CC', 'cc'),
     CXX = os.getenv('CXX', 'c++'),
-    CCFLAGS = os.getenv('CFLAGS', '-mtune=generic -pipe -fPIC -g'
-    + '-02 -fstack-protector -pedantic'),
-    CXXFLAGS = os.getenv('CXXFLAGS', '-mtune=generic -pipe -fPIC -g'
-    + '-O2 -fstack-protector -pedantic'),
+    CCFLAGS = '-pipe -fPIC -g -O2 -fstack-protector -Wpedantic',
+    CFLAGS = os.getenv('CFLAGS', '-std=c11'),
+    CXXFLAGS = os.getenv('CXXFLAGS', '-std=c++11'),
     LDFLAGS = os.getenv('LDFLAGS', '-D_FORTIFY_SOURCE=2')
 )
+
+env.Clean('python', [
+    SourcePath('PyPluMA.o'),
+    SourcePath('PyPluMA_wrap.o'),
+    SourcePath('_PyPluMA.so')
+])
 
 if not sys.platform.startswith('darwin'):
     env.Append(LINKFLAGS = ['-rdynamic'])
@@ -140,7 +138,10 @@ if not config.CheckHeader('math.h') or not config.CheckLib('m'):
     logging.error('!! Math library not found')
     Exit(1)
 else:
-    config.env.Append(CCFLAGS = ['-DHAS_MATH'], LIBS = ['m'])
+    config.env.Append(
+        CCFLAGS = ['-DHAS_MATH'],
+        LIBS = ['m']
+    )
 
 if not config.CheckLib('dl'):
     logging.error('!! Could not find dynamic linking library `dl`')
@@ -154,33 +155,47 @@ if not config.CheckLib('util'):
 else:
     config.env.Append(LIBS = ['util'])
 
+config.env.Append(
+    CCFLAGS = ['-I'+SourcePath('languages'), '-I'+SourcePath('PluGen')],
+    CXXFLAGS = ['-I'+SourcePath('languages'), '-I'+SourcePath('PluGen')]
+)
+
 env = config.Finish()
 
 envPlugin = copy(env)
 
-envPlugin.Append(SHCCFLAGS = ['-fpermissive', '-I'+os.getcwd()],
-    SHCXXFLAGS = ['std=c++11''-fpermissive', '-I'+os.getcwd()])
+envPlugin.Append(SHCCFLAGS = ['-std=c11', '-fpermissive', '-I'+SourcePath('')],
+    SHCXXFLAGS = ['std=c++11''-fpermissive', '-I'+SourcePath('')])
 
-envPluginPython = copy(envPlugin)
-envPluginPerl = copy(envPluginPython)
-envPluginR = copy(envPluginPython)
+envPluginPython = envPlugin.Clone()
+envPluginPerl = envPlugin.Clone()
+envPluginR = envPlugin.Clone()
 
 # Not checking for existance of `python` since this is a python script.
 if not GetOption('without-python'):
     config = Configure(envPluginPython)
 
-    python_prefix = subprocess.check_output(['python-config', '--prefix']).decode('ascii')
+    python_includes = subprocess.check_output(
+        ['python-config', '--includes'],
+        encoding = 'utf8'
+    ).split(' ')
+    python_libs = subprocess.check_output(
+        ['python-config', '--libs'],
+        encoding = 'utf8'
+    ).split(' ')
+
     python_version = sys.version[0:3]
-    python_include = python_prefix+'/include/'+python_version
-    python_lib = python_prefix+'/lib/'+python_version+'/config'
+
+    print(python_libs)
+
+    config.env.Append(CXXFLAGS = [python_includes])
+    config.env.Append(LIBS = [python_libs])
 
     if python_version[0] == 2:
         warnings.warn('Python2 has reached EOL. Please update to python3.',
         DeprecationWarning)
 
-    config.env.Append(CXXFLAGS = ['-I'+python_include, '-DHAVE_PYTHON'],
-        LIBPATH = [python_lib],
-        LIBS = [python_version])
+    config.env.Append(CXXFLAGS = ['-DHAVE_PYTHON'])
 
     if (python_version[0] == '3' and not sys.platform.startswith('darwin')):
         config.env.AppendUnique(LIBS = ['rt'])
@@ -200,14 +215,15 @@ if not GetOption('without-perl'):
     perl_include = subprocess.check_output(['perl', '-e "print qq(@INC)"']).decode('ascii').split(' ')
 
     for include_dir in perl_include:
-        config.env.Append(CCFLAGS = ['-I'+include_dir],
-            CXXFLAGS = ['-I'+include_dir])
+        print(include_dir)
+        config.env.AppendUnique(CXXFLAGS = ['-I'+include_dir])
 
     config.env.Append(
         CCFLAGS = ['-DHAVE_PERL', '-Wl,-E',
             '-fstack-protector', '-DREENTRANT', '-Wno-literal-suffix',
             '-fno-strict-aliasing', '-DLARGE_SOURCE', '-D_FILE_OFFSET_BITS=64'],
-        LIBS = ['perl'])
+        LIBS = ['perl']
+    )
 
     if sys.platform.startswith('darwin'):
         config.env.Append(LIBS = ['crypt', 'nsl'])
@@ -237,8 +253,6 @@ if not GetOption('without-r'):
         rpath = ','+rinside_lib,
         LIBS = ['R', 'RInside']
     )
-
-
 ###################################################################
 # Execute compilation for our plugins.
 # Note: CUDA is already prepared from the initial environment setup.
@@ -246,36 +260,24 @@ if not GetOption('without-r'):
 
 ###################################################################
 # PYTHON PLUGINS
-# # if not GetOption('without-python'):
-#     if (sys.platform.startswith('darwin')):
-#         os.system('make -f Makefile.darwin.interface python')
-#     else:
-#         os.system('make -f Makefile.interface python')
-envPlugin.Object(source = 'PluMA.cxx', target = 'PyPluMA.o')
-envPlugin.Object(source = 'PyPluMA_wrap.cxx', target = 'PyPluMA_wrap.o')
+if not GetOption('without-python'):
+    envPluginPython.StaticObject(source = SourcePath('PluMA.cxx'), target = 'PyPluMA.o')
+    envPluginPython.StaticObject(source = SourcePath('PyPluMA_wrap.cxx'), target = 'PyPluMA_wrap.o')
 ###################################################################
 
 ###################################################################
 # PERL PLUGINS
-if not GetOption('without-perl'):
-    # if (env['PLATFORM'] == 'darwin'):
-    #     os.system('make -f Makefile.darwin.interface perl')
-    # else:
-    #     os.system('make -f Makefile.interface perl')
-    envPluginPerl.Object(source = 'PluMA.cxx', target = 'PerlPluMA.o')
-    envPluginPerl.Object(source = 'PerlPluMA_wrap.cxx', target = 'PerlPluMA_wrap.o')
-    envPluginPerl.SharedLibrary(srouce = 'PerlPluMA_wrap.cxx', target = 'PerlPluMA_wrap.so')
+# if not GetOption('without-perl'):
+#     envPluginPerl.SharedObject(source = 'PluMA.cxx', target = 'PerlPluMA.o')
+#     envPluginPerl.SharedObject(source = 'PerlPluMA_wrap.cxx', target = 'PerlPluMA_wrap.o')
+#     envPluginPerl.SharedLibrary(srouce = 'PerlPluMA_wrap.cxx', target = 'PerlPluMA_wrap.so')
 ###################################################################
 # R PLUGINS
 if not GetOption('without-r'):
-    # if (sys.platform.startswith('darwin')):
-    #     os.system('make -f Makefile.darwin.interface r')
-    # else:
-    #     os.system('make -f Makefile.interface r')
-    envPluginR.Object(source = 'PluMA.cxx', target = 'RPluMA.o')
-    envPluginR.Object(source = 'RPluMA_wrap.cxx', target = 'RPluMA_wrap.o')
-    envPluginR.Append(CXXFLAGS = ['-Wl,-Bsymbolic-functions', '-Wl,-z,relro'])
-    envPluginR.SharedLibrary(source = 'RPluMA_wrap.cxx', target = 'RPluma_wrap.so')
+    envPluginR.SharedObject(source = SourcePath('PluMA.cxx'), target = 'RPluMA.o')
+    envPluginR.SharedObject(source = SourcePath('RPluMA_wrap.cxx'), target = 'RPluMA_wrap.o')
+    envPluginR.Append(CCFLAGS = ['-Wl,-Bsymbolic-functions', '-Wl,-z,relro'])
+    envPluginR.SharedLibrary('RPluMA_wrap.cxx')
 ###################################################################
 
 ###################################################################
@@ -286,7 +288,7 @@ if not GetOption('without-r'):
 ###################################################################
 # Assemble plugin path
 ###################################################################
-pluginPath = Glob('plugins/**')
+pluginPath = Glob(SourcePath('') + 'plugins/**')
 
 ###################################################################
 
@@ -388,13 +390,11 @@ if GetOption('with-cuda'):
 # sources = [[], []]
 # targets = ['pluma', 'PluGen/plugen']
 
-languages = Glob('./languages/**/*.{cpp,cxx}')
-env.Append(CXXFLAGS = ['-I'+os.path.relapth('languages')])
-env.Program(target = 'pluma', source = languages)
-
-plugen = Glob('./PluGen/**/*.{cpp,cxx}')
-env.Append(CXXFLAGS = ['-I'+os.path.relpath('PluGen')])
-env.Program(target = 'PluGen/plugen', source = plugen)
+# languages = Glob(SourcePath('languages/*.cxx'))
+# plugen = Glob(SourcePath('PluGen/*.cxx'))
+#
+# env.Program(target = 'PluGen/plugen', source = plugen)
+# env.Program(target = 'pluma', source = languages)
 
 # for i in range(0,len(targets)):
 #     for folder in folder_sets[i]:
