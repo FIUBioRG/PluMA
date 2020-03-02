@@ -32,7 +32,6 @@
 
 #include "R.h"
 #include "RInside.h"
-//#include "Python.h"
 #include "PluginManager.h"
 
 namespace MiAMi {

@@ -32,7 +32,7 @@
 
 
 #include "Compiled.h"
-#include "PluginManager.h"
+#include "../PluginManager.h"
 #include <dlfcn.h>
 #include <iostream>
 
