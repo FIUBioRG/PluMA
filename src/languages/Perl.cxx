@@ -33,7 +33,7 @@
 
 #include "perl.h"
 /** TODO: Switch to non-relative filepath */
-#include "../PluginManager.h"
+#include "PluginManager.h"
 
 #ifdef HAVE_PERL
 #include <EXTERN.h>
