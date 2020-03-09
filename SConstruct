@@ -6,9 +6,10 @@
 #
 # TODO: Test portability with Windows systems using MSVC.
 # TODO: Merge variable assignments.
+# -*-python-*-
 import logging
 from os import environ, getenv
-from os.path import relpath
+from os.path import relpath, abspath
 import re
 import subprocess
 import sys
@@ -17,7 +18,7 @@ from build_config import *
 from build_support import *
 
 # The current Sconstruct does not support windows variants.
-if sys.platform.startswith("windows"):
+if platform.startswith("windows"):
     logging.error("Windows is not currently supported for compilation")
     Exit(1)
 
@@ -43,43 +44,43 @@ AddOption(
     help="Enable CUDA plugin compilation",
 )
 
-AddOption(
-    "--rcpp-include",
-    dest="rccp_include",
-    default="/usr/local/lib/R/site-library/Rccp/includes",
-    help="Location of the installed Rccp headers",
-)
-
-AddOption(
-    "--rinside-include",
-    dest="rinside_include",
-    default="/usr/local/lib/R/site-library/RInside/include",
-    help="Location of the installed RInside headers",
-)
-
 # AddOption(
-#     "--without-python",
-#     dest="without-python",
-#     action="store_true",
-#     default=False,
-#     help="Disable Python plugin compilation",
+#     "--rcpp-include",
+#     dest="rccp_include",
+#     default="/usr/local/lib/R/site-library/Rccp/includes",
+#     help="Location of the installed Rccp headers",
 # )
 #
 # AddOption(
-#     "--without-perl",
-#     dest="without-perl",
-#     action="store_true",
-#     default=False,
-#     help="Disable Perl plugin compilation",
+#     "--rinside-include",
+#     dest="rinside_include",
+#     default="/usr/local/lib/R/site-library/RInside/include",
+#     help="Location of the installed RInside headers",
 # )
-#
-# AddOption(
-#     "--without-r",
-#     dest="without-r",
-#     action="store_true",
-#     default=False,
-#     help="Disable R plugin compilation",
-# )
+
+AddOption(
+    "--without-python",
+    dest="without-python",
+    action="store_true",
+    default=False,
+    help="Disable Python plugin compilation",
+)
+
+AddOption(
+    "--without-perl",
+    dest="without-perl",
+    action="store_true",
+    default=False,
+    help="Disable Perl plugin compilation",
+)
+
+AddOption(
+    "--without-r",
+    dest="without-r",
+    action="store_true",
+    default=False,
+    help="Disable R plugin compilation",
+)
 
 ###################################################################
 # Gets the environment variables set by the user on the OS level or
@@ -88,44 +89,38 @@ AddOption(
 env = Environment(
     ENV=environ,
     CC=getenv("CC", "cc"),
-    CFLAGS=getenv("CFLAGS", "-std=c11"),
     CXX=getenv("CXX", "c++"),
-    CXXFLAGS=getenv("CXXFLAGS", "-std=c++11"),
-    LDFLAGS=getenv("LDFLAGS", "-D_FORTIFY_SOURCE=2"),
-    SHCFLAGS="-fpermissive -Isrc/",
-    SHCXXFLAGS="-fpermissive -Isrc/",
+    CPPDEFINES=["_FORTIFY_SOURCE=2", "HAVE_PYTHON"],
+    SHCCFLAGS=["-fpermissive", "-fPIC", "-Isrc/"],
+    CPPPATH=include_search_path,
+    LIBPATH=lib_search_path,
+    LICENSE=["MIT"],
 )
 
 if not sys.platform.startswith("darwin"):
     env.Append(LINKFLAGS=["-rdynamic"])
+    env.Append(LIBS=["rt"])
 ###################################################################
 
 ###################################################################
 # Either clean folders from previous Scons runs or begin assembling
 # `PluMA` and its associated plugins
 if env.GetOption("clean"):
-    env.Clean(
-        "python",
-        [
-            Glob("./**/__pycache__"),
-            ObjectPath("PyPluMA.o"),
-            ObjectPath("PyPluMA_wrap.o"),
-            OutPath("_PyPluMA.so"),
-        ],
-    )
+    env.Clean("python", [Glob("./**/__pycache__"),])
 
     env.Clean(
-        "scons",
+        "default",
         [
             relpath(".sconf_temp"),
             relpath(".sconsign.dblite"),
             relpath("config.log"),
-            OutPath("."),
-            ObjectPath("."),
+            relpath("./obj"),
+            relpath("./lib"),
+            Glob("./src/*.o"),
         ],
     )
 
-    env.Clean("all", ["scons", "python"])
+    env.Clean("all", ["python", "default"])
 else:
     envPluginCuda = None
 
@@ -133,18 +128,12 @@ else:
     # Check for headers, libraries, and build sub-environments
     # for plugins.
     ###################################################################
-    config = Configure(env)
+    config = Configure(env, custom_tests={"CheckPerl": CheckPerl})
 
     if env.get("debug", 0):
-        env.Append(CPPDEFINES=["DEBUG", "_DEBUG"], CXXFLAGS=["-g"])
+        env.AppendUnique(CPPDEFINES=["DEBUG", "_DEBUG"], CXXFLAGS=["-g"])
     else:
-        env.Append(CPPDEFINES=["NDEBUG"], CXXFLAGS=["-O2"])
-
-    config.env.AppendUnique(
-        CPPPATH=include_search_path,
-        CXXFLAGS=["-pipe", "-fPIC", "-fstack-protector"],
-        LIBPATH=lib_search_path,
-    )
+        env.AppendUnique(CPPDEFINES=["NDEBUG"], CXXFLAGS=["-O2"])
 
     if not config.CheckCXX():
         logging.error("!! CXX compiler could not output a valid executable")
@@ -164,18 +153,18 @@ else:
         logging.error("!! Could not find `pthread` library")
         Exit(1)
 
-    if sys.version_info[0] == "3":
+    config.env.ParseConfig("python-config --includes --ldflags")
+
+    if sys.version_info[0] == "2":
         logging.warning(
             "!! Version of Python <= Python2.7 are now EOL. Please update to Python3"
         )
-        if not sys.platform.startswith("darwin"):
-            config.env.AppendUnique(LIBS=["rt"])
 
-    if not config.CheckProg("perl"):
+    if not config.CheckPerl():
         logging.error("!! Could not find a valid `perl` installation`")
         Exit(1)
     else:
-        perl_include = cmdline('perl -e "print qq(@INC)"').split(" ")
+        perl_include = config.env.Split(cmdline('perl -e "print qq(@INC)"'))
 
         for include_dir in perl_include:
             if "core_perl" in include_dir:
@@ -186,12 +175,13 @@ else:
             logging.error("!! Could not find `EXTERN.h`")
             Exit(1)
 
-        config.env.Append(
+        config.env.AppendUnique(
             CXXFLAGS=["-fno-strict-aliasing"],
-            LDFLAGS=[
-                "-DLARGE_SOURCE" "-D_FILE_OFFSET_BITS=64",
-                "-DHAVE_PERL",
-                "-DREENTRANT",
+            CPPDEFINES=[
+                "LARGE_SOURCE",
+                "_FILE_OFFSET_BITS=64",
+                "HAVE_PERL",
+                "REENTRANT",
             ],
         )
 
@@ -202,11 +192,9 @@ else:
         logging.error("!! Could not find a valid `R` installation`")
         Exit(1)
     else:
-        config.env.ParseConfig(
-            "pkg-config --cflags-only-I --libs-only-L --libs-only-l libR"
-        )
+        config.env.ParseConfig("pkg-config --cflags-only-I --libs-only-L libR")
         config.env.AppendUnique(
-            LDFLAGS=["-Bsymbolic-functions", "-z,relro", "-DHAVE_R"]
+            LDFLAGS=["-Bsymbolic-functions", "-z,relro"], CPPDEFINES=["HAVE_R"]
         )
         site_library = subprocess.check_output(
             'Rscript -e ".Library"',
@@ -225,33 +213,38 @@ else:
                 "-Wformat-security",
                 "-Werror=format-security",
             ],
-            LIBPATH=[
-                site_library + "/RCpp/includes",
-                site_library + "/RInside/include",
+            CPPPATH=[
+                Dir(site_library + "/Rcpp/include"),
+                Dir(site_library + "/RInside/include"),
             ],
             LIBS=["R"],
         )
 
     env = config.Finish()
 
-    envPluginCuda = Environment(
-        ENV=os.environ,
-        CUDA_PATH=[os.getenv("CUDA_PATH", "/usr/local/cuda")],
-        NVCCFLAGS=[
-            os.getenv(
-                "NVCCFLAGS",
-                [
-                    "-I" + os.getcwd(),
-                    "-arch=sm_30",
-                    "--ptxas-options=-v",
-                    "-std=c++11",
-                    "-Xcompiler",
-                    "-fPIC" "-I" + os.getcwd(),
-                ],
-            )
-        ],
-    )
-    envPluginCuda.Tool("cuda")
+    if GetOption("with-cuda"):
+
+        envPluginCuda = Environment(
+            ENV=os.environ,
+            CC="nvcc",
+            CXX="nvcc",
+            CUDA_PATH=[os.getenv("CUDA_PATH", "/usr/local/cuda")],
+            NVCCFLAGS=[
+                os.getenv(
+                    "NVCCFLAGS",
+                    [
+                        "-I" + os.getcwd(),
+                        "-arch=sm_30",
+                        "--ptxas-options=-v",
+                        "-std=c++11",
+                        "-Xcompiler",
+                        "-fPIC",
+                    ],
+                )
+            ],
+        )
+        env.CheckBuilder(language="cuda")
+        envPluginCuda.Tool("cuda")
 
     # Export `envPlugin` and `envPluginCUDA`
     Export("env")
@@ -261,41 +254,50 @@ else:
     # Execute compilation for our plugins.
     # Note: CUDA is already prepared from the initial environment setup.
     ###################################################################
-
+    env.SharedObject(
+        source=SourcePath("plugin/PluMA.cxx"),
+        target=ObjectPath("plugin/PluMA.o"),
+    )
     ###################################################################
     # PYTHON PLUGINS
     env.SharedObject(
-        source=SourcePath("PluMA.cxx"), target=SourcePath("PyPluMA.o")
+        source=SourcePath("plugin/PyPluMA_wrap.cxx"),
+        target=ObjectPath("plugin/PyPluMA_wrap.o"),
     )
-    env.SharedObject(SourcePath("PyPluMA_wrap.cxx"))
     env.SharedLibrary(
-        source=[SourcePath("PyPluMA.os"), SourcePath("PyPluMA_wrap.o")],
-        target=SourcePath("_PyPluMA_wrap.so"),
+        source=[
+            ObjectPath("plugin/PluMA.o"),
+            ObjectPath("plugin/PyPluMA_wrap.o"),
+        ],
+        target=LibPath("_PyPluMA_wrap.so"),
     )
     ###################################################################
 
     ###################################################################
     # PERL PLUGINS
     env.SharedObject(
-        source=SourcePath("PluMA.cxx"), target=SourcePath("PerlPluMA.o")
+        source=SourcePath("plugin/PerlPluMA_wrap.cxx"),
+        target=ObjectPath("plugin/PerlPluMA_wrap.o"),
     )
-    env.SharedObject(SourcePath("PerlPluMA_wrap.cxx"))
     env.SharedLibrary(
-        source=[SourcePath("PerlPluMA_wrap.os"), SourcePath("PerlPluMA.o"),],
-        target="PerlPluMA_wrap.so",
+        source=[
+            ObjectPath("plugin/PluMA.o"),
+            ObjectPath("plugin/PerlPluMA_wrap.o"),
+        ],
+        target=LibPath("PerlPluMA_wrap.so"),
     )
     ###################################################################
     # R PLUGINS
     env.SharedObject(
-        source=SourcePath("PluMA.cxx"), target=SourcePath("RPluMA.o")
-    )
-    env.SharedObject(
-        source=SourcePath("RPluMA_wrap.cxx"),
-        target=SourcePath("RPluMA_wrap.o"),
+        source=SourcePath("plugin/RPluMA_wrap.cxx"),
+        target=ObjectPath("plugin/RPluMA_wrap.o"),
     )
     env.SharedLibrary(
-        source=[SourcePath("RPluMA.o"), SourcePath("RPluMA_wrap.cxx")],
-        target=SourcePath("RPluMA_wrap.so"),
+        source=[
+            ObjectPath("plugin/PluMA.o"),
+            ObjectPath("plugin/RPluMA_wrap.o"),
+        ],
+        target=LibPath("RPluMA_wrap.so"),
     )
     ###################################################################
 
@@ -306,124 +308,162 @@ else:
 
     ###################################################################
     # Assemble plugin path
-    pluginPath = Glob(SourcePath("") + "plugins/**")
+    pluginPath = Glob("./plugins/**")
     ###################################################################
 
-    ##################################################################
-    # C++ Plugins
-    for folder in pluginPath:
-        envPlugin.AppendUnique(CCFLAGS=["-I" + folder])
-        if GetOption("with-cuda"):
-            envPluginCUDA.AppendUnique(NVCCFLAGS=["-I" + folder])
-        sconscripts = Glob(folder + "/*/SConscript")
-        pluginListCXX = Glob(folder + "/*/*.{cpp, cxx}")
-        if len(pluginListCXX) != 0 and len(sconscripts) != 0:
-            for sconscript in sconscripts:
-                SConscript(sconscript, exports=toExport)
-        curFolder = ""
-        firstTime = True
-        for plugin in pluginListCXX:
-            if plugin.get_dir() != curFolder:  # New context
-                if not firstTime:
-                    if len(pluginName) == 0:
-                        logging.warning(
-                            "WARNING: NULL PLUGIN IN FOLDER: %s, IGNORING"
-                            % folder
-                        )
-                    else:
-                        envPlugin.SharedLibrary(pluginName, sourceFiles)
-                curFolder = plugin.get_dir()
-                pluginName = ""
-                sourceFiles = []
-            firstTime = False
-            filename = plugin.get_path()
-            if filename.endswith("Plugin.cpp"):
-                pluginName = filename[0 : filename.find(".cpp")]
-            sourceFiles.append(filename)
-        if len(pluginName) == 0:
-            logging.warning(
-                "WARNING: NULL PLUGIN IN FOLDER: %s, IGNORING" % folder
-            )
-        else:
-            envPlugin.SharedLibrary(pluginName, sourceFiles)
-    ###################################################################
-
-    ###################################################################
-    # CUDA Plugins
+    # ##################################################################
+    # # C++ Plugins
+    # for folder in pluginPath:
+    #     envPlugin.AppendUnique(CCFLAGS=["-I" + folder])
+    #     if GetOption("with-cuda"):
+    #         envPluginCUDA.AppendUnique(NVCCFLAGS=["-I" + folder])
+    #     sconscripts = Glob(folder + "/*/SConscript")
+    #     pluginListCXX = Glob(folder + "/*/*.{cpp, cxx}")
+    #     if len(pluginListCXX) != 0 and len(sconscripts) != 0:
+    #         for sconscript in sconscripts:
+    #             SConscript(sconscript, exports=toExport)
+    #     curFolder = ""
+    #     firstTime = True
+    #     for plugin in pluginListCXX:
+    #         if plugin.get_dir() != curFolder:  # New context
+    #             if not firstTime:
+    #                 if len(pluginName) == 0:
+    #                     logging.warning(
+    #                         "WARNING: NULL PLUGIN IN FOLDER: %s, IGNORING"
+    #                         % folder
+    #                     )
+    #                 else:
+    #                     envPlugin.SharedLibrary(pluginName, sourceFiles)
+    #             curFolder = plugin.get_dir()
+    #             pluginName = ""
+    #             sourceFiles = []
+    #         firstTime = False
+    #         filename = plugin.get_path()
+    #         if filename.endswith("Plugin.cpp"):
+    #             pluginName = filename[0 : filename.find(".cpp")]
+    #         sourceFiles.append(filename)
+    #     if len(pluginName) == 0:
+    #         logging.warning(
+    #             "WARNING: NULL PLUGIN IN FOLDER: %s, IGNORING" % folder
+    #         )
+    #     else:
+    #         envPlugin.SharedLibrary(pluginName, sourceFiles)
+    # ###################################################################
     #
-    # TODO: Compress if-else statements?
-    if GetOption("with-cuda"):
-        for folder in pluginpath:
-            pluginsCUDA = Glob(folder + "/*/*.cu")
-            curFolder = ""
-            firstTime = True
-            for plugin in pluginsCUDA:
-                if plugin.get_dir() != curFolder:  # New context
-                    if not firstTime:
-                        if len(sharedPluginName) == 0:
-                            logging.warning(
-                                "WARNING: NULL PLUGIN IN FOLDER: %s, IGNORING"
-                                % folder
-                            )
-                        else:
-                            envPluginCUDA.SharedLibrary(
-                                sharedPluginName, sourceFiles
-                            )
-                curFolder = plugin.get_dir()
-                sharedPluginName = ""
-                sourceFiles = []
-                srcStr = ""
-            firstTime = False
-            filename = plugin.get_path()
-            if filename.endswith("Plugin.cu"):
-                name = filename.replace(str(plugin.get_dir()), "")
-                sharedPluginName = (
-                    str(plugin.get_dir()) + "/lib" + name[1 : name.find(".cu")]
-                )
-            sourceFiles.append(filename)
-            srcStr += filename + " "
-        if len(sharedPluginName) == 0:
-            logging.warning(
-                "WARNING: NULL PLUGIN IN FOLDER: %s, IGNORING" % folder
-            )
-        else:
-            envPluginCUDA.Command(sharedPluginName, sourceFiles)
-
-        # Repeat of C++ plugins?
-        # Consider DRY-ing?
-        curFolder = ""
-        firstTime = True
-        for plugin in pluginListCXX:
-            if plugin.get_dir() != curFolder:  # New context
-                if not firstTime:
-                    if len(pluginName) == 0:
-                        logging.warning(
-                            "WARNING: NULL PLUGIN IN FOLDER: %s, IGNORING"
-                            % folder
-                        )
-                    else:
-                        envPlugin.SharedLibrary(pluginName, sourcefiles)
-                curFolder = plugin.get_dir()
-                pluginName = ""
-                sourceFiles = []
-            firstTime = False
-            filename = plugin.get_path()
-            if filename.endswith("Plugin.cpp"):
-                pluginName = filename[0 : filename.find(".cpp")]
-            sourceFiles.append(filename)
-        if len(pluginName) == 0:
-            logging.warning(
-                "WARNING: NULL PLUGIN IN FOLDER: %s, IGNORING", folder
-            )
-        else:
-            envPlugin.SharedLibrary(pluginName, sourceFiles)
+    # ###################################################################
+    # # CUDA Plugins
+    # #
+    # # TODO: Compress if-else statements?
+    # if GetOption("with-cuda"):
+    #     for folder in pluginpath:
+    #         pluginsCUDA = Glob(folder + "/*/*.cu")
+    #         curFolder = ""
+    #         firstTime = True
+    #         for plugin in pluginsCUDA:
+    #             if plugin.get_dir() != curFolder:  # New context
+    #                 if not firstTime:
+    #                     if len(sharedPluginName) == 0:
+    #                         logging.warning(
+    #                             "WARNING: NULL PLUGIN IN FOLDER: %s, IGNORING"
+    #                             % folder
+    #                         )
+    #                     else:
+    #                         envPluginCUDA.SharedLibrary(
+    #                             sharedPluginName, sourceFiles
+    #                         )
+    #             curFolder = plugin.get_dir()
+    #             sharedPluginName = ""
+    #             sourceFiles = []
+    #             srcStr = ""
+    #         firstTime = False
+    #         filename = plugin.get_path()
+    #         if filename.endswith("Plugin.cu"):
+    #             name = filename.replace(str(plugin.get_dir()), "")
+    #             sharedPluginName = (
+    #                 str(plugin.get_dir()) + "/lib" + name[1 : name.find(".cu")]
+    #             )
+    #         sourceFiles.append(filename)
+    #         srcStr += filename + " "
+    #     if len(sharedPluginName) == 0:
+    #         logging.warning(
+    #             "WARNING: NULL PLUGIN IN FOLDER: %s, IGNORING" % folder
+    #         )
+    #     else:
+    #         envPluginCUDA.Command(sharedPluginName, sourceFiles)
+    #
+    #     # Repeat of C++ plugins?
+    #     # Consider DRY-ing?
+    #     curFolder = ""
+    #     firstTime = True
+    #     for plugin in pluginListCXX:
+    #         if plugin.get_dir() != curFolder:  # New context
+    #             if not firstTime:
+    #                 if len(pluginName) == 0:
+    #                     logging.warning(
+    #                         "WARNING: NULL PLUGIN IN FOLDER: %s, IGNORING"
+    #                         % folder
+    #                     )
+    #                 else:
+    #                     envPlugin.SharedLibrary(pluginName, sourcefiles)
+    #             curFolder = plugin.get_dir()
+    #             pluginName = ""
+    #             sourceFiles = []
+    #         firstTime = False
+    #         filename = plugin.get_path()
+    #         if filename.endswith("Plugin.cpp"):
+    #             pluginName = filename[0 : filename.find(".cpp")]
+    #         sourceFiles.append(filename)
+    #     if len(pluginName) == 0:
+    #         logging.warning(
+    #             "WARNING: NULL PLUGIN IN FOLDER: %s, IGNORING", folder
+    #         )
+    #     else:
+    #         envPlugin.SharedLibrary(pluginName, sourceFiles)
     ###################################################################
     # Main Executable & PluGen
-    env.AppendUnique(LDFLAGS=["-I./src/languages", "-I./src/PluGen"])
+    env.Append(
+        LIBPATH=[LibPath(""),]
+    )
 
-    env.Program(OutPath("PluGen/plugen"), Glob(SourcePath("PluGen/*.cxx")))
+    env.StaticObject(
+        source=SourcePath("languages/Compiled.cxx"),
+        target=ObjectPath("languages/Compiled.o"),
+    )
+
+    env.StaticObject(
+        source=SourcePath("languages/Language.cxx"),
+        target=ObjectPath("languages/Language.o"),
+    )
+
+    env.StaticObject(
+        source=SourcePath("languages/Py.cxx"),
+        target=ObjectPath("languages/Py.o"),
+    )
+
+    env.StaticObject(
+        source=SourcePath("languages/Perl.cxx"),
+        target=ObjectPath("languages/Perl.o"),
+    )
+
+    env.StaticObject(
+        source=SourcePath("languages/R.cxx"),
+        target=ObjectPath("languages/R.o"),
+    )
+
+    env.StaticObject(
+        source=SourcePath("main.cxx"), target=ObjectPath("main.o"),
+    )
+
+    env.Program("PluGen/plugen", Glob("./src/PluGen/*.cxx"))
     env.Program(
-        OutPath("pluma"),
-        [Glob(SourcePath("languages/*.cxx")), SourcePath("PluginManager.h")],
+        target="pluma",
+        source=[
+            ObjectPath("languages/Compiled.o"),
+            ObjectPath("languages/Language.o"),
+            ObjectPath("languages/Py.o"),
+            ObjectPath("languages/Perl.o"),
+            ObjectPath("languages/R.o"),
+            ObjectPath("main.o"),
+        ],
     )
     ###################################################################

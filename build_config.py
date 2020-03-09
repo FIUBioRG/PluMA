@@ -1,9 +1,16 @@
 #!python
 
 import os
+import sys
+from os.path import abspath, relpath
 
-lib_search_path = ['/lib', '/usr/lib', '/usr/local/lib']
-include_search_path = ['/usr/include', '/usr/local/include']
+platform = sys.platform
 
-source_base_dir = 'src'
-build_base_dir = 'out'
+lib_search_path = ["/lib", "/usr/lib", "/usr/local/lib"]
+include_search_path = ["/usr/include", "/usr/local/include", abspath("./src")]
+
+source_base_dir = relpath("./src")
+object_base_dir = relpath("./obj")
+build_base_dir = relpath("./out")
+
+prefix = abspath("/usr/local")

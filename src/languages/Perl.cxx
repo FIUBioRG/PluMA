@@ -30,9 +30,7 @@
 
 \*********************************************************************************/
 
-
-#include "perl.h"
-/** TODO: Switch to non-relative filepath */
+#include "Perl.h"
 #include "PluginManager.h"
 
 #ifdef HAVE_PERL
@@ -57,9 +55,6 @@ xs_init(pTHX)
 
 static PerlInterpreter *my_perl;
 
-
-#endif
-
 Perl::Perl(std::string language, std::string ext, std::string pp) : Language(language, ext, pp) {
    argc2 = 2;
    argv2 = new char*[2];
@@ -74,7 +69,6 @@ Perl::~Perl() {
 }
 
 void Perl::executePlugin(std::string pluginname, std::string inputname, std::string outputname) {
-#ifdef HAVE_PERL
             //PerlInterpreter *my_perl;
             PluginManager::getInstance().log("Trying to run Perl plugin: "+pluginname+".");
             //char** env;
@@ -119,7 +113,5 @@ void Perl::executePlugin(std::string pluginname, std::string inputname, std::str
             perl_free(my_perl);
             //PERL_SYS_TERM();
             PluginManager::getInstance().log("Perl Plugin "+pluginname+" completed successfully.");
-#endif
-
-
 }
+#endif
