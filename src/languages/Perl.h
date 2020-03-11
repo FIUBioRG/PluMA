@@ -29,7 +29,6 @@
                     Trevor Cickovski at tcickovs@fiu.edu
 
 \*********************************************************************************/
-
 #ifndef PERL_H
 #define PERL_H
 
@@ -37,19 +36,16 @@
 
 
 class Perl : public Language {
+    public:
+        Perl(std::string language, std::string ext, std::string pp);
+        ~Perl();
+        void executePlugin(std::string pluginname, std::string inputname, std::string outputname);
+        void unload() {} // Empty
 
-   public:
-      Perl(std::string language, std::string ext, std::string pp);
-      ~Perl();
-      void executePlugin(std::string pluginname, std::string inputname, std::string outputname);
-      void unload() {} // Empty
-
-   private:
-      char** env;
-      int argc2;
-      char** argv2;
+    private:
+        char** env;
+        int argc2;
+        char** argv2;
 };
-
-
 
 #endif

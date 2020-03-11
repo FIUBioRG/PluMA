@@ -36,16 +36,11 @@
 
 #include "Language.h"
 
-
 class Py : public Language {
-
-   public:
-      Py(std::string language, std::string ext, std::string pp);
-      void executePlugin(std::string pluginname, std::string inputname, std::string outputname);
-      void unload();
-
+    public:
+        Py(std::string language, std::string ext, std::string pp);
+        void executePlugin(std::string pluginname, std::string inputname, std::string outputname);
+        void unload();
 };
-
-
 
 #endif

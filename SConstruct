@@ -44,20 +44,6 @@ AddOption(
     help="Enable CUDA plugin compilation",
 )
 
-# AddOption(
-#     "--rcpp-include",
-#     dest="rccp_include",
-#     default="/usr/local/lib/R/site-library/Rccp/includes",
-#     help="Location of the installed Rccp headers",
-# )
-#
-# AddOption(
-#     "--rinside-include",
-#     dest="rinside_include",
-#     default="/usr/local/lib/R/site-library/RInside/include",
-#     help="Location of the installed RInside headers",
-# )
-
 AddOption(
     "--without-python",
     dest="without-python",
@@ -111,9 +97,11 @@ if env.GetOption("clean"):
     env.Clean(
         "default",
         [
-            relpath(".sconf_temp"),
-            relpath(".sconsign.dblite"),
+            Glob(".scon*"),
             relpath("config.log"),
+            relpath(".perlconfig.txt"),
+            relpath("pluma"),
+            relpath("PluGen"),
             relpath("./obj"),
             relpath("./lib"),
             Glob("./src/*.o"),
@@ -135,6 +123,9 @@ else:
     else:
         env.AppendUnique(CPPDEFINES=["NDEBUG"], CXXFLAGS=["-O2"])
 
+    if not config.CheckCC():
+        Exit(1)
+
     if not config.CheckCXX():
         Exit(1)
 
@@ -145,7 +136,6 @@ else:
         Exit(1)
 
     if not config.CheckLib("pthread"):
-        logging.error("!! Could not find `pthread` library")
         Exit(1)
 
     if not config.CheckLib("dl"):
@@ -235,6 +225,12 @@ else:
 
     if not config.CheckLib("RInside"):
         Exit(1)
+
+    if not GetOption("without-perl"):
+        config.env.Append(CPPDEFINES=["-DWITH_PERL"])
+
+    if not GetOption("without-r"):
+        config.env.Append(CPPDEFINES=["-DWITH_R"])
 
     env = config.Finish()
 
