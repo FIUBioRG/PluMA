@@ -36,6 +36,17 @@ $ scons -c
 The PluMA userguide is available at:
 http://biorg.cis.fiu.edu/pluma/userguide.pdf
 
+## Style Guide
+
+All contributions to the PluMA repository should follow the rules established in the [editorconfig](./.editorconfig) file.
+
+- Unless in a Makefile, all indentation must be spaces.
+- An indentation level must be 4 spaces in length.
+- All submissions must be in  charset 'utf-8'.
+- All submissions must be free of trailing whitespaces.
+- All submissions must include a final newline.
+
+Editorconfig may be loaded as a plugin for many IDEs or editors: [Editorconfig Plugins](https://editorconfig.org/#download)
 ------------------------------------------------------------------------------
 
 ## Citation Information
