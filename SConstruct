@@ -136,24 +136,32 @@ else:
         env.AppendUnique(CPPDEFINES=["NDEBUG"], CXXFLAGS=["-O2"])
 
     if not config.CheckCXX():
-        logging.error("!! CXX compiler could not output a valid executable")
         Exit(1)
 
     if not config.CheckSHCXX():
-        logging.error(
-            "!! Shared CXX compiler could not output a valid executable"
-        )
         Exit(1)
 
     if not config.CheckLibWithHeader("m", "math.h", "c"):
-        logging.error("!! Math library not found")
         Exit(1)
 
     if not config.CheckLib("pthread"):
         logging.error("!! Could not find `pthread` library")
         Exit(1)
 
+    if not config.CheckLib("dl"):
+        Exit(1)
+
+    if not config.CheckLib("crypt"):
+        Exit(1)
+
+    if not config.CheckLib("util"):
+        Exit(1)
+
+    if not config.CheckLib("c"):
+        Exit(1)
+
     config.env.ParseConfig("python-config --includes --ldflags")
+    config.env.Append(LIBS=["python" + python_version])
 
     if sys.version_info[0] == "2":
         logging.warning(
@@ -164,12 +172,7 @@ else:
         logging.error("!! Could not find a valid `perl` installation`")
         Exit(1)
     else:
-        perl_include = config.env.Split(cmdline('perl -e "print qq(@INC)"'))
-
-        for include_dir in perl_include:
-            if "core_perl" in include_dir:
-                include_dir = include_dir + "/CORE"
-            config.env.Append(CPPPATH=[include_dir])
+        config.env.ParseConfig("perl -MExtUtils::Embed -e ccopts -e ldopts")
 
         if not config.CheckHeader("EXTERN.h"):
             logging.error("!! Could not find `EXTERN.h`")
@@ -217,8 +220,21 @@ else:
                 Dir(site_library + "/Rcpp/include"),
                 Dir(site_library + "/RInside/include"),
             ],
-            LIBS=["R"],
+            LIBPATH=[Dir(site_library + "/RInside/lib")],
+            LIBS=["R", "RInside"],
         )
+
+    if not config.CheckLib("python3.8"):
+        Exit(1)
+
+    if not config.CheckLib("perl"):
+        Exit(1)
+
+    if not config.CheckLib("R"):
+        Exit(1)
+
+    if not config.CheckLib("RInside"):
+        Exit(1)
 
     env = config.Finish()
 
@@ -441,6 +457,16 @@ else:
     )
 
     env.StaticObject(
+        LDFLAGS=[
+            [
+                subprocess.check_output(
+                    "perl -MExtUtils::Embed -e ldopts",
+                    universal_newlines=True,
+                    shell=True,
+                    encoding="utf8",
+                )
+            ]
+        ],
         source=SourcePath("languages/Perl.cxx"),
         target=ObjectPath("languages/Perl.o"),
     )
@@ -457,6 +483,18 @@ else:
     env.Program("PluGen/plugen", Glob("./src/PluGen/*.cxx"))
     env.Program(
         target="pluma",
+        LIBS=[
+            "pthread",
+            "m",
+            "dl",
+            "crypt",
+            "util",
+            "c",
+            "python" + python_version,
+            "perl",
+            "R",
+            "RInside",
+        ],
         source=[
             ObjectPath("languages/Compiled.o"),
             ObjectPath("languages/Language.o"),

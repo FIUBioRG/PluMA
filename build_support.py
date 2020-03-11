@@ -4,6 +4,9 @@ import os
 from os import path
 import subprocess
 from subprocess import Popen, PIPE
+import sys
+
+python_version = ".".join(map(str, sys.version_info[0:2]))
 
 ###################################################################
 # HELPER FUNCTIONS
