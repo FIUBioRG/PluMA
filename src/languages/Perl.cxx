@@ -92,28 +92,28 @@ void Perl::executePlugin(std::string pluginname, std::string inputname,
     }
     // @TODO: cleanup?
     while (!(*infile) && path.length() > 0);// {
-        delete infile;
-        //argv2[1] = (char*) ("plugins/"+pluginname+"/"+pluginname+"Plugin.pl").c_str();
-        argv2[0] = "";
-        argv2[1] = (char*) filename.c_str();
-        //printf("%s\n", args_input[0]);
-        //PERL_SYS_INIT3(&argc2,&argv2,&env);
-        my_perl = perl_alloc();
-        perl_construct(my_perl);
-        perl_parse(my_perl, xs_init, argc2, argv2, NULL);
-        //perl_parse(my_perl, NULL, argc2, argv2, NULL);
-        PL_exit_flags |= PERL_EXIT_DESTRUCT_END;
-        //eval_pv("use lib \'.\';", TRUE);
-        /*** skipping perl_run() ***/
-        PluginManager::getInstance().log("Executing input() For Perl Plugin +pluginname);
-        call_argv("input", G_DISCARD, args_input);
-        PluginManager::getInstance().log("Executing run() For Perl Plugin +pluginname);
-        call_argv("run", G_DISCARD | G_NOARGS, args_run);
-        PluginManager::getInstance().log("Executing output() For Perl Plugin "+pluginname);
-        call_argv("output", G_DISCARD, args_output);
-        perl_destruct(my_perl);
-        perl_free(my_perl);
-        //PERL_SYS_TERM();
-        PluginManager::getInstance().log("Perl Plugin "+pluginname+" completed successfully.");
+    delete infile;
+    //argv2[1] = (char*) ("plugins/"+pluginname+"/"+pluginname+"Plugin.pl").c_str();
+    argv2[0] = "";
+    argv2[1] = (char*) filename.c_str();
+    //printf("%s\n", args_input[0]);
+    //PERL_SYS_INIT3(&argc2,&argv2,&env);
+    my_perl = perl_alloc();
+    perl_construct(my_perl);
+    perl_parse(my_perl, xs_init, argc2, argv2, NULL);
+    //perl_parse(my_perl, NULL, argc2, argv2, NULL);
+    PL_exit_flags |= PERL_EXIT_DESTRUCT_END;
+    //eval_pv("use lib \'.\';", TRUE);
+    /*** skipping perl_run() ***/
+    PluginManager::getInstance().log("Executing input() For Perl Plugin " +pluginname);
+    call_argv("input", G_DISCARD, args_input);
+    PluginManager::getInstance().log("Executing run() For Perl Plugin " +pluginname);
+    call_argv("run", G_DISCARD | G_NOARGS, args_run);
+    PluginManager::getInstance().log("Executing output() For Perl Plugin  "+pluginname);
+    call_argv("output", G_DISCARD, args_output);
+    perl_destruct(my_perl);
+    perl_free(my_perl);
+    //PERL_SYS_TERM();
+    PluginManager::getInstance().log("Perl Plugin "+pluginname+" completed successfully.");
 }
 #endif

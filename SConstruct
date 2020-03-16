@@ -7,6 +7,8 @@
 # TODO: Test portability with Windows systems using MSVC.
 # TODO: Merge variable assignments.
 # -*-python-*-
+
+from glob import glob
 import logging
 from os import environ, getenv
 from os.path import relpath, abspath
@@ -132,23 +134,22 @@ else:
     if not config.CheckSHCXX():
         Exit(1)
 
-    if not config.CheckLibWithHeader("m", "math.h", "c"):
-        Exit(1)
+    libs = [
+        "m",
+        "pthread",
+        "dl",
+        "crypt",
+        "util",
+        "pcre",
+        "rt",
+        "blas",
+        "rt",
+        "c",
+    ]
 
-    if not config.CheckLib("pthread"):
-        Exit(1)
-
-    if not config.CheckLib("dl"):
-        Exit(1)
-
-    if not config.CheckLib("crypt"):
-        Exit(1)
-
-    if not config.CheckLib("util"):
-        Exit(1)
-
-    if not config.CheckLib("c"):
-        Exit(1)
+    for lib in libs:
+        if not config.CheckLib(lib):
+            Exit(1)
 
     config.env.ParseConfig("python-config --includes --ldflags")
     config.env.Append(LIBS=["python" + python_version])
@@ -201,10 +202,12 @@ else:
         config.env.AppendUnique(
             CXXFLAGS=[
                 "-fpermissive",
+                "-fopenmp",
                 "--param=ssp-buffer-size=4",
                 "-Wformat",
                 "-Wformat-security",
                 "-Werror=format-security",
+                "-Wl,--export-dynamic",
             ],
             CPPPATH=[
                 Dir(site_library + "/Rcpp/include"),
@@ -214,17 +217,17 @@ else:
             LIBS=["R", "RInside"],
         )
 
-    if not config.CheckLib("python3.8"):
-        Exit(1)
+    # if not config.CheckLib("python3.8"):
+    #     Exit(1)
 
-    if not config.CheckLib("perl"):
-        Exit(1)
-
-    if not config.CheckLib("R"):
-        Exit(1)
-
-    if not config.CheckLib("RInside"):
-        Exit(1)
+    # if not config.CheckLib("perl"):
+    #     Exit(1)
+    #
+    # if not config.CheckLib("R"):
+    #     Exit(1)
+    #
+    # if not config.CheckLib("RInside"):
+    #     Exit(1)
 
     if not GetOption("without-perl"):
         config.env.Append(CPPDEFINES=["-DWITH_PERL"])
@@ -320,46 +323,48 @@ else:
 
     ###################################################################
     # Assemble plugin path
-    pluginPath = Glob("./plugins/**")
+    pluginPath = glob("./plugins/*/")
     ###################################################################
 
     # ##################################################################
     # # C++ Plugins
-    # for folder in pluginPath:
-    #     envPlugin.AppendUnique(CCFLAGS=["-I" + folder])
-    #     if GetOption("with-cuda"):
-    #         envPluginCUDA.AppendUnique(NVCCFLAGS=["-I" + folder])
-    #     sconscripts = Glob(folder + "/*/SConscript")
-    #     pluginListCXX = Glob(folder + "/*/*.{cpp, cxx}")
-    #     if len(pluginListCXX) != 0 and len(sconscripts) != 0:
-    #         for sconscript in sconscripts:
-    #             SConscript(sconscript, exports=toExport)
-    #     curFolder = ""
-    #     firstTime = True
-    #     for plugin in pluginListCXX:
-    #         if plugin.get_dir() != curFolder:  # New context
-    #             if not firstTime:
-    #                 if len(pluginName) == 0:
-    #                     logging.warning(
-    #                         "WARNING: NULL PLUGIN IN FOLDER: %s, IGNORING"
-    #                         % folder
-    #                     )
-    #                 else:
-    #                     envPlugin.SharedLibrary(pluginName, sourceFiles)
-    #             curFolder = plugin.get_dir()
-    #             pluginName = ""
-    #             sourceFiles = []
-    #         firstTime = False
-    #         filename = plugin.get_path()
-    #         if filename.endswith("Plugin.cpp"):
-    #             pluginName = filename[0 : filename.find(".cpp")]
-    #         sourceFiles.append(filename)
-    #     if len(pluginName) == 0:
-    #         logging.warning(
-    #             "WARNING: NULL PLUGIN IN FOLDER: %s, IGNORING" % folder
-    #         )
-    #     else:
-    #         envPlugin.SharedLibrary(pluginName, sourceFiles)
+    for folder in pluginPath:
+        env.AppendUnique(CCFLAGS=["-I" + folder])
+        # if GetOption("with-cuda"):
+        #     envPluginCUDA.AppendUnique(NVCCFLAGS=["-I" + folder])
+        sconscripts = Glob(folder + "/*/SConscript")
+        pluginListCXX = Glob(folder + "/*/*.{cpp, cxx}")
+        if len(pluginListCXX) != 0 and len(sconscripts) != 0:
+            for sconscript in sconscripts:
+                SConscript(sconscript, exports=toExport)
+        curFolder = ""
+        firstTime = True
+        for plugin in pluginListCXX:
+            if plugin.get_dir() != curFolder:  # New context
+                if not firstTime:
+                    if len(pluginName) == 0:
+                        logging.warning(
+                            "WARNING: NULL PLUGIN IN FOLDER: %s, IGNORING"
+                            % folder
+                        )
+                    else:
+                        envPlugin.SharedLibrary(pluginName, sourceFiles)
+                curFolder = plugin.get_dir()
+                pluginName = ""
+                sourceFiles = []
+            firstTime = False
+            filename = plugin.get_path()
+            if filename.endswith("Plugin.cpp"):
+                pluginName = filename[0 : filename.find(".cpp")]
+            sourceFiles.append(filename)
+            if len(pluginName) == 0:
+                logging.warning(
+                    "WARNING: NULL PLUGIN IN FOLDER: %s, IGNORING" % folder
+                )
+            else:
+                envPlugin.SharedLibrary(
+                    target=ObjectPath(pluginName), source=sourceFiles
+                )
     # ###################################################################
     #
     # ###################################################################
@@ -491,6 +496,7 @@ else:
             "R",
             "RInside",
         ],
+        RPATH=[site_library + "/RInside/lib"],
         source=[
             ObjectPath("languages/Compiled.o"),
             ObjectPath("languages/Language.o"),
