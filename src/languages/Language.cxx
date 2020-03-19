@@ -62,6 +62,6 @@ void Language::loadPlugin(std::string path, glob_t* globbuf,
             }
         }
     } else {
-         std::cout << "Found no " << language << " plugins" << std::endl;
+        std::cout << "Found no " << language << " plugins" << std::endl;
     }
 }

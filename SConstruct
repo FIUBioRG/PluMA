@@ -88,6 +88,9 @@ env = Environment(
 if not sys.platform.startswith("darwin"):
     env.Append(LINKFLAGS=["-rdynamic"])
     env.Append(LIBS=["rt"])
+
+if platform_id == "alpine":
+    env.Append(CPPDEFINES=["__MUSL__"])
 ###################################################################
 
 ###################################################################
@@ -217,17 +220,18 @@ else:
             LIBS=["R", "RInside"],
         )
 
-    # if not config.CheckLib("python3.8"):
-    #     Exit(1)
+    if platform_id == "ID=arch":
+        if not config.CheckLib("python3.8"):
+            Exit(1)
 
-    # if not config.CheckLib("perl"):
-    #     Exit(1)
-    #
-    # if not config.CheckLib("R"):
-    #     Exit(1)
-    #
-    # if not config.CheckLib("RInside"):
-    #     Exit(1)
+        if not config.CheckLib("perl"):
+            Exit(1)
+
+        if not config.CheckLib("R"):
+            Exit(1)
+
+        if not config.CheckLib("RInside"):
+            Exit(1)
 
     if not GetOption("without-perl"):
         config.env.Append(CPPDEFINES=["-DWITH_PERL"])
@@ -371,71 +375,71 @@ else:
     # # CUDA Plugins
     # #
     # # TODO: Compress if-else statements?
-    # if GetOption("with-cuda"):
-    #     for folder in pluginpath:
-    #         pluginsCUDA = Glob(folder + "/*/*.cu")
-    #         curFolder = ""
-    #         firstTime = True
-    #         for plugin in pluginsCUDA:
-    #             if plugin.get_dir() != curFolder:  # New context
-    #                 if not firstTime:
-    #                     if len(sharedPluginName) == 0:
-    #                         logging.warning(
-    #                             "WARNING: NULL PLUGIN IN FOLDER: %s, IGNORING"
-    #                             % folder
-    #                         )
-    #                     else:
-    #                         envPluginCUDA.SharedLibrary(
-    #                             sharedPluginName, sourceFiles
-    #                         )
-    #             curFolder = plugin.get_dir()
-    #             sharedPluginName = ""
-    #             sourceFiles = []
-    #             srcStr = ""
-    #         firstTime = False
-    #         filename = plugin.get_path()
-    #         if filename.endswith("Plugin.cu"):
-    #             name = filename.replace(str(plugin.get_dir()), "")
-    #             sharedPluginName = (
-    #                 str(plugin.get_dir()) + "/lib" + name[1 : name.find(".cu")]
-    #             )
-    #         sourceFiles.append(filename)
-    #         srcStr += filename + " "
-    #     if len(sharedPluginName) == 0:
-    #         logging.warning(
-    #             "WARNING: NULL PLUGIN IN FOLDER: %s, IGNORING" % folder
-    #         )
-    #     else:
-    #         envPluginCUDA.Command(sharedPluginName, sourceFiles)
-    #
-    #     # Repeat of C++ plugins?
-    #     # Consider DRY-ing?
-    #     curFolder = ""
-    #     firstTime = True
-    #     for plugin in pluginListCXX:
-    #         if plugin.get_dir() != curFolder:  # New context
-    #             if not firstTime:
-    #                 if len(pluginName) == 0:
-    #                     logging.warning(
-    #                         "WARNING: NULL PLUGIN IN FOLDER: %s, IGNORING"
-    #                         % folder
-    #                     )
-    #                 else:
-    #                     envPlugin.SharedLibrary(pluginName, sourcefiles)
-    #             curFolder = plugin.get_dir()
-    #             pluginName = ""
-    #             sourceFiles = []
-    #         firstTime = False
-    #         filename = plugin.get_path()
-    #         if filename.endswith("Plugin.cpp"):
-    #             pluginName = filename[0 : filename.find(".cpp")]
-    #         sourceFiles.append(filename)
-    #     if len(pluginName) == 0:
-    #         logging.warning(
-    #             "WARNING: NULL PLUGIN IN FOLDER: %s, IGNORING", folder
-    #         )
-    #     else:
-    #         envPlugin.SharedLibrary(pluginName, sourceFiles)
+    if GetOption("with-cuda"):
+        for folder in pluginpath:
+            pluginsCUDA = Glob(folder + "/*/*.cu")
+            curFolder = ""
+            firstTime = True
+            for plugin in pluginsCUDA:
+                if plugin.get_dir() != curFolder:  # New context
+                    if not firstTime:
+                        if len(sharedPluginName) == 0:
+                            logging.warning(
+                                "WARNING: NULL PLUGIN IN FOLDER: %s, IGNORING"
+                                % folder
+                            )
+                        else:
+                            envPluginCUDA.SharedLibrary(
+                                sharedPluginName, sourceFiles
+                            )
+                curFolder = plugin.get_dir()
+                sharedPluginName = ""
+                sourceFiles = []
+                srcStr = ""
+            firstTime = False
+            filename = plugin.get_path()
+            if filename.endswith("Plugin.cu"):
+                name = filename.replace(str(plugin.get_dir()), "")
+                sharedPluginName = (
+                    str(plugin.get_dir()) + "/lib" + name[1 : name.find(".cu")]
+                )
+            sourceFiles.append(filename)
+            srcStr += filename + " "
+        if len(sharedPluginName) == 0:
+            logging.warning(
+                "WARNING: NULL PLUGIN IN FOLDER: %s, IGNORING" % folder
+            )
+        else:
+            envPluginCUDA.Command(sharedPluginName, sourceFiles)
+
+        # Repeat of C++ plugins?
+        # Consider DRY-ing?
+        curFolder = ""
+        firstTime = True
+        for plugin in pluginListCXX:
+            if plugin.get_dir() != curFolder:  # New context
+                if not firstTime:
+                    if len(pluginName) == 0:
+                        logging.warning(
+                            "WARNING: NULL PLUGIN IN FOLDER: %s, IGNORING"
+                            % folder
+                        )
+                    else:
+                        envPlugin.SharedLibrary(pluginName, sourcefiles)
+                curFolder = plugin.get_dir()
+                pluginName = ""
+                sourceFiles = []
+            firstTime = False
+            filename = plugin.get_path()
+            if filename.endswith("Plugin.cpp"):
+                pluginName = filename[0 : filename.find(".cpp")]
+            sourceFiles.append(filename)
+        if len(pluginName) == 0:
+            logging.warning(
+                "WARNING: NULL PLUGIN IN FOLDER: %s, IGNORING", folder
+            )
+        else:
+            envPlugin.SharedLibrary(pluginName, sourceFiles)
     ###################################################################
     # Main Executable & PluGen
     env.Append(

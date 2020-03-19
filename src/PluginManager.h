@@ -44,50 +44,53 @@
 #include <fstream>
 
 class PluginManager {
-
-   public:
-   std::map<std::string, Maker*> makers;
-   std::set<std::string> installed;
-   static PluginManager& getInstance()
-        {
-            static PluginManager    instance; // Guaranteed to be destroyed.
-                                  // Instantiated on first use.
-            return instance;
-        }
+public:
+    std::map<std::string, Maker*> makers;
+    std::set<std::string> installed;
+    static PluginManager& getInstance() {
+        static PluginManager instance; // Guaranteed to be destroyed.
+        // Instantiated on first use.
+        return instance;
+    }
     PluginManager() {}
-    PluginManager(PluginManager const&)               = delete;
+    PluginManager(PluginManager const&) = delete;
     ~PluginManager() {if (logfile) delete logfile;}
     void operator=(PluginManager const&)  = delete;
 
-   public:
-   template<class T> void addMaker(std::string name, PluginMaker<T>* maker) {
-      makers[name] = maker;
-   }
+    template<class T> void addMaker(std::string name,
+        PluginMaker<T>* maker)
+    {
+        makers[name] = maker;
+    }
 
-   void add(std::string name) {installed.insert(name);}
+    void add(std::string name) {installed.insert(name);}
 
-   Plugin* create(std::string name) {
-      return makers[name]->create();
-   }
+    Plugin* create(std::string name) {
+        return makers[name]->create();
+    }
 
-   void setLogFile(std::string lf) {
-      if (logfile) delete logfile;
-      logfile = new std::ofstream(lf.c_str(), std::ios::out);
-   }
+    void setLogFile(std::string lf) {
+        if (logfile) delete logfile;
+        logfile = new std::ofstream(lf.c_str(), std::ios::out);
+    }
 
+    static void log(std::string msg) {
+        *(getInstance().logfile) << "[PluMA] " << msg << std::endl;
+    }
 
-   static void log(std::string msg) { *(getInstance().logfile) << "[PluMA] " << msg << std::endl; }
+    static void dependency(std::string plugin) {
+        if (getInstance().installed.count(plugin) == 0) {
+            *(getInstance().logfile) << "[PluMA] Plugin dependency " <<
+            plugin << " not met.  Exiting..."
+            << std::endl;  exit(1);
+        } else {
+            *(getInstance().logfile) << "[PluMA] Plugin dependency " <<
+            plugin << " met." << std::endl;
+        }
+    }
 
-   static void dependency(std::string plugin) {if (getInstance().installed.count(plugin) == 0) {*(getInstance().logfile) << "[PluMA] Plugin dependency " << plugin << " not met.  Exiting..." << std::endl;  exit(1);}
-                                                  else {*(getInstance().logfile) << "[PluMA] Plugin dependency " << plugin << " met." << std::endl;}}
-
-   private:
-      std::ofstream* logfile;
+private:
+    std::ofstream* logfile;
 };
-
-//static __declspec(dllexport) PluginManager pluginManager;
-
-//   PluginManager::getInstance().log(msg);
-//}
 
 #endif

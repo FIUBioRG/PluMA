@@ -38,14 +38,14 @@
 
 // Artificial parent class for all templates
 class Maker {
-   public:
-   virtual Plugin* create()=0;
+public:
+    virtual Plugin* create()=0;
 };
 
 template<class T>
 class PluginMaker : public Maker {
-   public:
-   Plugin* create() {return new T();}
+public:
+    Plugin* create() {return new T();}
 };
 
 #endif

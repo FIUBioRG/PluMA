@@ -40,13 +40,13 @@
 #include <string>
 
 class Plugin {
-  public:
-  Plugin(){}
-  //virtual std::string toString(){return "Plugin";}
-  virtual ~Plugin(){}
-  virtual void input(std::string file) {}
-  virtual void run() {}
-  virtual void output(std::string file) {}
+public:
+    Plugin(){}
+    //virtual std::string toString(){return "Plugin";}
+    virtual ~Plugin(){}
+    virtual void input(std::string file) {}
+    virtual void run() {}
+    virtual void output(std::string file) {}
 };
 
 #endif

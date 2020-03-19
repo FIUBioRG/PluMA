@@ -38,20 +38,26 @@
 #include <glob.h>
 
 class Language {
-    public:
-        Language(std::string lang, std::string ext, std::string pp, std::string pre="") {language = lang; extension = ext; pluginpath = pp; prefix = pre;}
-        virtual void loadPlugin(std::string path, glob_t* globbuf, std::map<std::string, std::string>* pluginLanguages, bool list);
-        virtual void executePlugin(std::string pluginname, std::string inputfile, std::string outputfile)=0;
-        virtual void unload()=0;
-        virtual std::string ext() {return extension;}
-        virtual std::string lang() {return language;}
-        virtual std::string pre() {return prefix;}
+public:
+    Language(std::string lang, std::string ext, std::string pp,
+        std::string pre="")
+    {
+        language = lang; extension = ext; pluginpath = pp; prefix = pre;
+    }
+    virtual void loadPlugin(std::string path, glob_t* globbuf,
+        std::map<std::string, std::string>* pluginLanguages, bool list);
+    virtual void executePlugin(std::string pluginname, std::string inputfile,
+        std::string outputfile)=0;
+    virtual void unload()=0;
+    virtual std::string ext() {return extension;}
+    virtual std::string lang() {return language;}
+    virtual std::string pre() {return prefix;}
 
-    protected:
-        std::string language;
-        std::string extension;
-        std::string prefix;
-        std::string pluginpath;
+protected:
+    std::string language;
+    std::string extension;
+    std::string prefix;
+    std::string pluginpath;
 };
 
 #endif

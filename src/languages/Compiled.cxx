@@ -61,11 +61,15 @@ void Compiled::executePlugin(std::string pluginname, std::string inputname,
     }
     Plugin* plugin = PluginManager::getInstance().create(pluginname);
 
-    PluginManager::getInstance().log("Executing input() For C++/CUDA Plugin "+pluginname);
+    PluginManager::getInstance().log("Executing input() For C++/CUDA Plugin "
+        +pluginname);
     plugin->input(inputname);
-    PluginManager::getInstance().log("Executing run() For C++/CUDA Plugin "+pluginname);
+    PluginManager::getInstance().log("Executing run() For C++/CUDA Plugin "
+        +pluginname);
     plugin->run();
-    PluginManager::getInstance().log("Executing output() For C++/CUDA Plugin "+pluginname);
+    PluginManager::getInstance().log("Executing output() For C++/CUDA Plugin "
+        +pluginname);
     plugin->output(outputname);
-    PluginManager::getInstance().log("C++/CUDA Plugin "+pluginname+" completed successfully.");
+    PluginManager::getInstance().log("C++/CUDA Plugin "
+        +pluginname+" completed successfully.");
 }

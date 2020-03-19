@@ -37,17 +37,16 @@
 #include <vector>
 
 class PluginGenerator {
-   public:
-      PluginGenerator(std::string, bool literal);
-      void generate(std::string, std::vector<std::string>&);
-   private:
-      void makeDirectory(std::string);
-      void makeHeaderFile(std::string);
-      void makeSourceFile(std::string, std::vector<std::string>&);
+public:
+    PluginGenerator(std::string, bool literal);
+    void generate(std::string, std::vector<std::string>&);
+private:
+    void makeDirectory(std::string);
+    void makeHeaderFile(std::string);
+    void makeSourceFile(std::string, std::vector<std::string>&);
 
-      std::string myPath;
-      bool myLiteral;
+    std::string myPath;
+    bool myLiteral;
 };
-
 
 #endif

@@ -40,9 +40,11 @@
 class Compiled : public Language
 {
 public:
-      Compiled(std::string language, std::string ext, std::string pp, std::string pre);
-      virtual void executePlugin(std::string pluginname, std::string inputfile, std::string outputfile);//=0;
-      virtual void unload(){}
+    Compiled(std::string language, std::string ext, std::string pp,
+        std::string pre);
+    virtual void executePlugin(std::string pluginname,
+        std::string inputfile, std::string outputfile);
+    virtual void unload(){}
 };
 
 #endif

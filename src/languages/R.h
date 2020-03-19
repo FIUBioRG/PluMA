@@ -30,7 +30,6 @@
 
 \*********************************************************************************/
 
-
 #ifndef RR_H
 #define RR_H
 
@@ -41,17 +40,18 @@ class RInside;
 #endif
 
 namespace MiAMi {
-
     class R : public Language {
 
-       public:
-          R(std::string language, std::string ext, std::string pp, int argc, char** argv);
-          void executePlugin(std::string pluginname, std::string inputname, std::string outputname);
-          void unload();
-       private:
-    #ifdef HAVE_R
-          RInside* myR;
-    #endif
+    public:
+        R(std::string language, std::string ext, std::string pp,
+            int argc, char** argv);
+        void executePlugin(std::string pluginname, std::string inputname,
+            std::string outputname);
+        void unload();
+    private:
+        #ifdef HAVE_R
+        RInside* myR;
+        #endif
     };
 
 }
