@@ -1,0 +1,18 @@
+____________________________________________________________________________________
+Using the PluginGenerator
+
+To compile, just type 'make'.
+
+Note: This will produce a plugin in one of the following locations (in order):
+1. ../plugins
+2. PLUMA_PLUGIN_PATH; using directories in order.
+
+The usage is:
+./plugen (pluginname) (command to run)
+
+(pluginname) is the name of the new plugin.
+(command to run) must be at least one word, and is the command to run the
+software that you want wrapped.
+This command can use 'inputfile' and 'outputfile' as placeholders for the information
+provided in the configuration file when the plugin is actually used.
+____________________________________________________________________________________
