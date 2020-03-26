@@ -142,7 +142,7 @@ else:
         "pthread",
         "dl",
         "crypt",
-        "util",
+        #"util",
         "pcre",
         "rt",
         "blas",
@@ -156,6 +156,7 @@ else:
 
     config.env.ParseConfig("python-config --includes --ldflags")
     config.env.Append(LIBS=["python" + python_version])
+    config.env.Append(LIBS=["util"])
 
     if sys.version_info[0] == "2":
         logging.warning(
@@ -493,9 +494,9 @@ else:
             "m",
             "dl",
             "crypt",
-            "util",
             "c",
             "python" + python_version,
+            "util",
             "perl",
             "R",
             "RInside",
