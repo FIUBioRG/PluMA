@@ -57,8 +57,8 @@ namespace MiAMi {
         std::ifstream* infile = NULL;
         do {
             if (infile) delete infile;
-            infile = new std::ifstream(path+"/"+pluginname+
-              "/"+pluginname+"Plugin.R", std::ios::in);
+            infile = new std::ifstream((path+"/"+pluginname+
+              "/"+pluginname+"Plugin.R").c_str(), std::ios::in);
             tmppath = tmppath.substr(tmppath.find_first_of(":")+1,
               tmppath.length());
             path = tmppath.substr(0, tmppath.find_first_of(":"));

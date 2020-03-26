@@ -35,7 +35,6 @@
 #include "../PluginManager.h"
 #include <dlfcn.h>
 #include <iostream>
-
 Compiled::Compiled(std::string lang, std::string ext, std::string pp,
     std::string pre) : Language(lang, ext, pp, pre) {}
 
@@ -49,7 +48,7 @@ void Compiled::executePlugin(std::string pluginname, std::string inputname,
     do {
         if (infile) delete infile;
         filename = path+"/"+pluginname+"/lib"+pluginname+"Plugin.so";
-        infile = new std::ifstream(filename, std::ios::in);
+        infile = new std::ifstream(filename.c_str(), std::ios::in);
         tmppath = tmppath.substr(tmppath.find_first_of(":")+1, tmppath.length());
         path = tmppath.substr(0, tmppath.find_first_of(":"));
     } while (!(*infile) && path.length() > 0);

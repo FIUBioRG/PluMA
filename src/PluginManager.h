@@ -42,6 +42,7 @@
 #include <set>
 #include <iostream>
 #include <fstream>
+#include <stdlib.h>
 
 class PluginManager {
 public:
