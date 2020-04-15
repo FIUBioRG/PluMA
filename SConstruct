@@ -70,6 +70,14 @@ AddOption(
     help="Disable R plugin compilation",
 )
 
+AddOption(
+    "--with-tcp-socket",
+    dest="with-tcp-socket",
+    action="store_true",
+    default=False,
+    help="Enable TCP socket compilation using libuv",
+)
+
 ###################################################################
 # Gets the environment variables set by the user on the OS level or
 # defaults to 'sane' values.
@@ -265,6 +273,12 @@ else:
         )
         env.CheckBuilder(language="cuda")
         envPluginCuda.Tool("cuda")
+
+    if GetOption("with-tcp-socket"):
+        if not config.CheckLib("uv"):
+            logging.error("Missing libuv headers")
+            exit(1)
+        config.env.Append(CPPDEFINES=["-DWITH_HEARTBEAT"])
 
     # Export `envPlugin` and `envPluginCUDA`
     Export("env")

@@ -27,6 +27,8 @@ RUN apk add -t .runtime-deps \
   R-mathlib \
   python3 \
   libffi \
+  libc-dev \
+  musl-dev \
 && apk add -t .build-deps \
   blas-dev \
   perl-dev \
@@ -45,7 +47,8 @@ RUN apk add -t .runtime-deps \
 && Rscript -e "install.packages('RInside', repos = 'https://cloud.r-project.org')" \
 && /usr/bin/pip install --upgrade pip \
 && /usr/bin/pip install --no-cache-dir -r requirements.txt \
-&& scons \
+&& git submodule update --init \
+&& scons -Q --with-tcp-socket \
 && apk del .build-deps
 
 VOLUME ["/pluma/plugins"]
