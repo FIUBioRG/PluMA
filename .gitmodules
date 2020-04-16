@@ -34,3 +34,6 @@
 	url = https://github.com/movingpictures83/GPUATria
 	path = plugins/GPUATria
 	active = true
+[submodule "src/httpparser"]
+	path = src/httpparser
+	url = https://github.com/quinnjr/httpparser
