@@ -33,8 +33,9 @@
 #include <ctime>
 #include <cstring>
 #include <dlfcn.h>
+#include <error.h>
 #include <fstream>
-#include <getopt.h>
+#include <argp.h>
 #include <glob.h>
 #include <map>
 #include <sstream>
@@ -60,6 +61,47 @@
 #include "healthcheck.h"
 #define DEFAULT_PORT 3000
 #endif
+
+const char *argp_program_version = VERSION;
+const char *argp_program_bug_address = "<tcickovs@fiu.edu>";
+char args_doc[] = "[CONFIG FILE] [<optional restart point>]";
+static struct argp_option options[] = {
+    {"log-file", 'l', "FILE", 0, "File to output logging information to. [default: ./logs/[TIMESTAMP].log.txt"},
+    {"error-file", 'e', "FILE", 0, "File to output error information to. [default: /dev/stderr]"},
+    {"healthcheck", 'H', 0, 0, "Enable the healthcheck socket. PluMA must be compiled with -DWITH_HEALTHCHECK. [default: false]"},
+    {0}
+};
+
+typedef struct {
+    char *args[2];
+    char *log_file, error_file;
+} arguments;
+
+static error_t parse_opt(int key, char *arg, struct argp_state *state) {
+    arguments *arguments = reinterpret_cast<::arguments *>(state->input);
+
+    switch(key) {
+        case ARGP_KEY_ARG:
+            if(state->arg_num >= 2) {
+                argp_usage(state);
+            }
+            arguments->args[state->arg_num] = arg;
+            break;
+        case ARGP_KEY_NO_ARGS:
+            argp_usage(state);
+            break;
+        case ARGP_KEY_END:
+            if(state->arg_num < 1) {
+                argp_usage(state);
+            }
+            break;
+        default:
+            return ARGP_ERR_UNKNOWN;
+    }
+    return 0;
+}
+
+static struct argp argp = { options, parse_opt, args_doc, 0 /* TODO: potential banner */ };
 
 ////////////////////////////////////////////////////////////////////////////////
 // Helper Function: Convert int to string
@@ -124,60 +166,10 @@ int main(int argc, char **argv) {
 
     ////////////////////////////////////////////////////////////////////////////
     // Command line arguments
-    // if ((argc != 2 && argc != 3) || std::string(argv[1]) == "usage") { // Usage
-    //     std::cout << "[PluMA] Usage: ./pluma (config file) (optional restart point)" << std::endl;
-    //     std::cout << "Arguments: help: display this message" << std::endl;
-    //     std::cout << "           version: display release information" << std::endl;
-    //     std::cout << "           plugins: list your installed plugins and location" << std::endl;
-    //     exit(EXIT_SUCCESS);
-    // }
-    // else if (std::string(argv[1]) == "help") { // Help
-    //     std::cout << "[PluMA] Usage: ./pluma (config file) (optional restart point)" << std::endl;
-    //     exit(EXIT_SUCCESS);
-    // }
-    // else if (std::string(argv[1]) == "version") { // Version
-    //     std::string version = "[Pluma] Version ";
-    //     version.append(VERSION);
-    //     std::cout <<  version << std::endl;
-    //     exit(EXIT_SUCCESS);
-    // }
-    int c;
-    static int logfile_flag;
-    int option_index = 0;
+    arguments arguments;
 
-    static struct option long_options[] = {
-        {"help", no_argument, 0, 'h'},
-        {"version", no_argument, 0, 'v'},
-        {"log", required_argument, &logfile_flag, 0},
-        {0, 0, 0, 0}
-    };
-
-    while ((c = getopt_long(argc, argv, "hvl:", long_options,
-        &option_index)) != -1)
-    {
-        switch(c) {
-            case 0:
-                if (long_options[option_index].flag != 0) {
-                    break;
-                } else {
-                    printf("Option %s", long_options[option_index].name);
-                    if(optarg) {
-                        printf("=%s\n", optarg);
-                    }
-                }
-                break;
-            case 'h':
-                break;
-            case 'v':
-                std::cout << "PluMA Version " VERSION << std::endl;
-                exit(EXIT_SUCCESS);
-                break;
-            case '?':
-                break;
-            default:
-                exit(EXIT_FAILURE);
-        }
-    }
+    argp_parse(&argp, argc, argv, 0, 0, &arguments);
+    ////////////////////////////////////////////////////////////////////////////
 
     ////////////////////////////////////////////////////////////////////////////
     // For each supported language, load the appropriate plugins
