@@ -302,8 +302,6 @@ PluGen/plugen
 
 pluma
 PluGen/plugen
-plugins
-!plugins/{getPool.py,README}
 .sconf_temp/
 obj/
 out/
