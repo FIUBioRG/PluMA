@@ -95,23 +95,23 @@ import os
 import filecmp
 
 def warn(msg):
-   printout("[WARNING] ", YELLOW)
+   printout("[WARN] ", YELLOW)
    print(msg)
 
 def err(msg):
-   printout("[FAILED] ", RED)
+   printout("[FAIL] ", RED)
    print(msg)
 
 def passed():
-   printout("[PASSED] ", GREEN)
+   printout("[PASS] ", GREEN)
    print("")
 
 def disabled():
-   printout("[DISABLED] ", BLUE)
+   printout("[OFF] ", BLUE)
    print("")
 
 def incompat(msg):
-   printout("[INCOMPATIBLE] ", CYAN)
+   printout("[INCOMPAT] ", CYAN)
    print(msg)
 
 def localplugin():
@@ -119,8 +119,8 @@ def localplugin():
    print("")
 
 turnedoff = []
-#turnedoff = ['SparCC', 'Ensemble']
-local = ["CSV2PathwayTools","EM","FilterPathway","PathwayFilter","PhiLR"]
+turnedoff = ['SparCC', 'Ensemble']#, 'CumulativeClassifier', 'CumulativeTime', 'GeneUnify', 'NeuralNet']
+local = ["CSV2PathwayTools","EM","FilterPathway","PathwayFilter","PhiLR","CubicSpline","PLSDA-Multiple","NeuralNet","RandomForest","CumulativeTime","CumulativeClassifier","TimeWarp","FeatureSelection","GeneUnify"]
 # Get installed plugins
 if (len(sys.argv) > 1):
    plugins = [sys.argv[1]]
