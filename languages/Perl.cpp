@@ -63,14 +63,18 @@ static PerlInterpreter *my_perl;
 Perl::Perl(std::string language, std::string ext, std::string pp) : Language(language, ext, pp) {
    argc2 = 2;
    argv2 = new char*[2];
+#ifdef HAVE_PERL 
    PERL_SYS_INIT3(&argc2, &argv2, &env);
+#endif
    //my_perl = perl_alloc();
    //perl_construct(my_perl);
 } 
 
 Perl::~Perl() {
             if (argv2) delete[] argv2;
+#ifdef HAVE_PERL
             PERL_SYS_TERM();
+#endif
 }
 
 void Perl::executePlugin(std::string pluginname, std::string inputname, std::string outputname) {

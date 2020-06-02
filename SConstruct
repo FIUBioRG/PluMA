@@ -260,9 +260,9 @@ if (docuda==1):
        sharedpluginname = str(plugin.get_dir())+"/lib"+name[1:name.find('.cu')]
      sourcefiles.append(filename)
      srcstring += filename+' '
-   if (len(sharedpluginname) == 0):
+   if (not firsttime and len(sharedpluginname) == 0):
          print("WARNING: NULL PLUGIN IN FOLDER: "+folder+", IGNORING")
-   else:
+   elif (not firsttime):
          x = envPluginCUDA.Command(sharedpluginname+".so", sourcefiles, "nvcc -o $TARGET -shared "+srcstring+"-std=c++11 -arch=sm_30 --ptxas-options=-v -Xcompiler -fpic -I"+os.environ['PWD'])
 
 
