@@ -39,15 +39,24 @@
 
 #include <string>
 #include <map>
+#include <vector>
 #include <set>
 #include <iostream>
 #include <fstream>
+
+#include "languages/Compiled.h"
+#include "languages/Py.h"
+#include "languages/R.h"
+#include "languages/Perl.h"
 
 class PluginManager {
     
    public:
    std::map<std::string, Maker*> makers;
    std::set<std::string> installed;
+   static std::vector<Language*> supported;
+   std::map<std::string, std::string> pluginLanguages;
+   static std::string myPrefix;
    static PluginManager& getInstance()
         {
             static PluginManager    instance; // Guaranteed to be destroyed.
@@ -81,8 +90,32 @@ class PluginManager {
    static void dependency(std::string plugin) {if (getInstance().installed.count(plugin) == 0) {*(getInstance().logfile) << "[PluMA] Plugin dependency " << plugin << " not met.  Exiting..." << std::endl;  exit(1);}
                                                   else {*(getInstance().logfile) << "[PluMA] Plugin dependency " << plugin << " met." << std::endl;}}
 
+  static char* prefix() {return (char*) myPrefix.c_str();}
+  static    void supportedLanguages(std::string pluginpath, int argc, char** argv) {
+         supported.push_back(new Compiled("C", "so", pluginpath, "lib"));
+   supported.push_back(new Py("Python", "py", pluginpath));
+   supported.push_back(new MiAMi::R("R", "R", pluginpath, argc, argv));
+   supported.push_back(new Perl("Perl", "pl", pluginpath));
+      }
+
+   static void languageLoad(std::string lang) {
+      for (int i = 0; i < supported.size(); i++) {
+         if (supported[i]->lang() == lang) {
+            supported[i]->load();
+         }
+      }
+   }
+
+   static void languageUnload(std::string lang) {
+      for (int i = 0; i < supported.size(); i++) {
+         if (supported[i]->lang() == lang) {
+            supported[i]->unload();
+         }
+   }
+   }
    private:
       std::ofstream* logfile;
+
 };
 
 //static __declspec(dllexport) PluginManager pluginManager;

@@ -43,7 +43,7 @@ class Py : public Language {
       Py(std::string language, std::string ext, std::string pp);
       void executePlugin(std::string pluginname, std::string inputname, std::string outputname);
       void unload();
-
+      void load() {} // Empty
 };
 
 

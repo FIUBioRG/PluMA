@@ -1,0 +1,2 @@
+Prefix plugins/PhiLR/example
+Plugin PhiLR inputfile parameters.txt outputfile output.philr.csv

@@ -50,9 +50,12 @@ class R : public Language {
       R(std::string language, std::string ext, std::string pp, int argc, char** argv);
       void executePlugin(std::string pluginname, std::string inputname, std::string outputname);
       void unload();
+      void load();
    private:
 #ifdef HAVE_R
       RInside* myR;
+      int argc;
+      char ** argv;
 #endif
 };
 

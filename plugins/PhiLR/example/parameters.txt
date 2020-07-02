@@ -1,0 +1,3 @@
+otufile	plugins/PhiLR/example/otus.txt
+mapping	plugins/PhiLR/example/mapping.txt
+tree	plugins/PhiLR/example/rep_set.tre

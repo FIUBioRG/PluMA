@@ -42,6 +42,7 @@ class Perl : public Language {
       Perl(std::string language, std::string ext, std::string pp);
       ~Perl();
       void executePlugin(std::string pluginname, std::string inputname, std::string outputname);
+      void load() {} // Empty
       void unload() {} // Empty
 
    private:

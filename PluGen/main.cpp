@@ -70,12 +70,13 @@ int main(int argc, char** argv) {
    }   
 
    bool literal = false;
-   for (int i = 0; i < command.size(); i++)
-      if (command[i] == "inputfile") {
+   for (int i = 0; i < command.size(); i++) {
+      std::cout << "Command: " << command[i] << std::endl;
+      if (command[i].find("inputfile") != -1) {
          literal = true;
          break;
       }
-   
+   }
    PluginGenerator* myGenerator = new PluginGenerator(pluginpath, literal);   
 
    myGenerator->generate(pluginname, command);

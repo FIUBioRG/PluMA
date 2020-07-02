@@ -10,3 +10,15 @@ void log(char* msg) {
 void dependency(char* plugin) {
    PluginManager::dependency(std::string(plugin));
 }
+
+char* prefix() {
+   return PluginManager::prefix();
+}
+
+void languageLoad(char* lang) {
+   PluginManager::languageLoad(std::string(lang));
+}
+
+void languageUnload(char* lang) {
+   PluginManager::languageUnload(std::string(lang));
+}

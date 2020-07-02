@@ -48,7 +48,8 @@ class Language {
       virtual std::string ext() {return extension;}
       virtual std::string lang() {return language;}
       virtual std::string pre() {return prefix;}
- 
+      virtual void load()=0;
+
    protected:
       std::string language;
       std::string extension;
