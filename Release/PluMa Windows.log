@@ -1,0 +1,21 @@
+﻿  pch.cpp
+  Compiled.cpp
+c:\users\guill\source\repos\pluma windows\pluma windows\languages\compiled.cpp(109): fatal error C1010: unexpected end of file while looking for precompiled header. Did you forget to add '#include "pch.h"' to your source?
+  Language.cpp
+c:\users\guill\source\repos\pluma windows\pluma windows\languages\language.cpp(92): fatal error C1010: unexpected end of file while looking for precompiled header. Did you forget to add '#include "pch.h"' to your source?
+  Perl.cpp
+c:\users\guill\source\repos\pluma windows\pluma windows\languages\perl.cpp(107): fatal error C1010: unexpected end of file while looking for precompiled header. Did you forget to add '#include "pch.h"' to your source?
+  Py.cpp
+c:\users\guill\source\repos\pluma windows\pluma windows\languages\py.cpp(78): fatal error C1010: unexpected end of file while looking for precompiled header. Did you forget to add '#include "pch.h"' to your source?
+  R.cpp
+c:\users\guill\source\repos\pluma windows\pluma windows\languages\r.cpp(97): fatal error C1010: unexpected end of file while looking for precompiled header. Did you forget to add '#include "pch.h"' to your source?
+  main.cpp
+c:\users\guill\source\repos\pluma windows\pluma windows\main.cpp(203): warning C4018: '<': signed/unsigned mismatch
+c:\users\guill\source\repos\pluma windows\pluma windows\main.cpp(268): warning C4018: '<': signed/unsigned mismatch
+c:\users\guill\source\repos\pluma windows\pluma windows\main.cpp(299): warning C4018: '<': signed/unsigned mismatch
+c:\users\guill\source\repos\pluma windows\pluma windows\main.cpp(134): error C4996: 'getenv': This function or variable may be unsafe. Consider using _dupenv_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+  c:\program files (x86)\windows kits\10\include\10.0.17134.0\ucrt\stdlib.h(1191): note: see declaration of 'getenv'
+c:\users\guill\source\repos\pluma windows\pluma windows\main.cpp(142): error C4996: 'getenv': This function or variable may be unsafe. Consider using _dupenv_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+  c:\program files (x86)\windows kits\10\include\10.0.17134.0\ucrt\stdlib.h(1191): note: see declaration of 'getenv'
+c:\users\guill\source\repos\pluma windows\pluma windows\main.cpp(228): error C4996: 'localtime': This function or variable may be unsafe. Consider using localtime_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+  c:\program files (x86)\windows kits\10\include\10.0.17134.0\ucrt\time.h(506): note: see declaration of 'localtime'

@@ -28,7 +28,7 @@
 
 
 #include "Py.h"
-#include "PluginManager.h"
+#include "../PluginManager.h"
 #ifdef HAVE_PYTHON
 #include "Python.h"
 #endif

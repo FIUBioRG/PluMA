@@ -32,7 +32,16 @@
 
 #include <string>
 #include <map>
+
+#ifdef _WIN32
+
+#include "../win32-glob.h"
+
+#else
+
 #include <glob.h>
+
+#endif // DEBUG
 
 
 class Language {

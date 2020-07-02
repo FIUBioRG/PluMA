@@ -28,7 +28,7 @@
 
 #include "Perl.h"
 //#include "Python.h"
-#include "PluginManager.h"
+#include "../PluginManager.h"
 
 #ifdef HAVE_PERL
 #include <EXTERN.h>

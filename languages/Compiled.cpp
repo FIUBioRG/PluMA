@@ -27,9 +27,15 @@
 
 
 #include "Compiled.h"
-#include "PluginManager.h"
-#include <dlfcn.h>
+//original plugin include
+//#include "PluginManager.h"
+#include "../PluginManager.h"
+//#include <dlfcn.h>
 #include <iostream>
+//needed for LoadLibrary
+#include <windows.h>
+#include <stdio.h>
+
 
 Compiled::Compiled(std::string lang, std::string ext, std::string pp, std::string pre) : Language(lang, ext, pp, pre) {}
 
@@ -63,7 +69,7 @@ void Compiled::executePlugin(std::string pluginname, std::string inputname, std:
       std::string tmppath = pluginpath;
       std::string path = tmppath.substr(0, pluginpath.find_first_of(":"));
       std::ifstream* infile = NULL;
-      std::string filename;
+	  std::string filename;
       do {
            if (infile) delete infile;
            filename = path+"/"+pluginname+"/lib"+pluginname+"Plugin.so";
@@ -71,12 +77,25 @@ void Compiled::executePlugin(std::string pluginname, std::string inputname, std:
            tmppath = tmppath.substr(tmppath.find_first_of(":")+1, tmppath.length());
            path = tmppath.substr(0, tmppath.find_first_of(":"));
       } while (!(*infile) && path.length() > 0);// {
-      // Dynamic load takes place here
-      void* handle = dlopen(filename.c_str(), RTLD_LAZY | RTLD_GLOBAL);
-      if (!handle) {
-            std::cout << "Warning: Null Handle" << std::endl;
-            std::cout << dlerror() << std::endl;
-      }
+
+	  //Attempt at implementing windows equivalent 
+	  #ifdef _WIN32
+	  HMODULE handle = LoadLibrary(filename.c_str());
+		  if (handle == NULL)
+		  {
+			  std::cout << "Warning: Null Handle" << std::endl;
+			  std::cout << GetLastError() << std::endl;
+		  }
+	  #else	  
+	  // Dynamic load takes place here
+	  void* handle = dlopen(filename.c_str(), RTLD_LAZY | RTLD_GLOBAL);
+	  if (!handle) {
+			std::cout << "Warning: Null Handle" << std::endl;
+			std::cout << dlerror() << std::endl;
+	  }
+	  #endif
+
+	  //plugin is now being read from #include "../PluginManager.h"
       Plugin* plugin = PluginManager::getInstance().create(pluginname);
 
       PluginManager::getInstance().log("Executing input() For C++/CUDA Plugin "+pluginname);

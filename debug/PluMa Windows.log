@@ -1,0 +1,14 @@
+﻿  pch.cpp
+  Compiled.cpp
+  Language.cpp
+  Perl.cpp
+  Py.cpp
+  R.cpp
+  main.cpp
+c:\users\alejandra\source\repos\pluma\main.cpp(237): warning C4018: '<': signed/unsigned mismatch
+c:\users\alejandra\source\repos\pluma\main.cpp(326): warning C4018: '<': signed/unsigned mismatch
+c:\users\alejandra\source\repos\pluma\main.cpp(357): warning C4018: '<': signed/unsigned mismatch
+  PluMA.cpp
+  Generating Code...
+  win32-glob.c
+  PluMa Windows.vcxproj -> C:\Users\Alejandra\Source\Repos\PluMA\Debug\PluMa Windows.exe
