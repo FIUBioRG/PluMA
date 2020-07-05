@@ -6,11 +6,12 @@ response = urllib2.urlopen("http://biorg.cis.fiu.edu/pluma/plugins")
 page_source = response.read()
 
 # Plugin Table
-plugin_table = page_source[page_source.find("<table "):page_source.find("</table>")]
+while (page_source.find("</table>") != -1):
+ plugin_table = page_source[page_source.find("<table "):page_source.find("</table>")]
 
-# Individual Plugins
-plugins = plugin_table.split("<tr>")
-for plugin in plugins:
+ # Individual Plugins
+ plugins = plugin_table.split("<tr>")
+ for plugin in plugins:
    content = plugin[plugin.find("<a href="):plugin.find("</a>")]
    content = content.replace('<a href=', '')
    data = content.split('>')
@@ -20,3 +21,5 @@ for plugin in plugins:
       else:
          repo = data[0][1:len(data[0])-1] # Remove quotes
          os.system("git clone "+repo)
+
+ page_source = page_source[page_source.find("</table>")+1:]
