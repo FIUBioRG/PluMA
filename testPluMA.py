@@ -210,13 +210,18 @@ for plugin in plugins:
        localplugin(local[plugin])
    elif (plugin in inc):
        incompat(inc[plugin])
-   elif ("example" not in files):
+   else:
+    if (os.path.exists("plugins/"+plugin+"/example/pretest.txt")):
+     pretest = open("plugins/"+plugin+"/example/pretest.txt", "r")
+     for line in pretest:
+        os.system(line.strip())
+    if ("example" not in files):
        # Test case not present, issue a warning
        warn("No example directory installed")
-   elif (not os.path.exists("plugins/"+plugin+"/example/config.txt")):
+    elif (not os.path.exists("plugins/"+plugin+"/example/config.txt")):
        # Example exists, but no config file
        warn("No config.txt Present")
-   else:
+    else:
        # Test case found, open the config file
        filestuff = open("plugins/"+plugin+"/example/config.txt", 'r')
        # Find the output file in the config file
