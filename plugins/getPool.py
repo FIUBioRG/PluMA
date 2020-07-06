@@ -1,9 +1,9 @@
 # Note this requires an internet connection
 import os
-
-import urllib2
-response = urllib2.urlopen("http://biorg.cis.fiu.edu/pluma/plugins")
-page_source = response.read()
+import urllib.request
+#import urllib2
+response = urllib.request.urlopen("http://biorg.cis.fiu.edu/pluma/plugins")
+page_source = str(response.read())
 
 # Plugin Table
 while (page_source.find("</table>") != -1):
@@ -18,7 +18,7 @@ while (page_source.find("</table>") != -1):
    data = content.split('>')
    if (len(data) == 2):
       if (os.path.exists(data[1])):
-         print "Plugin "+data[1]+" already installed."
+         print("Plugin "+data[1]+" already installed.")
       else:
          repo = data[0][1:len(data[0])-1] # Remove quotes
          os.system("git clone "+repo)
