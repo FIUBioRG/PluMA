@@ -1,33 +1,3 @@
 [submodule "src/httpparser"]
 	path = src/httpparser
 	url = https://github.com/quinnjr/httpparser
-[submodule "plugins/misc"]
-	path = plugins/misc
-	url = git@github.com:FIUBioRG/misc.git
-[submodule "plugins/external"]
-	path = plugins/external
-	url = git@github.com:FIUBioRG/external.git
-[submodule "plugins/timeseries"]
-	path = plugins/timeseries
-	url = git@github.com:FIUBioRG/timeseries.git
-[submodule "plugins/clustering"]
-	path = plugins/clustering
-	url = git@github.com:FIUBioRG/clustering.git
-[submodule "plugins/centrality"]
-	path = plugins/centrality
-	url = git@github.com:FIUBioRG/centrality.git
-[submodule "plugins/correlation"]
-	path = plugins/correlation
-	url = git@github.com:FIUBioRG/correlation.git
-[submodule "plugins/transformations"]
-	path = plugins/transformations
-	url = git@github.com:FIUBioRG/transformations.git
-[submodule "plugins/statviz"]
-	path = plugins/statviz
-	url = git@github.com:FIUBioRG/statviz.git
-[submodule "plugins/fileconversion"]
-	path = plugins/fileconversion
-	url = git@github.com:FIUBioRG/fileconversion.git
-[submodule "plugins/dissimilarity"]
-	path = plugins/dissimilarity
-	url = git@github.com:FIUBioRG/dissimilarity.git
