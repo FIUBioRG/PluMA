@@ -158,7 +158,8 @@ turnedoff = {#'SparCC':'',
              'OTUHeatmap':'Output is a PDF file, which changes slightly everytime',
              #'OTUSummary':'Long execution time',
              #'OTUPlot':'Long execution time',
-             #'Infomap':'Random number inconsistency, would require modifying Infomap source'
+             #'Infomap':'Random number inconsistency, would require modifying Infomap source',
+             'WikiPathway':'Changes with every database update'
            }
 #turnedoff = ['SparCC', 'Ensemble','SCIMM','MaxBin','HMMER', 'MetaCluster', 'AbundanceBin', 'HIVE', 'UClust', 'MEGAN', 'DeNovoOTU', 'OTUHeatmap', 'OTUSummary', 'Infomap']#, 'CumulativeClassifier', 'CumulativeTime', 'GeneUnify', 'NeuralNet']
 local = {'CSV2PathwayTools':'Requires PathwayTools installation/license',
