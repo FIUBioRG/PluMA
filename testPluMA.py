@@ -159,7 +159,9 @@ turnedoff = {#'SparCC':'',
              #'OTUSummary':'Long execution time',
              #'OTUPlot':'Long execution time',
              #'Infomap':'Random number inconsistency, would require modifying Infomap source',
-             'WikiPathway':'Changes with every database update'
+             'WikiPathway':'Changes with every database update',
+             'Caffe':'Requires BVLC database installation, and agreement to license',
+             'SIMLR':'Requires machine-dependent compilation of projsplx_R.so' 
            }
 #turnedoff = ['SparCC', 'Ensemble','SCIMM','MaxBin','HMMER', 'MetaCluster', 'AbundanceBin', 'HIVE', 'UClust', 'MEGAN', 'DeNovoOTU', 'OTUHeatmap', 'OTUSummary', 'Infomap']#, 'CumulativeClassifier', 'CumulativeTime', 'GeneUnify', 'NeuralNet']
 local = {'CSV2PathwayTools':'Requires PathwayTools installation/license',
