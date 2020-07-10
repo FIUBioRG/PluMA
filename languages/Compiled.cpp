@@ -71,7 +71,7 @@ void Compiled::executePlugin(std::string pluginname, std::string inputname, std:
       std::string filename;
       do {
            if (infile) delete infile;
-           filename = path+"/"+pluginname+"/lib"+pluginname+"Plugin.so";
+           filename = path+"/"+pluginname+"/lib"+pluginname+"Plugin."+ext();//so";
            infile = new std::ifstream(filename, std::ios::in);
            tmppath = tmppath.substr(tmppath.find_first_of(":")+1, tmppath.length());
            path = tmppath.substr(0, tmppath.find_first_of(":"));

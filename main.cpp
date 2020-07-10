@@ -157,7 +157,6 @@ int main(int argc, char** argv)
    std::cout << "*                     Bioinformatics 34(17):2881-2888, 2018                       *" << std::endl;  
    std::cout << "*                                                                                 *" << std::endl;
    std::cout << "***********************************************************************************" << std::endl;
-
    ///////////////////////////////////////////////////////////////////////////////////////////////
    // Setup plugin path.
    std::string pluginpath = "/plugins/";
@@ -176,7 +175,11 @@ int main(int argc, char** argv)
    // Set PluginManager::supported languages here.
    /*std::vector<Language*> PluginManager::supported;
    std::map<std::string, std::string> PluginManager::getInstance().pluginLanguages;
+#ifdef APPLE
+   PluginManager::supported.push_back(new Compiled("C", "dylib", pluginpath, "lib"));
+#else
    PluginManager::supported.push_back(new Compiled("C", "so", pluginpath, "lib"));
+#endif
    PluginManager::supported.push_back(new Py("Python", "py", pluginpath));
    PluginManager::supported.push_back(new MiAMi::R("R", "R", pluginpath, argc, argv));
    PluginManager::supported.push_back(new Perl("Perl", "pl", pluginpath));*/

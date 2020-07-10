@@ -13,10 +13,13 @@ def getEnvVar(name, default):
 # Gets the environment variables set by the user
 env = Environment(ENV = os.environ)
 envPlugin = Environment(ENV = os.environ)
-env.Append(CCFLAGS = '-std=c++0x')
 env.Append(LIBS = ['m', 'dl'])
 if (env['PLATFORM'] != 'darwin'):
+   env.Append(CCFLAGS = '-std=c++0x')
    env.Append(LINKFLAGS = '-rdynamic')
+else:
+   env.Append(CCFLAGS = '-DAPPLE')
+
 
 envPlugin.Append(SHCCFLAGS = '-fpermissive')
 envPlugin.Append(SHCCFLAGS = '-I'+os.environ['PWD'])
@@ -205,8 +208,12 @@ for folder in pluginpath:
  cur_folder = ''
  firsttime = True
  for plugin in pluginlist_cpp:
+   print(plugin)
+   #www = input()
    if (plugin.get_dir() != cur_folder):  # New context
     if (not firsttime):
+      #if (env['PLATFORM'] == 'darwin'):
+      #  sourcefiles.append("PluginManager.cpp")
       if (len(pluginName) == 0):
          print("WARNING: NULL PLUGIN IN FOLDER: "+folder+", IGNORING")
       else:
@@ -214,6 +221,8 @@ for folder in pluginpath:
     cur_folder = plugin.get_dir()
     pluginName = ''
     sourcefiles = []
+    if (env['PLATFORM'] == 'darwin'):
+        sourcefiles.append("PluginManager.cpp")
    firsttime = False
    filename = plugin.get_path()
    if (filename.endswith('Plugin.cpp')):
@@ -281,6 +290,8 @@ if (docuda==1):
       if (len(pluginName) == 0):
          print("WARNING: NULL PLUGIN IN FOLDER: "+folder+", IGNORING")
       else:
+         #print("HERE NOW")
+         #hhh = input()
          x = envPlugin.SharedLibrary(pluginName, sourcefiles)
     cur_folder = plugin.get_dir()
     pluginName = ''
@@ -293,6 +304,8 @@ if (docuda==1):
  if (len(pluginName) == 0):
          print("WARNING: NULL PLUGIN IN FOLDER: "+folder+", IGNORING")
  else:
+         print(sourcefiles)
+         ggg = input()
          x = envPlugin.SharedLibrary(pluginName, sourcefiles)
 
 
@@ -311,6 +324,7 @@ for i in range(0,len(targets)):
       sources[i].append(Glob(folder+'/*.cpp'))
    #print "ST: ", sources[i], targets[i]
    env.Program(source=sources[i], target=targets[i])   
+
 
 #for folder in folders:
 #   env.Append(CCFLAGS = '-I'+folder)

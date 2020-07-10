@@ -92,7 +92,11 @@ class PluginManager {
 
   static char* prefix() {return (char*) myPrefix.c_str();}
   static    void supportedLanguages(std::string pluginpath, int argc, char** argv) {
+#ifdef APPLE
+         supported.push_back(new Compiled("C", "dylib", pluginpath, "lib"));
+#else
          supported.push_back(new Compiled("C", "so", pluginpath, "lib"));
+#endif
    supported.push_back(new Py("Python", "py", pluginpath));
    supported.push_back(new MiAMi::R("R", "R", pluginpath, argc, argv));
    supported.push_back(new Perl("Perl", "pl", pluginpath));
