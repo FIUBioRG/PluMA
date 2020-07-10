@@ -1,0 +1,2 @@
+Prefix plugins/NetRep/example
+Plugin NetRep inputfile parameters.txt outputfile preservation

@@ -1,0 +1,7 @@
+data1	plugins/NetRep/example/discovery.data.csv
+data2	plugins/NetRep/example/test.data.csv
+corr1	plugins/NetRep/example/discovery.correlation.csv
+corr2	plugins/NetRep/example/test.correlation.csv
+network1	plugins/NetRep/example/discovery.network.csv
+network2	plugins/NetRep/example/test.network.csv
+modulelabels	plugins/NetRep/example/module.labels.csv
