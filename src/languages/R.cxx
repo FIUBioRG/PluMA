@@ -28,31 +28,81 @@
        For information regarding this software, please contact lead architect
                     Trevor Cickovski at tcickovs@fiu.edu
 
-               Note: This particular file adapted from BasicUtils
-               (C) 2003 Joseph Coffland under license from GNU GPL
-
 \*********************************************************************************/
 
-#ifndef PLUGINPROXY_H
-#define PLUGINPROXY_H
-
-#include "PluginMaker.h"
+#include "R.h"
+#include "RInside.h"
+#include "Rinterface.h"
+//#include "Python.h"
 #include "PluginManager.h"
 
-#include <string>
+namespace MiAMi {
 
-class Proxy {};
-
-template<class T>
-class PluginProxy : public Proxy
-{
-public:
-    PluginProxy(
-        std::string keyword,
-        PluginManager& mgr
-    ) {
-        mgr.addMaker(keyword, new PluginMaker<T>());
-    };
-};
-
+R::R(
+    std::string language,
+    std::string ext,
+    std::string pp,
+    int argc,
+    char** argv
+) : Language(language, ext, pp) {
+    this->argc = argc;
+    this->argv = argv;
+#ifdef HAVE_R
+    myR = new RInside(argc, argv);
 #endif
+}
+
+void R::load() {
+#ifdef HAVE_R
+    myR = new RInside(argc, argv);
+#endif
+}
+
+
+void R::executePlugin(
+    std::string pluginname,
+    std::string inputname,
+    std::string outputname)
+{
+#ifdef HAVE_R
+    std::string tmppath = pluginpath;
+    std::string path = tmppath.substr(0, pluginpath.find_first_of(":"));
+    std::ifstream* infile = NULL;
+    do {
+        if (infile) delete infile;
+        infile = new std::ifstream(path+"/"+pluginname+"/"+pluginname+"Plugin.R", std::ios::in);
+        tmppath = tmppath.substr(tmppath.find_first_of(":")+1, tmppath.length());
+        path = tmppath.substr(0, tmppath.find_first_of(":"));
+    } while (!(*infile) && path.length() > 0);// {
+
+    std::string txt;
+    std::string line;
+    while (!infile->eof()) {
+        getline(*infile, line);
+        txt += line+"\n";
+    }
+    delete infile;
+
+    PluginManager::getInstance().log("Executing R Plugin "+pluginname);
+    txt += "input(\"" + inputname + "\");\n";
+    txt += "run();";
+    txt += "output(\"" + outputname + "\");\n";
+    myR->parseEvalQ(txt);
+    PluginManager::getInstance().log("R Plugin "+pluginname+" completed successfully.");
+    //unload();
+#endif
+}
+
+
+void R::unload()
+{
+#ifdef HAVE_R
+    //delete myR->instancePtr();
+    delete myR;
+    Rf_KillAllDevices();
+    R_GlobalContext = NULL;
+    Rf_endEmbeddedR(0);
+#endif
+}
+
+}

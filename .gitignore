@@ -1,3 +1,20 @@
+vendor/**
+
+####
+# PluMA specific ignores
+####
+pluma
+PluGen/plugen
+# End of https://www.gitignore.io/api/c,r,c++,cuda,perl,python,rust
+.sconsign.dblite
+.env
+
+pluma
+PluGen/plugen
+.sconf_temp/
+obj/
+out/
+.perlconfig.txt
 
 # Created by https://www.toptal.com/developers/gitignore/api/c++,r,python,cuda
 # Edit at https://www.toptal.com/developers/gitignore?templates=c++,r,python,cuda
@@ -37,7 +54,7 @@
 *.app
 
 ### CUDA ###
-*.i
+# *.i
 *.ii
 *.gpu
 *.ptx

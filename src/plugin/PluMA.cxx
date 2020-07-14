@@ -4,21 +4,21 @@
 using std::string;
 
 void log(char* msg) {
-   PluginManager::log(std::string(msg));
+    PluginManager::log(std::string(msg));
 }
 
 void dependency(char* plugin) {
-   PluginManager::dependency(std::string(plugin));
+    PluginManager::dependency(std::string(plugin));
 }
 
 char* prefix() {
-   return PluginManager::prefix();
+    return PluginManager::prefix();
 }
 
 void languageLoad(char* lang) {
-   PluginManager::languageLoad(std::string(lang));
+    PluginManager::languageLoad(std::string(lang));
 }
 
 void languageUnload(char* lang) {
-   PluginManager::languageUnload(std::string(lang));
+    PluginManager::languageUnload(std::string(lang));
 }
