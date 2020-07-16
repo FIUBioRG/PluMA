@@ -2,7 +2,7 @@
 
                    Plugin-based Microbiome Analysis (PluMA)
 
-        Copyright (C) 2016, 2018 Bioinformatics Research Group (BioRG)
+        Copyright (C) 2016, 2018-2020 Bioinformatics Research Group (BioRG)
                        Florida International University
 
 

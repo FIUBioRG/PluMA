@@ -1,4 +1,6 @@
 #!python
+# Copyright (C) 2017, 2019-2020 FIUBioRG
+# SPDX-License-Identifier: MIT
 
 import os
 from os import path
