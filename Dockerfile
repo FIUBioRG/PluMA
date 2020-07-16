@@ -1,7 +1,5 @@
-# Copyright 2019 Florida International University
+# Copyright 2019-2020 Florida International University
 # SPDX-License-Identifier: MIT
-
-# FROM archlinux/base:latest AS builder
 
 FROM alpine:latest
 
