@@ -11,7 +11,7 @@ platform_id = subprocess.check_output(
 )
 
 lib_search_path = ["/lib", "/usr/lib", "/usr/local/lib"]
-include_search_path = ["/usr/include", "/usr/local/include", abspath("./src")]
+include_search_path = ["/usr/include", "/usr/local/include", relpath("./src")]
 
 source_base_dir = relpath("./src")
 object_base_dir = relpath("./obj")

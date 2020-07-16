@@ -85,6 +85,7 @@ env = Environment(
     CXX=getenv("CXX", "c++"),
     CPPDEFINES=["_FORTIFY_SOURCE=2", "HAVE_PYTHON"],
     SHCCFLAGS=["-fpermissive", "-fPIC", "-Isrc/"],
+    CCFLAGS=["-fpermissive", "-fPIC", "-Isrc/"],
     CPPPATH=include_search_path,
     LIBPATH=lib_search_path,
     LICENSE=["MIT"],
@@ -307,7 +308,7 @@ else:
             ObjectPath("plugin/PluMA.o"),
             ObjectPath("plugin/PyPluMA_wrap.o"),
         ],
-        target=LibPath("_PyPluMA_wrap.so"),
+        target=LibPath("PyPluMA_wrap.so"),
     )
     ###################################################################
 
@@ -500,8 +501,14 @@ else:
         target=ObjectPath("languages/R.o"),
     )
 
+    env.SharedObject(
+        source=SourcePath("PluginManager.cxx"),
+        target=ObjectPath("PluginManager.o"),
+    )
+
     env.StaticObject(
-        source=SourcePath("main.cxx"), target=ObjectPath("main.o"),
+        source=SourcePath("main.cxx"),
+        target=ObjectPath("main.o"),
     )
 
     env.Program("PluGen/plugen", Glob("./src/PluGen/*.cxx"))
@@ -526,6 +533,7 @@ else:
             ObjectPath("languages/Py.o"),
             ObjectPath("languages/Perl.o"),
             ObjectPath("languages/R.o"),
+            ObjectPath("PluginManager.o"),
             ObjectPath("main.o"),
         ],
     )

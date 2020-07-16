@@ -36,12 +36,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include "Plugin.h"
-// #include "PluginManager.h"
+#include "PluginManager.h"
 #include "PluginProxy.h"
-/*#include "languages/Compiled.h"
-#include "languages/Py.h"
-#include "languages/R.h"
-#include "languages/Perl.h"*/
 #include <string>
 #include <map>
 #include <vector>
