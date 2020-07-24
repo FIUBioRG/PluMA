@@ -37,6 +37,7 @@
 
 #include "PluginMaker.h"
 
+#include <cstdlib>
 #include <string>
 #include <map>
 #include <vector>

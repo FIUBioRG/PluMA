@@ -1,4 +1,4 @@
-#!python
+#!python3
 # Copyright (C) 2017, 2019-2020 FIUBioRG
 # SPDX-License-Identifier: MIT
 #
@@ -20,9 +20,12 @@ import sys
 from build_config import *
 from build_support import *
 
+if sys.version_info.major < 3:
+    logging.error("Python3 is required to run this Sconstruct")
+
 # The current SConstruct does not support Windows variants
 if sys.platform.startswith("windows"):
-    logging.error("Windowns is currently not supported")
+    logging.error("Windows is currently not supported")
     Exit(1)
 
 ###################################################################
