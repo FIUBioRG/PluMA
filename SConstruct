@@ -89,6 +89,7 @@ env = Environment(
     CPPDEFINES=["_FORTIFY_SOURCE=2", "HAVE_PYTHON"],
     SHCCFLAGS=["-fpermissive", "-fPIC", "-Isrc/", "-Isrc/plugin"],
     CCFLAGS=["-fpermissive", "-fPIC", "-Isrc/", "-Isrc/plugin"],
+    CXXFLAGS=["-std=c++11"],
     CPPPATH=include_search_path,
     LIBPATH=lib_search_path,
     LICENSE=["MIT"],
