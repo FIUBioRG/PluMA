@@ -15,6 +15,10 @@ PluGen/plugen
 obj/
 out/
 .perlconfig.txt
+plugins/
+!plugins/getPool.py
+!plugins/README
+logs/*
 
 # Created by https://www.toptal.com/developers/gitignore/api/c++,r,python,cuda
 # Edit at https://www.toptal.com/developers/gitignore?templates=c++,r,python,cuda

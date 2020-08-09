@@ -87,8 +87,8 @@ env = Environment(
     CC=getenv("CC", "cc"),
     CXX=getenv("CXX", "c++"),
     CPPDEFINES=["_FORTIFY_SOURCE=2", "HAVE_PYTHON"],
-    SHCCFLAGS=["-fpermissive", "-fPIC", "-Isrc/"],
-    CCFLAGS=["-fpermissive", "-fPIC", "-Isrc/"],
+    SHCCFLAGS=["-fpermissive", "-fPIC", "-Isrc/", "-Isrc/plugin"],
+    CCFLAGS=["-fpermissive", "-fPIC", "-Isrc/", "-Isrc/plugin"],
     CPPPATH=include_search_path,
     LIBPATH=lib_search_path,
     LICENSE=["MIT"],
@@ -353,8 +353,8 @@ else:
     # # C++ Plugins
     for folder in pluginPath:
         env.AppendUnique(CCFLAGS=["-I" + folder])
-        sconscripts = Glob(folder + "/*/SConscript")
-        pluginListCXX = Glob(folder + "/*/*.cpp")
+        sconscripts = Glob(folder + "/SConscript")
+        pluginListCXX = Glob(folder + "/*.cpp")
         if len(pluginListCXX) != 0 and len(sconscripts) != 0:
             for sconscript in sconscripts:
                 SConscript(sconscript, exports=toExport)
@@ -369,7 +369,7 @@ else:
                             % folder
                         )
                     else:
-                        envPlugin.SharedLibrary(pluginName, sourceFiles)
+                        env.SharedLibrary(pluginName, sourceFiles)
                 curFolder = plugin.get_dir()
                 pluginName = ""
                 sourceFiles = []
@@ -383,7 +383,7 @@ else:
                     "WARNING: NULL PLUGIN IN FOLDER: %s, IGNORING" % folder
                 )
             else:
-                envPlugin.SharedLibrary(
+                env.SharedLibrary(
                     target=pluginName, source=sourceFiles
                 )
     # ###################################################################
@@ -394,7 +394,7 @@ else:
     # # TODO: Compress if-else statements?
     if GetOption("with-cuda"):
         for folder in pluginpath:
-            pluginsCUDA = Glob(folder + "/*/*.cu")
+            pluginsCUDA = Glob(folder + "/*.cu")
             curFolder = ""
             firstTime = True
             for plugin in pluginsCUDA:
@@ -442,7 +442,7 @@ else:
                             % folder
                         )
                     else:
-                        envPlugin.SharedLibrary(pluginName, sourcefiles)
+                        env.SharedLibrary(pluginName, sourcefiles)
                 curFolder = plugin.get_dir()
                 pluginName = ""
                 sourceFiles = []
@@ -456,7 +456,7 @@ else:
                 "WARNING: NULL PLUGIN IN FOLDER: %s, IGNORING", folder
             )
         else:
-            envPlugin.SharedLibrary(pluginName, sourceFiles)
+            env.SharedLibrary(pluginName, sourceFiles)
     ###################################################################
     # Main Executable & PluGen
     env.Append(
