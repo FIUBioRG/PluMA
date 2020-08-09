@@ -353,10 +353,8 @@ else:
     # # C++ Plugins
     for folder in pluginPath:
         env.AppendUnique(CCFLAGS=["-I" + folder])
-        # if GetOption("with-cuda"):
-        #     envPluginCUDA.AppendUnique(NVCCFLAGS=["-I" + folder])
         sconscripts = Glob(folder + "/*/SConscript")
-        pluginListCXX = Glob(folder + "/*/*.{cpp, cxx}")
+        pluginListCXX = Glob(folder + "/*/*.cpp")
         if len(pluginListCXX) != 0 and len(sconscripts) != 0:
             for sconscript in sconscripts:
                 SConscript(sconscript, exports=toExport)
@@ -386,7 +384,7 @@ else:
                 )
             else:
                 envPlugin.SharedLibrary(
-                    target=ObjectPath(pluginName), source=sourceFiles
+                    target=pluginName, source=sourceFiles
                 )
     # ###################################################################
     #
