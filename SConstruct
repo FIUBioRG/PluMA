@@ -87,12 +87,13 @@ env = Environment(
     CC=getenv("CC", "cc"),
     CXX=getenv("CXX", "c++"),
     CPPDEFINES=["_FORTIFY_SOURCE=2", "HAVE_PYTHON"],
-    SHCCFLAGS=["-fpermissive", "-fPIC", "-Isrc/", "-Isrc/plugin"],
-    CCFLAGS=["-fpermissive", "-fPIC", "-Isrc/", "-Isrc/plugin"],
+    SHCCFLAGS=["-fpermissive", "-fPIC", "-Isrc/", "-I."],
+    CCFLAGS=["-fpermissive", "-fPIC", "-Isrc/", "-I."],
     CXXFLAGS=["-std=c++11"],
     CPPPATH=include_search_path,
     LIBPATH=lib_search_path,
     LICENSE=["MIT"],
+    SHLIBPREFIX=""
 )
 
 if not sys.platform.startswith("darwin"):
@@ -294,49 +295,51 @@ else:
     # Note: CUDA is already prepared from the initial environment setup.
     ###################################################################
     env.SharedObject(
-        source=SourcePath("plugin/PluMA.cxx"),
-        target=ObjectPath("plugin/PluMA.o"),
+        source=SourcePath("PluMA.cxx"),
+        target=ObjectPath("PluMA.o"),
     )
     ###################################################################
     # PYTHON PLUGINS
     env.SharedObject(
-        source=SourcePath("plugin/PyPluMA_wrap.cxx"),
-        target=ObjectPath("plugin/PyPluMA_wrap.o"),
+        source="PyPluMA_wrap.cxx",
+        target=ObjectPath("PyPluMA_wrap.o"),
     )
+
     env.SharedLibrary(
         source=[
-            ObjectPath("plugin/PluMA.o"),
-            ObjectPath("plugin/PyPluMA_wrap.o"),
+            ObjectPath("PluMA.o"),
+            ObjectPath("PyPluMA_wrap.o"),
         ],
-        target=LibPath("PyPluMA_wrap.so"),
+        target="_PyPluMA.so",
     )
     ###################################################################
 
     ###################################################################
     # PERL PLUGINS
     env.SharedObject(
-        source=SourcePath("plugin/PerlPluMA_wrap.cxx"),
-        target=ObjectPath("plugin/PerlPluMA_wrap.o"),
+        source="PerlPluMA_wrap.cxx",
+        target=ObjectPath("PerlPluMA_wrap.o"),
     )
+
     env.SharedLibrary(
         source=[
-            ObjectPath("plugin/PluMA.o"),
-            ObjectPath("plugin/PerlPluMA_wrap.o"),
+            ObjectPath("PluMA.o"),
+            ObjectPath("PerlPluMA_wrap.o"),
         ],
-        target=LibPath("PerlPluMA_wrap.so"),
+        target="PerlPluMA.so",
     )
     ###################################################################
     # R PLUGINS
     env.SharedObject(
-        source=SourcePath("plugin/RPluMA_wrap.cxx"),
-        target=ObjectPath("plugin/RPluMA_wrap.o"),
+        source="RPluMA_wrap.cxx",
+        target=ObjectPath("RPluMA_wrap.o"),
     )
     env.SharedLibrary(
         source=[
-            ObjectPath("plugin/PluMA.o"),
-            ObjectPath("plugin/RPluMA_wrap.o"),
+            ObjectPath("PluMA.o"),
+            ObjectPath("RPluMA_wrap.o"),
         ],
-        target=LibPath("RPluMA_wrap.so"),
+        target="RPluMA.so",
     )
     ###################################################################
 

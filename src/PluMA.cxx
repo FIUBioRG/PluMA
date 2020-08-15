@@ -31,7 +31,7 @@
 \*********************************************************************************/
 
 #include "PluMA.h"
-#include "../PluginManager.h"
+#include "PluginManager.h"
 #include <string>
 using std::string;
 

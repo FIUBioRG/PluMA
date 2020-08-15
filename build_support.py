@@ -36,13 +36,6 @@ def LibPath(*args):
     return res
 
 
-def OutPath(*args):
-    res = []
-    for p in args:
-        res.append(path.abspath("./src/" + p))
-    return res
-
-
 def cmdline(command):
     process = Popen(args=command, stdout=PIPE, shell=True)
     return process.communicate()[0].decode("utf8")
