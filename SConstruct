@@ -295,7 +295,7 @@ else:
     # Note: CUDA is already prepared from the initial environment setup.
     ###################################################################
     env.SharedObject(
-        source=SourcePath("PluMA.cxx"),
+        source="PluMA.cxx",
         target=ObjectPath("PluMA.o"),
     )
     ###################################################################
@@ -468,17 +468,17 @@ else:
     )
 
     env.StaticObject(
-        source=SourcePath("languages/Compiled.cxx"),
+        source="languages/Compiled.cxx",
         target=ObjectPath("languages/Compiled.o"),
     )
 
     env.StaticObject(
-        source=SourcePath("languages/Language.cxx"),
+        source="languages/Language.cxx",
         target=ObjectPath("languages/Language.o"),
     )
 
     env.StaticObject(
-        source=SourcePath("languages/Py.cxx"),
+        source="languages/Py.cxx",
         target=ObjectPath("languages/Py.o"),
     )
 
@@ -493,26 +493,26 @@ else:
                 )
             ]
         ],
-        source=SourcePath("languages/Perl.cxx"),
+        source="languages/Perl.cxx",
         target=ObjectPath("languages/Perl.o"),
     )
 
     env.StaticObject(
-        source=SourcePath("languages/R.cxx"),
+        source="languages/R.cxx",
         target=ObjectPath("languages/R.o"),
     )
 
     env.SharedObject(
-        source=SourcePath("PluginManager.cxx"),
+        source="PluginManager.cxx",
         target=ObjectPath("PluginManager.o"),
     )
 
     env.StaticObject(
-        source=SourcePath("main.cxx"),
+        source="main.cxx",
         target=ObjectPath("main.o"),
     )
 
-    env.Program("PluGen/plugen", Glob("./src/PluGen/*.cxx"))
+    env.Program("PluGen/plugen", Glob("./PluGen/*.cxx"))
     env.Program(
         target="pluma",
         LIBS=[
