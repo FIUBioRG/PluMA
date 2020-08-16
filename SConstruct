@@ -168,7 +168,7 @@ else:
         if not config.CheckLib(lib):
             Exit(1)
 
-    config.env.ParseConfig("/usr/bin/python-config --includes --ldflags")
+    config.env.ParseConfig("python3-config --includes --ldflags")
     config.env.Append(LIBS=["python" + python_version])
     config.env.Append(LIBS=["util"])
 
