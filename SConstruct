@@ -208,7 +208,7 @@ for folder in pluginpath:
  cur_folder = ''
  firsttime = True
  for plugin in pluginlist_cpp:
-   print(plugin)
+   #print(plugin)
    #www = input()
    if (plugin.get_dir() != cur_folder):  # New context
     if (not firsttime):
@@ -304,8 +304,8 @@ if (docuda==1):
  if (len(pluginName) == 0):
          print("WARNING: NULL PLUGIN IN FOLDER: "+folder+", IGNORING")
  else:
-         print(sourcefiles)
-         ggg = input()
+         #print(sourcefiles)
+         #ggg = input()
          x = envPlugin.SharedLibrary(pluginName, sourcefiles)
 
 
