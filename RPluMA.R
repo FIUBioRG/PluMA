@@ -5,7 +5,7 @@
 # the SWIG interface file instead.
 
 ##   Generated via the command line invocation:
-##	 swig -c++ -r RPluMA.i
+##	 swig -c++ -r -o RPluMA_wrap.cxx RPluMA.i
 
 
 #                         srun.swg                            #

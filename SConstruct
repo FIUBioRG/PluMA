@@ -169,7 +169,6 @@ else:
             Exit(1)
 
     config.env.ParseConfig("python3-config --includes --ldflags")
-    config.env.Append(LIBS=["python" + python_version])
     config.env.Append(LIBS=["util"])
 
     if sys.version_info[0] == "2":
@@ -280,12 +279,6 @@ else:
         env.CheckBuilder(language="cuda")
         envPluginCuda.Tool("cuda")
 
-   #  if GetOption("with-tcp-socket"):
-   #      if not config.CheckLib("uv"):
-   #          logging.error("Missing libuv headers")
-   #          exit(1)
-   #      config.env.Append(CPPDEFINES=["-DWITH_HEARTBEAT"])
-
     # Export `envPlugin` and `envPluginCUDA`
     Export("env")
     Export("envPluginCuda")
@@ -307,8 +300,8 @@ else:
 
     env.SharedLibrary(
         source=[
-            ObjectPath("PluMA.o"),
             ObjectPath("PyPluMA_wrap.o"),
+            ObjectPath("PluMA.o"),
         ],
         target="_PyPluMA.so",
     )
