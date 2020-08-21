@@ -87,8 +87,8 @@ env = Environment(
     CC=getenv("CC", "cc"),
     CXX=getenv("CXX", "c++"),
     CPPDEFINES=["_FORTIFY_SOURCE=2", "HAVE_PYTHON"],
-    SHCCFLAGS=["-fpermissive", "-fPIC", "-Isrc/", "-I."],
-    CCFLAGS=["-fpermissive", "-fPIC", "-Isrc/", "-I."],
+    SHCCFLAGS=["-fpermissive", "-fPIC", "-I."],
+    CCFLAGS=["-fpermissive", "-fPIC", "-I."],
     CXXFLAGS=["-std=c++11"],
     CPPPATH=include_search_path,
     LIBPATH=lib_search_path,
@@ -234,26 +234,11 @@ else:
             LIBS=["R", "RInside"],
         )
 
-    if platform_id == "ID=arch":
-        if not config.CheckLib("python3.8"):
-            Exit(1)
-
-        if not config.CheckLib("perl"):
-            Exit(1)
-
-        if not config.CheckLib("R"):
-            Exit(1)
-
-        if not config.CheckLib("RInside"):
-            Exit(1)
-
     if not GetOption("without-perl"):
         config.env.Append(CPPDEFINES=["-DWITH_PERL"])
 
     if not GetOption("without-r"):
         config.env.Append(CPPDEFINES=["-DWITH_R"])
-
-    env = config.Finish()
 
     if GetOption("with-cuda"):
 
@@ -289,19 +274,19 @@ else:
     ###################################################################
     env.SharedObject(
         source="PluMA.cxx",
-        target=ObjectPath("PluMA.o"),
+        target=ObjectPath("PluMA.os"),
     )
     ###################################################################
     # PYTHON PLUGINS
     env.SharedObject(
         source="PyPluMA_wrap.cxx",
-        target=ObjectPath("PyPluMA_wrap.o"),
+        target=ObjectPath("PyPluMA_wrap.os"),
     )
 
     env.SharedLibrary(
         source=[
-            ObjectPath("PyPluMA_wrap.o"),
-            ObjectPath("PluMA.o"),
+            ObjectPath("PyPluMA_wrap.os"),
+            ObjectPath("PluMA.os"),
         ],
         target="_PyPluMA.so",
     )
@@ -311,13 +296,13 @@ else:
     # PERL PLUGINS
     env.SharedObject(
         source="PerlPluMA_wrap.cxx",
-        target=ObjectPath("PerlPluMA_wrap.o"),
+        target=ObjectPath("PerlPluMA_wrap.os"),
     )
 
     env.SharedLibrary(
         source=[
-            ObjectPath("PluMA.o"),
-            ObjectPath("PerlPluMA_wrap.o"),
+            ObjectPath("PluMA.os"),
+            ObjectPath("PerlPluMA_wrap.os"),
         ],
         target="PerlPluMA.so",
     )
@@ -325,12 +310,12 @@ else:
     # R PLUGINS
     env.SharedObject(
         source="RPluMA_wrap.cxx",
-        target=ObjectPath("RPluMA_wrap.o"),
+        target=ObjectPath("RPluMA_wrap.os"),
     )
     env.SharedLibrary(
         source=[
-            ObjectPath("PluMA.o"),
-            ObjectPath("RPluMA_wrap.o"),
+            ObjectPath("PluMA.os"),
+            ObjectPath("RPluMA_wrap.os"),
         ],
         target="RPluMA.so",
     )
@@ -495,7 +480,7 @@ else:
         target=ObjectPath("languages/R.o"),
     )
 
-    env.SharedObject(
+    env.StaticObject(
         source="PluginManager.cxx",
         target=ObjectPath("PluginManager.o"),
     )
@@ -506,6 +491,7 @@ else:
     )
 
     env.Program("PluGen/plugen", Glob("./PluGen/*.cxx"))
+
     env.Program(
         target="pluma",
         LIBS=[
