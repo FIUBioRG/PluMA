@@ -1,4 +1,4 @@
-#!python3
+#!/usr/bin/env python3
 # Copyright (C) 2017, 2019-2020 FIUBioRG
 # SPDX-License-Identifier: MIT
 #
@@ -325,6 +325,8 @@ else:
     # Finally, compile!
     # It is dangerous to go alone, take this: 𐃉
     ###################################################################
+
+    env.Append(SHLIBPREFIX="lib")
 
     ###################################################################
     # Assemble plugin path
