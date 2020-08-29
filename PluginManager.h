@@ -139,9 +139,4 @@ private:
     std::ofstream* logfile;
 };
 
-//static __declspec(dllexport) PluginManager pluginManager;
-
-//   PluginManager::getInstance().log(msg);
-//}
-
 #endif

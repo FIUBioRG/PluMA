@@ -47,10 +47,7 @@ template<class T>
 class PluginProxy : public Proxy
 {
 public:
-    PluginProxy(
-        std::string keyword,
-        PluginManager& mgr
-    ) {
+    PluginProxy(std::string keyword, PluginManager& mgr) {
         mgr.addMaker(keyword, new PluginMaker<T>());
     };
 };
