@@ -6,6 +6,7 @@
 #
 # @TODO: Test portability with Windows systems using MSVC
 # @TODO: Merge variable assignments
+# @TODO: Test portability with Mac OSX
 #
 # -*-python-*-
 
@@ -86,11 +87,11 @@ env = Environment(
     ENV=environ,
     CC=getenv("CC", "cc"),
     CXX=getenv("CXX", "c++"),
-    CPPDEFINES=["_FORTIFY_SOURCE=2", "HAVE_PYTHON"],
-    SHCCFLAGS=["-fpermissive", "-fPIC", "-I."],
-    SHCXXFLAGS=["-std=c++11", "-fPIC", "-I."],
-    CCFLAGS=["-fpermissive", "-fPIC", "-I.", "-O2"],
-    CXXFLAGS=["-std=c++11", "-fPIC", "-O2"],
+    CPPDEFINES=["HAVE_PYTHON"],
+    SHCCFLAGS=["-fpermissive", "-fPIC", "-I.", "-O2"],
+    SHCXXFLAGS=["-std=c++11", "-fPIC", "-I.", "-O2"],
+    CCFLAGS=["-fpermissive", "-fPIC", "-I."],
+    CXXFLAGS=["-std=c++11", "-fPIC"],
     CPPPATH=include_search_path,
     LIBPATH=lib_search_path,
     LICENSE=["MIT"],
@@ -138,11 +139,6 @@ else:
     ###################################################################
     config = Configure(env, custom_tests={"CheckPerl": CheckPerl})
 
-    if env.get("debug", 0):
-        env.AppendUnique(CPPDEFINES=["DEBUG", "_DEBUG"], CXXFLAGS=["-g"])
-    else:
-        env.AppendUnique(CPPDEFINES=["NDEBUG"], CXXFLAGS=["-O2"])
-
     if not config.CheckCC():
         Exit(1)
 
@@ -169,7 +165,7 @@ else:
         if not config.CheckLib(lib):
             Exit(1)
 
-    config.env.ParseConfig("python3-config --includes --ldflags")
+    config.env.ParseConfig("/usr/bin/python3-config --includes --ldflags")
     config.env.Append(LIBS=["util"])
 
     if sys.version_info[0] == "2":
