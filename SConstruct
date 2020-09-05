@@ -392,33 +392,8 @@ else:
                 sourceFiles = Glob(folder+'/*.cu')
                 filename = plugin.get_path().replace(str(plugin.get_dir()), "")
                 sharedPluginName = str(plugin.get_dir()) + filename[0 : filename.find(".cu")]
-                print(sharedPluginName)
-                # envPluginCuda.SharedLibrary(
-                #     source=plugin,
-                #     target=sharedPluginName
-                # )
                 x = envPluginCuda.Command(sharedPluginName+".so", sourceFiles, "nvcc -o $TARGET -shared -std=c++11 -arch=sm_30 --ptxas-options=-v -Xcompiler -fpic -I"+os.environ['PWD']+" $SOURCE")
-            #     if (plugin.get_dir() != curFolder):  # New context
-            #         if (not firstTime):
-            #             if len(sharedPluginName) == 0:
-            #                 logging.warning(
-            #                     "WARNING: NULL PLUGIN IN FOLDER: %s, IGNORING"
-            #                     % folder
-            #                 )
-            #             else:
-            #                 print("shared library")
-            #                 envPluginCUDA.SharedLibrary(
-            #                     sharedFileName, filename
-            #                 )
-            #     curFolder = plugin.get_dir()
-            #     sharedPluginName = ""
-            #     sourceFiles.append(filename)
-            #     if len(sharedPluginName) == 0:
-            #         logging.warning(
-            #             "WARNING: NULL PLUGIN IN FOLDER: %s, IGNORING" % folder
-            #         )
-            #     else:
-            #         envPluginCUDA.Command(sharedPluginName, sourceFiles)
+                print(x)
     ###################################################################
     # Main Executable & PluGen
     env.Append(

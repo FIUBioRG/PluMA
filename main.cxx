@@ -174,8 +174,7 @@ int main(int argc, char** argv)
     std::cout << "*  P               LLLLLLLLLLLLL    UUUUUUUUUUU    M           M   A           A  *" << std::endl;
     std::cout << "*                                                                                 *" << std::endl;
     std::cout << "*            [Plu]gin-based [M]icrobiome [A]nalysis (formerly MiAMi)              *" << std::endl;
-    std::cout << "*               (C) 2016, 2018, 2020 Bioinformatics Research Group,               *" << std::endl;
-    std::cout << "*                       Florida International University                          *" << std::endl;
+    std::cout << "* (C) 2016, 2018 Bioinformatics Research Group, Florida International University  *" << std::endl;
     std::cout << "*    Under MIT License From Open Source Initiative (OSI), All Rights Reserved.    *" << std::endl;
     std::cout << "*                                                                                 *" << std::endl;
     std::cout << "*    Any professionally published work using PluMA should cite the following:     *" << std::endl;
