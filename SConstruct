@@ -165,6 +165,10 @@ else:
         if not config.CheckLib(lib):
             Exit(1)
 
+    config.CheckProg("python3-config")
+    config.CheckProg("python3")
+    config.CheckProg("perl")
+
     config.env.ParseConfig("/usr/bin/python3-config --includes --ldflags")
     config.env.Append(LIBS=["util"])
 
@@ -237,6 +241,8 @@ else:
     if not GetOption("without-r"):
         config.env.Append(CPPDEFINES=["-DWITH_R"])
 
+    config.Finish()
+
     if GetOption("with-cuda"):
 
         envPluginCuda = Environment(
@@ -258,8 +264,12 @@ else:
                 )
             ],
         )
-        env.CheckBuilder(language="cuda")
-        envPluginCuda.Tool("cuda")
+
+        configCuda = Configure(envPluginCuda)
+        configCuda.CheckProg('nvcc')
+        configCuda.CheckHeader("cuda.h")
+        configCuda.Finish()
+        # envPluginCuda.Tool('cuda')
 
     # Export `envPlugin` and `envPluginCUDA`
     Export("env")
@@ -331,7 +341,11 @@ else:
     ###################################################################
 
     # ##################################################################
+    # # CUDA Plugins
+    # #
+    # # TODO: Compress if-else statements?
     # # C++ Plugins
+    print("!! Compiling C++ Plugins")
     for folder in pluginPath:
         env.AppendUnique(CCFLAGS=["-I" + folder])
         sconscripts = Glob(folder + "/SConscript")
@@ -370,74 +384,41 @@ else:
     # ###################################################################
     #
     # ###################################################################
-    # # CUDA Plugins
-    # #
-    # # TODO: Compress if-else statements?
     if GetOption("with-cuda"):
-        for folder in pluginpath:
-            pluginsCUDA = Glob(folder + "/*.cu")
-            curFolder = ""
-            firstTime = True
-            for plugin in pluginsCUDA:
-                if plugin.get_dir() != curFolder:  # New context
-                    if not firstTime:
-                        if len(sharedPluginName) == 0:
-                            logging.warning(
-                                "WARNING: NULL PLUGIN IN FOLDER: %s, IGNORING"
-                                % folder
-                            )
-                        else:
-                            envPluginCUDA.SharedLibrary(
-                                sharedPluginName, sourceFiles
-                            )
-                curFolder = plugin.get_dir()
-                sharedPluginName = ""
-                sourceFiles = []
-                srcStr = ""
-            firstTime = False
-            filename = plugin.get_path()
-            if filename.endswith("Plugin.cu"):
-                name = filename.replace(str(plugin.get_dir()), "")
-                sharedPluginName = (
-                    str(plugin.get_dir()) + "/lib" + name[1 : name.find(".cu")]
-                )
-            sourceFiles.append(filename)
-            srcStr += filename + " "
-        if len(sharedPluginName) == 0:
-            logging.warning(
-                "WARNING: NULL PLUGIN IN FOLDER: %s, IGNORING" % folder
-            )
-        else:
-            envPluginCUDA.Command(sharedPluginName, sourceFiles)
-
-        # Repeat of C++ plugins?
-        # Consider DRY-ing?
-        curFolder = ""
-        firstTime = True
-        for plugin in pluginListCXX:
-            if plugin.get_dir() != curFolder:  # New context
-                if not firstTime:
-                    if len(pluginName) == 0:
-                        logging.warning(
-                            "WARNING: NULL PLUGIN IN FOLDER: %s, IGNORING"
-                            % folder
-                        )
-                    else:
-                        env.SharedLibrary(pluginName, sourcefiles)
-                curFolder = plugin.get_dir()
-                pluginName = ""
-                sourceFiles = []
-            firstTime = False
-            filename = plugin.get_path()
-            if filename.endswith("Plugin.cpp"):
-                pluginName = filename[0 : filename.find(".cpp")]
-            sourceFiles.append(filename)
-        if len(pluginName) == 0:
-            logging.warning(
-                "WARNING: NULL PLUGIN IN FOLDER: %s, IGNORING", folder
-            )
-        else:
-            env.SharedLibrary(pluginName, sourceFiles)
+        print("!! Compiling CUDA Plugins")
+        for folder in pluginPath:
+            pluginListCU = Glob(folder+'/*Plugin.cu')
+            for plugin in pluginListCU:
+                sourceFiles = Glob(folder+'/*.cu')
+                filename = plugin.get_path().replace(str(plugin.get_dir()), "")
+                sharedPluginName = str(plugin.get_dir()) + filename[0 : filename.find(".cu")]
+                print(sharedPluginName)
+                # envPluginCuda.SharedLibrary(
+                #     source=plugin,
+                #     target=sharedPluginName
+                # )
+                x = envPluginCuda.Command(sharedPluginName+".so", sourceFiles, "nvcc -o $TARGET -shared -std=c++11 -arch=sm_30 --ptxas-options=-v -Xcompiler -fpic -I"+os.environ['PWD']+" $SOURCE")
+            #     if (plugin.get_dir() != curFolder):  # New context
+            #         if (not firstTime):
+            #             if len(sharedPluginName) == 0:
+            #                 logging.warning(
+            #                     "WARNING: NULL PLUGIN IN FOLDER: %s, IGNORING"
+            #                     % folder
+            #                 )
+            #             else:
+            #                 print("shared library")
+            #                 envPluginCUDA.SharedLibrary(
+            #                     sharedFileName, filename
+            #                 )
+            #     curFolder = plugin.get_dir()
+            #     sharedPluginName = ""
+            #     sourceFiles.append(filename)
+            #     if len(sharedPluginName) == 0:
+            #         logging.warning(
+            #             "WARNING: NULL PLUGIN IN FOLDER: %s, IGNORING" % folder
+            #         )
+            #     else:
+            #         envPluginCUDA.Command(sharedPluginName, sourceFiles)
     ###################################################################
     # Main Executable & PluGen
     env.Append(
