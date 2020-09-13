@@ -126,6 +126,16 @@ if env.GetOption("clean"):
             relpath('PluGen/plugen'),
             relpath("./obj"),
             relpath("./lib"),
+            Glob("perm*.txt"),
+            Glob("asp_py_*tab.py"),
+            Glob("*.out"),
+            Glob("*.err"),
+            relpath("derep.fasta"),
+            Glob("logs/*.log.txt"),
+            Glob("pvals.*.txt"),
+            relpath("pythonds"),
+            Glob("*.pdf")
+            relpath("tmp")
         ],
     )
 
