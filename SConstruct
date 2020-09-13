@@ -122,10 +122,10 @@ if env.GetOption("clean"):
             relpath("config.log"),
             relpath(".perlconfig.txt"),
             relpath("pluma"),
-            relpath("PluGen"),
+            Glob('PluGen/*.o'),
+            relpath('PluGen/plugen'),
             relpath("./obj"),
             relpath("./lib"),
-            Glob("./src/*.o"),
         ],
     )
 
@@ -394,6 +394,7 @@ else:
                 sharedPluginName = str(plugin.get_dir()) + filename[0 : filename.find(".cu")]
                 x = envPluginCuda.Command(sharedPluginName+".so", sourceFiles, "nvcc -o $TARGET -shared -std=c++11 -arch=sm_30 --ptxas-options=-v -Xcompiler -fpic -I"+os.environ['PWD']+" $SOURCE")
                 print(x)
+
     ###################################################################
     # Main Executable & PluGen
     env.Append(
