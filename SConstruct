@@ -134,8 +134,8 @@ if env.GetOption("clean"):
             Glob("logs/*.log.txt"),
             Glob("pvals.*.txt"),
             relpath("pythonds"),
-            Glob("*.pdf")
-            relpath("tmp")
+            Glob("*.pdf"),
+            relpath("tmp"),
         ],
     )
 
