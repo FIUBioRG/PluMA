@@ -189,6 +189,7 @@ if (miamipluginpath != ''):
 toExport = ['envPlugin']
 if (docuda == 1):
    toExport.append('envPluginCUDA')
+pluginName=''
 for folder in pluginpath:
  env.Append(CCFLAGS = '-I'+folder)
  if (docuda==1):
