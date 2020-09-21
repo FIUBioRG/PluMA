@@ -9,3 +9,4 @@ PyTorch
 Reverse Complement
 PALM (Pipeline for Analysis of Longitudinal Multi-Omics Data)
 Reverse Best Blast
+Enrichment (Giri)
