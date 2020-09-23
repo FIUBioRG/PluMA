@@ -10,3 +10,14 @@ Reverse Complement
 PALM (Pipeline for Analysis of Longitudinal Multi-Omics Data)
 Reverse Best Blast
 Enrichment (Giri)
+
+See (giriemail)
+MDS
+SOM
+Monocle2
+GTMLLE
+PHATE
+Sammon
+Splatter Paths
+Isomap
+viSNE
