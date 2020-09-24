@@ -21,3 +21,10 @@ Sammon
 Splatter Paths
 Isomap
 viSNE
+
+Pipelines
+WGS
+T2D
+Bubble Chart
+DADA2 [Current Bug: CALLOC Error]
+Overlap Tests (DB and SW)
