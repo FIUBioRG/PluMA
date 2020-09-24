@@ -22,6 +22,9 @@ Splatter Paths
 Isomap
 viSNE
 
+Synerclust [Current Bug: Recognizing GFF]
+Orthovenn [Current Bug: Hanging]
+
 Pipelines
 WGS
 T2D
