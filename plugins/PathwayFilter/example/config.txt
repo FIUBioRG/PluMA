@@ -1,0 +1,2 @@
+Prefix plugins/PathwayFilter/example/
+Plugin PathwayFilter inputfile files.txt outputfile  correlations.filtered.csv
