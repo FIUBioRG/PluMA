@@ -54,9 +54,9 @@ class R : public Language {
    private:
 #ifdef HAVE_R
       RInside* myR;
+#endif
       int argc;
       char ** argv;
-#endif
 };
 
 }

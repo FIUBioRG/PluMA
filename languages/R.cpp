@@ -30,9 +30,11 @@
 
 \*********************************************************************************/
 
+#ifdef HAVE_R
 #include "R.h"
 #include "RInside.h"
 #include "Rinterface.h"
+#endif
 //#include "Python.h"
 #include "PluginManager.h"
 
