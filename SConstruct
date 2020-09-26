@@ -240,8 +240,13 @@ else:
             CPPPATH=[
                 Dir(site_library + "/Rcpp/include"),
                 Dir(site_library + "/RInside/include"),
+                Dir('/usr/lib/R/site-library/RInside/include'),
+                Dir('/usr/lib/R/site-library/Rcpp/include')
             ],
-            LIBPATH=[Dir(site_library + "/RInside/lib")],
+            LIBPATH=[
+                Dir(site_library + "/RInside/lib"),
+                Dir('/usr/lib/R/site-library/RInside/lib')
+            ],
             LIBS=["R", "RInside"],
         )
 
@@ -257,29 +262,23 @@ else:
 
         envPluginCuda = Environment(
             ENV=os.environ,
-            CC="nvcc",
-            CXX="nvcc",
             CUDA_PATH=[os.getenv("CUDA_PATH", "/usr/local/cuda")],
             NVCCFLAGS=[
-                os.getenv(
-                    "NVCCFLAGS",
-                    [
-                        "-I" + os.getcwd(),
-                        "-arch=sm_30",
-                        "--ptxas-options=-v",
-                        "-std=c++11",
-                        "-Xcompiler",
-                        "-fPIC",
-                    ],
-                )
+                "-I" + os.getcwd(),
+                "-arch=sm_30",
+                "--ptxas-options=-v",
+                "-std=c++11",
+                "-Xcompiler",
+                "-fPIC",
             ],
         )
+
+        envPluginCuda.Tool('cuda')
 
         configCuda = Configure(envPluginCuda)
         configCuda.CheckProg('nvcc')
         configCuda.CheckHeader("cuda.h")
         configCuda.Finish()
-        # envPluginCuda.Tool('cuda')
 
     # Export `envPlugin` and `envPluginCUDA`
     Export("env")
@@ -395,14 +394,15 @@ else:
     # ###################################################################
     if GetOption("with-cuda"):
         print("!! Compiling CUDA Plugins")
+        envPluginCuda.AppendUnique(NVCCFLAGS=["-I"+os.getcwd()])
         for folder in pluginPath:
             pluginListCU = Glob(folder+'/*Plugin.cu')
             for plugin in pluginListCU:
-                sourceFiles = Glob(folder+'/*.cu')
-                filename = plugin.get_path().replace(str(plugin.get_dir())+"/", "")
-                sharedPluginName = str(plugin.get_dir()) + "/lib" + filename[0 : filename.find(".cu")]
-                x = envPluginCuda.Command(sharedPluginName+".so", sourceFiles, "nvcc -o $TARGET -shared -std=c++11 -arch=sm_30 --ptxas-options=-v -Xcompiler -fpic -I"+os.environ['PWD']+" $SOURCE")
-                print(x)
+                pluginName = plugin.get_path().replace(str(plugin.get_dir())+"/", "")
+                pluginName = pluginName.replace(".cu", ".so")
+                envPluginCuda.SharedLibrary(
+                    target="lib"+pluginName, source=plugin
+                )
 
     ###################################################################
     # Main Executable & PluGen
