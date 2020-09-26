@@ -340,7 +340,6 @@ else:
 
     ###################################################################
     # Finally, compile!
-    # It is dangerous to go alone, take this: 𐃉
     ###################################################################
 
     env.Append(SHLIBPREFIX="lib")
@@ -400,8 +399,8 @@ else:
             pluginListCU = Glob(folder+'/*Plugin.cu')
             for plugin in pluginListCU:
                 sourceFiles = Glob(folder+'/*.cu')
-                filename = plugin.get_path().replace(str(plugin.get_dir()), "")
-                sharedPluginName = str(plugin.get_dir()) + filename[0 : filename.find(".cu")]
+                filename = plugin.get_path().replace(str(plugin.get_dir())+"/", "")
+                sharedPluginName = str(plugin.get_dir()) + "/lib" + filename[0 : filename.find(".cu")]
                 x = envPluginCuda.Command(sharedPluginName+".so", sourceFiles, "nvcc -o $TARGET -shared -std=c++11 -arch=sm_30 --ptxas-options=-v -Xcompiler -fpic -I"+os.environ['PWD']+" $SOURCE")
                 print(x)
 

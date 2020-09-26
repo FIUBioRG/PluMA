@@ -39,14 +39,10 @@ RUN apk add -t .runtime-deps \
 && ln -s /usr/bin/pip3 /usr/bin/pip \
 && ln -s /usr/bin/python3-config /usr/bin/python-config \
 && echo $PLUMA_DIRECTORY >> /etc/environment \
-&& printf "#!/bin/sh\nset -e\ncd $PLUMA_DIRECTORY/plugins\ngit submodule update\n" > $PLUMA_DIRECTORY/update_plugins.sh \
 && mkdir ~/.R \
 && printf 'CXX=clang++\nPKG_CXXFLAGS += -D__MUSL__' > ~/.R/Makevars \
 && Rscript -e "install.packages('RInside', repos = 'https://cloud.r-project.org')" \
-&& /usr/bin/pip install --upgrade pip \
-&& /usr/bin/pip install --no-cache-dir -r requirements.txt \
-&& git submodule update --init \
-&& scons -Q --with-tcp-socket \
+&& scons -Q \
 && apk del .build-deps
 
 VOLUME ["/pluma/plugins"]
