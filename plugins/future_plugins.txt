@@ -1,3 +1,5 @@
+Note: Some of these may be server-based
+
 MEME-MAST
 SVM
 eMOMs (Vitalii GitHub) 
@@ -10,6 +12,23 @@ Reverse Complement
 PALM (Pipeline for Analysis of Longitudinal Multi-Omics Data)
 Reverse Best Blast
 Enrichment (Giri)
+ConSurf
+Masif
+Tigramite
+PyCausal
+
+(Evolution)
+MCI
+SGS
+IG
+GES
+tsGFCI
+
+(Bayesian Networks)
+BN
+DBN
+CGDBN
+2TDBN
 
 See (giriemail)
 MDS
@@ -31,3 +50,4 @@ T2D
 Bubble Chart
 DADA2 [Current Bug: CALLOC Error]
 Overlap Tests (DB and SW)
+Qiime2 (Code: Fantaysia)
