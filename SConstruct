@@ -39,6 +39,10 @@ if sys.platform.startswith("windows"):
 AddOption(
     "--prefix",
     dest="prefix",
+    type="string",
+    nargs=1,
+    action="store",
+    metavar="DIR",
     default="/usr/local",
     help="PREFIX for local installations",
 )
@@ -49,6 +53,17 @@ AddOption(
     action="store_true",
     default=False,
     help="Enable CUDA plugin compilation",
+)
+
+AddOption(
+    "--gpu-architecture",
+    dest="gpu_arch",
+    type="string",
+    nargs=1,
+    action="store",
+    metavar="ARCH",
+    default="sm_30",
+    help="Specify the name of the class of NVIDIA 'virtual' GPU architecture for which the CUDA input files must be compiled"
 )
 
 AddOption(
@@ -163,7 +178,6 @@ else:
         "pthread",
         "dl",
         "crypt",
-        # "util",
         "pcre",
         "rt",
         "blas",
@@ -218,14 +232,6 @@ else:
         config.env.AppendUnique(
             LDFLAGS=["-Bsymbolic-functions", "-z,relro"], CPPDEFINES=["HAVE_R"]
         )
-        site_library = subprocess.check_output(
-            'Rscript -e ".Library"',
-            universal_newlines=True,
-            encoding="utf8",
-            shell=True,
-        )
-
-        site_library = re.sub(r'\[\d\]\s"(.+)"', r"\1", site_library).rstrip()
 
         config.env.AppendUnique(
             CXXFLAGS=[
@@ -238,14 +244,20 @@ else:
                 "-Wl,--export-dynamic",
             ],
             CPPPATH=[
-                Dir(site_library + "/Rcpp/include"),
-                Dir(site_library + "/RInside/include"),
+                Dir("/usr/lib/R/library/Rcpp/include"),
+                Dir("/usr/lib/R/library/RInside/include"),
                 Dir('/usr/lib/R/site-library/RInside/include'),
-                Dir('/usr/lib/R/site-library/Rcpp/include')
+                Dir('/usr/lib/R/site-library/Rcpp/include'),
+                Dir("/usr/local/lib/R/library/Rcpp/include"),
+                Dir("/usr/local/lib/R/library/RInside/include"),
+                Dir('/usr/local/lib/R/site-library/RInside/include'),
+                Dir('/usr/local/lib/R/site-library/Rcpp/include'),
             ],
             LIBPATH=[
-                Dir(site_library + "/RInside/lib"),
-                Dir('/usr/lib/R/site-library/RInside/lib')
+                Dir("/usr/lib/R/library/RInside/lib"),
+                Dir('/usr/lib/R/site-library/RInside/lib'),
+                Dir("/usr/local/lib/R/library/RInside/lib"),
+                Dir('/usr/local/lib/R/site-library/RInside/lib'),
             ],
             LIBS=["R", "RInside"],
         )
@@ -263,17 +275,19 @@ else:
         envPluginCuda = Environment(
             ENV=os.environ,
             CUDA_PATH=[os.getenv("CUDA_PATH", "/usr/local/cuda")],
+            CUDA_SDK_PATH=[os.getenv("CUDA_SDK_PATH", "/usr/local/cuda")],
             NVCCFLAGS=[
                 "-I" + os.getcwd(),
-                "-arch=sm_30",
+                # "-arch=sm_30",
                 "--ptxas-options=-v",
                 "-std=c++11",
                 "-Xcompiler",
                 "-fPIC",
             ],
+            GPUARCH=GetOption('gpu_arch'),
         )
 
-        envPluginCuda.Tool('cuda')
+        # envPluginCuda.Tool('cuda')
 
         configCuda = Configure(envPluginCuda)
         configCuda.CheckProg('nvcc')
@@ -394,14 +408,17 @@ else:
     # ###################################################################
     if GetOption("with-cuda"):
         print("!! Compiling CUDA Plugins")
-        envPluginCuda.AppendUnique(NVCCFLAGS=["-I"+os.getcwd()])
+        envPluginCuda.AppendUnique(NVCCFLAGS=["-I"+os.getcwd(), '-std=c++11'])
         for folder in pluginPath:
             pluginListCU = Glob(folder+'/*Plugin.cu')
             for plugin in pluginListCU:
-                pluginName = plugin.get_path().replace(str(plugin.get_dir())+"/", "")
+                pluginName = plugin.get_path()
+                pluginName = pluginName.replace(str(plugin.get_dir())+"/", "")
                 pluginName = pluginName.replace(".cu", ".so")
-                envPluginCuda.SharedLibrary(
-                    target="lib"+pluginName, source=plugin
+                envPluginCuda.Command(
+                    str(plugin.get_dir()) + "/lib" + pluginName,
+                    plugin,
+                    "nvcc -o $TARGET -shared $NVCCFLAGS $SOURCE"
                 )
 
     ###################################################################
@@ -471,7 +488,6 @@ else:
             "R",
             "RInside",
         ],
-        RPATH=[site_library + "/RInside/lib"],
         source=[
             ObjectPath("languages/Compiled.o"),
             ObjectPath("languages/Language.o"),
