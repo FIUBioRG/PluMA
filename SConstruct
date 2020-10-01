@@ -150,6 +150,7 @@ if env.GetOption("clean"):
             Glob("pvals.*.txt"),
             relpath("pythonds"),
             Glob("*.pdf"),
+            Glob("*.so"),
             relpath("tmp"),
         ],
     )
@@ -303,7 +304,7 @@ else:
     # Note: CUDA is already prepared from the initial environment setup.
     ###################################################################
     env.SharedObject(
-        source="PluMA.cxx",
+        source=SourcePath("PluMA.cxx"),
         target=ObjectPath("PluMA.os"),
     )
     ###################################################################
@@ -362,48 +363,23 @@ else:
     pluginPath = glob("./plugins/*/")
     ###################################################################
 
-    # ##################################################################
-    # # CUDA Plugins
-    # #
-    # # TODO: Compress if-else statements?
+    ###################################################################
     # # C++ Plugins
     print("!! Compiling C++ Plugins")
     for folder in pluginPath:
-        env.AppendUnique(CCFLAGS=["-I" + folder])
-        sconscripts = Glob(folder + "/SConscript")
-        pluginListCXX = Glob(folder + "/*.cpp")
-        if len(pluginListCXX) != 0 and len(sconscripts) != 0:
-            for sconscript in sconscripts:
-                SConscript(sconscript, exports=toExport)
-        curFolder = ""
-        firstTime = True
+        sconsScripts = Glob(folder + "/SConscript")
+        pluginListCXX = Glob(folder + "/*Plugin.cpp")
+        if len(sconsScripts) != 0:
+            for sconsScript in sconsScripts:
+                SConscript(sconsScripts, exports=toExport)
         for plugin in pluginListCXX:
-            if plugin.get_dir() != curFolder:  # New context
-                if not firstTime:
-                    if len(pluginName) == 0:
-                        logging.warning(
-                            "WARNING: NULL PLUGIN IN FOLDER: %s, IGNORING"
-                            % folder
-                        )
-                    else:
-                        env.SharedLibrary(pluginName, sourceFiles)
-                curFolder = plugin.get_dir()
-                pluginName = ""
-                sourceFiles = []
-            firstTime = False
-            filename = plugin.get_path()
-            if filename.endswith("Plugin.cpp"):
-                pluginName = filename[0 : filename.find(".cpp")]
-            sourceFiles.append(filename)
-            if len(pluginName) == 0:
-                logging.warning(
-                    "WARNING: NULL PLUGIN IN FOLDER: %s, IGNORING" % folder
-                )
-            else:
-                env.SharedLibrary(
-                    target=pluginName, source=sourceFiles
-                )
-    # ###################################################################
+            pluginName = plugin.get_path()
+            pluginName = pluginName.replace(".cpp", ".so")
+            env.SharedLibrary(
+                target=pluginName, source=plugin
+            )
+
+    ###################################################################
     #
     # ###################################################################
     if GetOption("with-cuda"):
@@ -427,55 +403,44 @@ else:
         LIBPATH=[LibPath(""),]
     )
 
-    env.StaticObject(
-        source="languages/Compiled.cxx",
-        target=ObjectPath("languages/Compiled.o"),
-    )
+    languages = Glob("src/languages/*.cxx")
 
-    env.StaticObject(
-        source="languages/Language.cxx",
-        target=ObjectPath("languages/Language.o"),
-    )
+    for language in languages:
+        output = language.get_path().replace("src", "obj").replace(".cxx", ".os")
+        if "Perl" in output:
+            env.StaticObject(
+                LDFLAGS=[
+                    [
+                        subprocess.check_output(
+                            "perl -MExtUtils::Embed -e ldopts",
+                            universal_newlines=True,
+                            shell=True,
+                            encoding="utf8",
+                        )
+                    ]
+                ],
+                source=language,
+                target=output,
+            )
+        else:
+            env.StaticObject(
+                source=language,
+                target=output
+            )
 
-    env.StaticObject(
-        source="languages/Py.cxx",
-        target=ObjectPath("languages/Py.o"),
-    )
+    plugenFiles = Glob(str(SourcePath("PluGen/*.cxx")))
 
-    env.StaticObject(
-        LDFLAGS=[
-            [
-                subprocess.check_output(
-                    "perl -MExtUtils::Embed -e ldopts",
-                    universal_newlines=True,
-                    shell=True,
-                    encoding="utf8",
-                )
-            ]
-        ],
-        source="languages/Perl.cxx",
-        target=ObjectPath("languages/Perl.o"),
-    )
+    env.Program("PluGen/plugen", Glob("src/PluGen/*.cxx"))
 
-    env.StaticObject(
-        source="languages/R.cxx",
-        target=ObjectPath("languages/R.o"),
-    )
-
-    env.StaticObject(
-        source="PluginManager.cxx",
-        target=ObjectPath("PluginManager.o"),
-    )
-
-    env.StaticObject(
-        source="main.cxx",
-        target=ObjectPath("main.o"),
-    )
-
-    env.Program("PluGen/plugen", Glob("./PluGen/*.cxx"))
+    sourceFiles = Glob("src/*.cxx")
 
     env.Program(
         target="pluma",
+        source=[
+            SourcePath("main.cxx"),
+            SourcePath("PluginManager.cxx"),
+            languages,
+        ],
         LIBS=[
             "pthread",
             "m",
@@ -487,15 +452,6 @@ else:
             "perl",
             "R",
             "RInside",
-        ],
-        source=[
-            ObjectPath("languages/Compiled.o"),
-            ObjectPath("languages/Language.o"),
-            ObjectPath("languages/Py.o"),
-            ObjectPath("languages/Perl.o"),
-            ObjectPath("languages/R.o"),
-            ObjectPath("PluginManager.o"),
-            ObjectPath("main.o"),
         ],
     )
     ###################################################################
