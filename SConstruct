@@ -284,7 +284,7 @@ else:
                 "-Xcompiler",
                 "-fPIC",
             ],
-            GPUARCH=GetOption('gpu_arch'),
+            GPU_ARCH=GetOption('gpu_arch'),
         )
 
         # envPluginCuda.Tool('cuda')
@@ -418,7 +418,7 @@ else:
                 envPluginCuda.Command(
                     str(plugin.get_dir()) + "/lib" + pluginName,
                     plugin,
-                    "nvcc -o $TARGET -shared $NVCCFLAGS $SOURCE"
+                    "nvcc -o $TARGET -shared $NVCCFLAGS -arch=$GPU_ARCH $SOURCE"
                 )
 
     ###################################################################
