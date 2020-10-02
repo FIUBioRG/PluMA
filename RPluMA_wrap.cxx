@@ -321,11 +321,7 @@ SWIGINTERNINLINE int SWIG_CheckState(int r) {
 #include <string.h>
 
 #ifdef __cplusplus
-#ifdef APPLE
-extern "C++" {
-#else
 extern "C" {
-#endif
 #endif
 
 typedef void *(*swig_converter_func)(void *, int *);
@@ -722,11 +718,7 @@ SWIG_UnpackDataName(const char *c, void *ptr, size_t sz, const char *name) {
 
 
 #ifdef __cplusplus
-#ifdef APPLE
-extern "C++" {
-#else
 extern "C" {
-#endif
 #endif
 
 /* for raw pointer */
@@ -1278,11 +1270,7 @@ SWIG_strdup(const char *str)
 
 
 #ifdef __cplusplus
-#ifdef APPLE
-extern "C++" {
-#else
 extern "C" {
-#endif
 #endif
 
 SWIGEXPORT SEXP
@@ -1442,11 +1430,7 @@ static swig_cast_info *swig_cast_initial[] = {
  * ----------------------------------------------------------------------------- */
 
 #ifdef __cplusplus
-#ifdef APPLE
-extern "C++" {
-#else
 extern "C" {
-#endif
 #if 0
 } /* c-mode */
 #endif
@@ -1644,11 +1628,7 @@ SWIGEXPORT void SWIG_init(void) {
 
 }
 #ifdef __cplusplus
-#ifdef APPLE
-extern "C++" {
-#else
 extern "C" {
-#endif
 #endif
 
 #include <R_ext/Rdynload.h>
@@ -1666,11 +1646,7 @@ SWIGINTERN R_CallMethodDef CallEntries[] = {
    {NULL, NULL, 0}
 };
 
-#ifdef APPLE
-extern "C++" SWIGEXPORT void R_init_RPluMA(DllInfo *dll) {
-#else
 extern "C" SWIGEXPORT void R_init_RPluMA(DllInfo *dll) {
-#endif
     R_registerRoutines(dll, NULL, CallEntries, NULL, NULL);
 
 
