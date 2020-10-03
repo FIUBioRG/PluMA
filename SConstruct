@@ -62,7 +62,7 @@ AddOption(
     nargs=1,
     action="store",
     metavar="ARCH",
-    default="sm_30",
+    default="sm_35",
     help="Specify the name of the class of NVIDIA 'virtual' GPU architecture for which the CUDA input files must be compiled"
 )
 
@@ -105,8 +105,8 @@ env = Environment(
     CPPDEFINES=["HAVE_PYTHON"],
     SHCCFLAGS=["-fpermissive", "-fPIC", "-I.", "-O2"],
     SHCXXFLAGS=["-std=c++11", "-fPIC", "-I.", "-O2"],
-    CCFLAGS=["-fpermissive", "-fPIC", "-I."],
-    CXXFLAGS=["-std=c++11", "-fPIC"],
+    CCFLAGS=["-fpermissive", "-fPIC", "-I.", "-O2"],
+    CXXFLAGS=["-std=c++11", "-fPIC", "-O2"],
     CPPPATH=include_search_path,
     LIBPATH=lib_search_path,
     LICENSE=["MIT"],
@@ -152,6 +152,12 @@ if env.GetOption("clean"):
             Glob("*.pdf"),
             Glob("*.so"),
             relpath("tmp"),
+            Glob("*_wrap.cxx"),
+            relpath("PerlPluMA.pm"),
+            relpath("PyPluMA.py"),
+            relpath("RPluMA.R"),
+            relpath("__pycache__"),
+            Glob("*.pyc"),
         ],
     )
 
@@ -190,84 +196,88 @@ else:
         if not config.CheckLib(lib):
             Exit(1)
 
-    config.CheckProg("python3-config")
-    config.CheckProg("python3")
-    config.CheckProg("perl")
+    config.CheckProg("swig")
 
-    config.env.ParseConfig("/usr/bin/python3-config --includes --ldflags")
-    config.env.Append(LIBS=["util"])
+    if not env.GetOption("without-python"):
+        config.CheckProg("python3-config")
+        config.CheckProg("python3")
 
-    if sys.version_info[0] == "2":
-        logging.warning(
-            "!! Version of Python <= Python2.7 are now EOL. Please update to Python3"
-        )
+        config.env.ParseConfig("/usr/bin/python3-config --includes --ldflags")
+        config.env.Append(LIBS=["util"])
 
-    if not config.CheckPerl():
-        logging.error("!! Could not find a valid `perl` installation`")
-        Exit(1)
-    else:
-        config.env.ParseConfig("perl -MExtUtils::Embed -e ccopts -e ldopts")
+        if sys.version_info[0] == "2":
+            logging.warning(
+                "!! Version of Python <= Python3.0 are now EOL. Please update to Python3"
+            )
 
-        if not config.CheckHeader("EXTERN.h"):
-            logging.error("!! Could not find `EXTERN.h`")
+    if not env.GetOption("without-perl"):
+        config.CheckProg("perl")
+
+        if not config.CheckPerl():
+            logging.error("!! Could not find a valid `perl` installation`")
             Exit(1)
+        else:
+            config.env.ParseConfig("perl -MExtUtils::Embed -e ccopts -e ldopts")
 
-        config.env.AppendUnique(
-            CXXFLAGS=["-fno-strict-aliasing"],
-            CPPDEFINES=[
-                "LARGE_SOURCE",
-                "_FILE_OFFSET_BITS=64",
-                "HAVE_PERL",
-                "REENTRANT",
-            ],
-        )
+            if not config.CheckHeader("EXTERN.h"):
+                logging.error("!! Could not find `EXTERN.h`")
+                Exit(1)
 
-        if sys.platform.startswith("darwin"):
-            config.env.Append(LIBS=["crypt", "nsl"])
+            config.env.AppendUnique(
+                CXXFLAGS=["-fno-strict-aliasing"],
+                CPPDEFINES=[
+                    "LARGE_SOURCE",
+                    "_FILE_OFFSET_BITS=64",
+                    "HAVE_PERL",
+                    "REENTRANT",
+                ],
+            )
 
-    if not config.CheckProg("R") or not config.CheckProg("Rscript"):
-        logging.error("!! Could not find a valid `R` installation`")
-        Exit(1)
-    else:
-        config.env.ParseConfig("pkg-config --cflags-only-I --libs-only-L libR")
-        config.env.AppendUnique(
-            LDFLAGS=["-Bsymbolic-functions", "-z,relro"], CPPDEFINES=["HAVE_R"]
-        )
+            if sys.platform.startswith("darwin"):
+                config.env.Append(LIBS=["crypt", "nsl"])
 
-        config.env.AppendUnique(
-            CXXFLAGS=[
-                "-fpermissive",
-                "-fopenmp",
-                "--param=ssp-buffer-size=4",
-                "-Wformat",
-                "-Wformat-security",
-                "-Werror=format-security",
-                "-Wl,--export-dynamic",
-            ],
-            CPPPATH=[
-                Dir("/usr/lib/R/library/Rcpp/include"),
-                Dir("/usr/lib/R/library/RInside/include"),
-                Dir('/usr/lib/R/site-library/RInside/include'),
-                Dir('/usr/lib/R/site-library/Rcpp/include'),
-                Dir("/usr/local/lib/R/library/Rcpp/include"),
-                Dir("/usr/local/lib/R/library/RInside/include"),
-                Dir('/usr/local/lib/R/site-library/RInside/include'),
-                Dir('/usr/local/lib/R/site-library/Rcpp/include'),
-            ],
-            LIBPATH=[
-                Dir("/usr/lib/R/library/RInside/lib"),
-                Dir('/usr/lib/R/site-library/RInside/lib'),
-                Dir("/usr/local/lib/R/library/RInside/lib"),
-                Dir('/usr/local/lib/R/site-library/RInside/lib'),
-            ],
-            LIBS=["R", "RInside"],
-        )
+            config.env.Append(CPPDEFINES=["-DWITH_PERL"])
 
-    if not GetOption("without-perl"):
-        config.env.Append(CPPDEFINES=["-DWITH_PERL"])
+    if not env.GetOption("without-r"):
+        if not config.CheckProg("R") or not config.CheckProg("Rscript"):
+            logging.error("!! Could not find a valid `R` installation`")
+            Exit(1)
+        else:
+            config.env.ParseConfig("pkg-config --cflags-only-I --libs-only-L libR")
+            config.env.AppendUnique(
+                LDFLAGS=["-Bsymbolic-functions", "-z,relro"], CPPDEFINES=["HAVE_R"]
+            )
 
-    if not GetOption("without-r"):
-        config.env.Append(CPPDEFINES=["-DWITH_R"])
+            config.env.AppendUnique(
+                CXXFLAGS=[
+                    "-fpermissive",
+                    "-fopenmp",
+                    "--param=ssp-buffer-size=4",
+                    "-Wformat",
+                    "-Wformat-security",
+                    "-Werror=format-security",
+                    "-Wl,--export-dynamic",
+                ],
+                CPPPATH=[
+                    Dir("/usr/lib/R/library/Rcpp/include"),
+                    Dir("/usr/lib/R/library/RInside/include"),
+                    Dir('/usr/lib/R/site-library/RInside/include'),
+                    Dir('/usr/lib/R/site-library/Rcpp/include'),
+                    Dir("/usr/local/lib/R/library/Rcpp/include"),
+                    Dir("/usr/local/lib/R/library/RInside/include"),
+                    Dir('/usr/local/lib/R/site-library/RInside/include'),
+                    Dir('/usr/local/lib/R/site-library/Rcpp/include'),
+                ],
+                LIBPATH=[
+                    Dir("/usr/lib/R/library/RInside/lib"),
+                    Dir('/usr/lib/R/site-library/RInside/lib'),
+                    Dir("/usr/local/lib/R/library/RInside/lib"),
+                    Dir('/usr/local/lib/R/site-library/RInside/lib'),
+                ],
+                LIBS=["R", "RInside"],
+            )
+
+            config.env.Append(CPPDEFINES=["-DWITH_R"])
 
     config.Finish()
 
@@ -279,7 +289,6 @@ else:
             CUDA_SDK_PATH=[os.getenv("CUDA_SDK_PATH", "/usr/local/cuda")],
             NVCCFLAGS=[
                 "-I" + os.getcwd(),
-                # "-arch=sm_30",
                 "--ptxas-options=-v",
                 "-std=c++11",
                 "-Xcompiler",
@@ -288,16 +297,38 @@ else:
             GPU_ARCH=GetOption('gpu_arch'),
         )
 
-        # envPluginCuda.Tool('cuda')
-
         configCuda = Configure(envPluginCuda)
-        configCuda.CheckProg('nvcc')
+        configCuda.CheckProg("nvcc")
         configCuda.CheckHeader("cuda.h")
         configCuda.Finish()
 
     # Export `envPlugin` and `envPluginCUDA`
     Export("env")
     Export("envPluginCuda")
+
+    ###################################################################
+    # Regenerate wrappers for plugin languages
+    ###################################################################
+    if not env.GetOption("without-python"):
+        env.Command(
+            "PyPluMA",
+            "src/PluginWrapper.i",
+            "swig -python -c++ -module $TARGET -o ${TARGET}_wrap.cxx $SOURCE"
+        )
+
+    if not env.GetOption("without-perl"):
+        env.Command(
+            "PerlPluMA",
+            "src/PluginWrapper.i",
+            "swig -perl5 -c++ -module $TARGET -o ${TARGET}_wrap.cxx $SOURCE"
+        )
+
+    if not env.GetOption("without-r"):
+        env.Command(
+            "RPluMA",
+            "src/PluginWrapper.i",
+            "swig -r -c++ -module $TARGET -o ${TARGET}_wrap.cxx $SOURCE"
+        )
 
     ###################################################################
     # Execute compilation for our plugins.
