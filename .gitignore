@@ -22,6 +22,8 @@ plugins/
 !plugins/getPool.py
 !plugins/README
 logs/*
+PyPluMA.py
+models.txt
 
 # Created by https://www.toptal.com/developers/gitignore/api/c++,r,python,cuda
 # Edit at https://www.toptal.com/developers/gitignore?templates=c++,r,python,cuda

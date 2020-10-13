@@ -437,7 +437,6 @@ else:
                 pluginName = pluginName.replace(".cu", ".so")
                 output = str(plugin.get_dir()) + "/lib" + pluginName
                 input = Glob(str(plugin.get_dir()) + "/*.cu", strings=True)
-                print(input)
                 envPluginCuda.Command(
                     output,
                     input,
