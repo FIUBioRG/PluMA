@@ -90,6 +90,14 @@ AddOption(
     help="Disable R plugin compilation",
 )
 
+AddOption(
+    "--with-rust",
+    dest="with-rust",
+    action="store_true",
+    default=False,
+    help="Enable experimental support for Rust language plugins"
+)
+
 ###################################################################
 # Gets the environment variables set by the user on the OS level or
 # defaults to 'sane' values.
@@ -279,6 +287,10 @@ else:
 
             config.env.Append(CPPDEFINES=["-DWITH_R"])
 
+    if GetOption("with-rust"):
+        config.CheckProg("rustc")
+        config.CheckProg("cargo")
+
     config.Finish()
 
     if GetOption("with-cuda"):
@@ -404,10 +416,11 @@ else:
             for sconsScript in sconsScripts:
                 SConscript(sconsScripts, exports=toExport)
         for plugin in pluginListCXX:
+            filesInPath = Glob(str(plugin.get_dir()) + "/*.cpp")
             pluginName = plugin.get_path()
             pluginName = pluginName.replace(".cpp", ".so")
             env.SharedLibrary(
-                target=pluginName, source=plugin
+                target=pluginName, source=filesInPath
             )
 
     ###################################################################
@@ -415,17 +428,20 @@ else:
     # ###################################################################
     if GetOption("with-cuda"):
         print("!! Compiling CUDA Plugins")
-        envPluginCuda.AppendUnique(NVCCFLAGS=["-I"+os.getcwd(), '-std=c++11'])
+        envPluginCuda.AppendUnique(NVCCFLAGS=["-I"+os.getcwd()+"/src", '-std=c++11'])
         for folder in pluginPath:
             pluginListCU = Glob(folder+'/*Plugin.cu')
             for plugin in pluginListCU:
                 pluginName = plugin.get_path()
                 pluginName = pluginName.replace(str(plugin.get_dir())+"/", "")
                 pluginName = pluginName.replace(".cu", ".so")
+                output = str(plugin.get_dir()) + "/lib" + pluginName
+                input = Glob(str(plugin.get_dir()) + "/*.cu", strings=True)
+                print(input)
                 envPluginCuda.Command(
-                    str(plugin.get_dir()) + "/lib" + pluginName,
-                    plugin,
-                    "nvcc -o $TARGET -shared $NVCCFLAGS -arch=$GPU_ARCH $SOURCE"
+                    output,
+                    input,
+                    "nvcc -o $TARGET -shared $NVCCFLAGS -arch=$GPU_ARCH $SOURCES"
                 )
 
     ###################################################################

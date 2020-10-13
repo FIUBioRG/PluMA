@@ -10,8 +10,7 @@ From: ubuntu:18.04
     sudo apt-key add /var/cuda-repo-ubuntu1804-11-1-local/7fa2af80.pub
     apt-get -y update
     apt-get -y install apt-get -y install build-essential gcc g++ curl git python3 python3-pip perl \
-    libperl-dev swig r-base r-cran-rcpp r-cran-rinside python3-pkgconfig cuda
-    pip3 install scons
+    libperl-dev swig r-base r-cran-rcpp r-cran-rinside python3-pkgconfig cuda install scons
     git clone https://github.com/FIUBioRG/PluMA.git && cd PluMA
     scons
 
