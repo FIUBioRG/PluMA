@@ -1,7 +1,16 @@
 Note: Some of these may be server-based
 
-MEME-MAST
+Machine Learning
+CAE (Concrete Autoencoder)
+DEG
 SVM
+Logistic Regression
+
+TPMCalculator
+CAPE
+SNPDel
+
+MEME-MAST
 eMOMs (Vitalii GitHub) 
 RANSAC 
 Masif
@@ -51,3 +60,11 @@ Bubble Chart
 DADA2 [Current Bug: CALLOC Error]
 Overlap Tests (DB and SW)
 Qiime2 (Code: Fantaysia)
+
+RFE
+RNN
+RF
+DNN
+Survival Analysi
+
+Rust-Bio functions (cf. Koster et al, 2015)
