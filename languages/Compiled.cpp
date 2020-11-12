@@ -80,7 +80,7 @@ void Compiled::executePlugin(std::string pluginname, std::string inputname, std:
 
 	  //Attempt at implementing windows equivalent 
 	  #ifdef _WIN32
-	  HMODULE handle = LoadLibrary(filename.c_str());
+	  HMODULE handle = LoadLibraryA(filename.c_str());
 		  if (handle == NULL)
 		  {
 			  std::cout << "Warning: Null Handle" << std::endl;
