@@ -54,15 +54,15 @@ R::R(std::string language, std::string ext, std::string pp, int argc, char** arg
 void R::executePlugin(std::string pluginname, std::string inputname, std::string outputname) {
 #ifdef HAVE_R
         std::string tmppath = pluginpath;
-        std::string path = tmppath.substr(0, pluginpath.find_first_of(":"));
+        std::string path = tmppath.substr(0, pluginpath.find_first_of(";"));
         std::ifstream* infile = NULL;
         do {
            if (infile) delete infile;
-           infile = new std::ifstream(path+"/"+pluginname+"/"+pluginname+"Plugin.R", std::ios::in);
-           std::cout << "INFILE: " << path+"/"+pluginname+"/"+pluginname+"Plugin.R" << std::endl;
-           tmppath = tmppath.substr(tmppath.find_first_of(":")+1, tmppath.length());
-           path = tmppath.substr(0, tmppath.find_first_of(":"));
-        } while (!(*infile) && path.length() > 0);// {
+           infile = new std::ifstream(path+"\\"+pluginname+"\\"+pluginname+"Plugin.R", std::ios::in);
+           std::cout << "INFILE: " << path+"\\"+pluginname+"\\"+pluginname+"Plugin.R" << std::endl;
+           tmppath = tmppath.substr(tmppath.find_first_of(";")+1, tmppath.length());
+           path = tmppath.substr(0, tmppath.find_first_of(";"));
+        } while (!(*infile) && path.length() > 0);
 
         
         std::string txt;
