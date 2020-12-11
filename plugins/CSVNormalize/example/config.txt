@@ -1,0 +1,2 @@
+Prefix plugins/CSVNormalize/example/
+Plugin CSVNormalize inputfile abund.csv outputfile abund.norm.csv

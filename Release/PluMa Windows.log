@@ -5,13 +5,13 @@
   Py.cpp
   R.cpp
   main.cpp
-C:\Users\Rei\Desktop\PluMA\main.cpp(244,21): warning C4018: '<': signed/unsigned mismatch
-C:\Users\Rei\Desktop\PluMA\main.cpp(333,22): warning C4018: '<': signed/unsigned mismatch
-C:\Users\Rei\Desktop\PluMA\main.cpp(365,20): warning C4018: '<': signed/unsigned mismatch
+C:\Users\adrie\Desktop\CapstoneII\PluMA\main.cpp(262,21): warning C4018: '<': signed/unsigned mismatch
+C:\Users\adrie\Desktop\CapstoneII\PluMA\main.cpp(351,22): warning C4018: '<': signed/unsigned mismatch
+C:\Users\adrie\Desktop\CapstoneII\PluMA\main.cpp(385,20): warning C4018: '<': signed/unsigned mismatch
   PluMA.cpp
   win32-glob.c
   Generating code
   Previous IPDB not found, fall back to full compilation.
-  All 642 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
+  All 643 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
   Finished generating code
-  PluMa Windows.vcxproj -> C:\Users\Rei\Desktop\PluMA\Release\PluMa Windows.exe
+  PluMa Windows.vcxproj -> C:\Users\adrie\Desktop\CapstoneII\PluMA\pluma.exe
