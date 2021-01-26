@@ -50,7 +50,6 @@ Splatter Paths
 Isomap
 viSNE
 
-Synerclust [Current Bug: Recognizing GFF]
 Orthovenn [Current Bug: Hanging]
 
 Pipelines
@@ -65,7 +64,9 @@ RFE
 RNN
 RF
 DNN
-Survival Analysi
+Survival Analysis
 
 Rust-Bio functions (cf. Koster et al, 2015)
 Rosalind Bioinformatics Collection
+
+R machine learning
