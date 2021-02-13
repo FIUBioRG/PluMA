@@ -75,4 +75,4 @@ R machine learning
 https://en.wikipedia.org/wiki/List_of_RNA-Seq_bioinformatics_tools
 
 MANIEA (when released)
-
+MENA pipeline (MENAP)
