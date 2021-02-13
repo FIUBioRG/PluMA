@@ -70,6 +70,7 @@ void readConfig(char* inputfile, std::string prefix, bool doRestart, std::string
    std::string oldprefix = prefix;
    std::string kitty = "";
    while (!infile.eof()) {
+      //std::cout << "PREFIX: " << prefix << std::endl;
       ///////////////////////////////////////////////////////
       // Read one line
       // Plugin (Name) inputfile (input file) outputfile (output file)

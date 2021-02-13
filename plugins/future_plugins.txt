@@ -50,7 +50,6 @@ Splatter Paths
 Isomap
 viSNE
 
-Synerclust [Current Bug: Recognizing GFF]
 Orthovenn [Current Bug: Hanging]
 
 Pipelines
@@ -65,10 +64,11 @@ RFE
 RNN
 RF
 DNN
-Survival Analysi
+Survival Analysis
 
 Rust-Bio functions (cf. Koster et al, 2015)
 Rosalind Bioinformatics Collection
 
 16S datasets - MicrobiomeHD Database
 16S processing pipeline (Duvallet et al, 2017): https://github.com/thomasgurry/amplicon_sequencing_pipeline
+R machine learning
