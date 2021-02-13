@@ -72,3 +72,5 @@ Rosalind Bioinformatics Collection
 16S datasets - MicrobiomeHD Database
 16S processing pipeline (Duvallet et al, 2017): https://github.com/thomasgurry/amplicon_sequencing_pipeline
 R machine learning
+https://en.wikipedia.org/wiki/List_of_RNA-Seq_bioinformatics_tools
+
