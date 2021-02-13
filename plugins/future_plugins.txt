@@ -69,3 +69,6 @@ Survival Analysi
 
 Rust-Bio functions (cf. Koster et al, 2015)
 Rosalind Bioinformatics Collection
+
+16S datasets - MicrobiomeHD Database
+16S processing pipeline (Duvallet et al, 2017): https://github.com/thomasgurry/amplicon_sequencing_pipeline
