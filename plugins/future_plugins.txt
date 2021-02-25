@@ -76,3 +76,4 @@ https://en.wikipedia.org/wiki/List_of_RNA-Seq_bioinformatics_tools
 
 MANIEA (when released)
 MENA pipeline (MENAP)
+https://cran.r-project.org/web/packages/pcalg/index.html  (Causality algorithms)
