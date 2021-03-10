@@ -148,6 +148,12 @@ def localplugin(msg):
 #turnedoff = {}
 turnedoff = {#'SparCC':'',
              #'Ensemble':'',
+             'Deblur':'Qiime2 binary files not unique per input file set',
+             'Qiime2Viz':'Qiime2 binary files not unique per input file set',
+             'QualityFilter':'Qiime2 binary files not unique per input file set',
+             'FASTA2QZA':'Qiime2 binary files not unique per input file set',
+             'VSearch':'Qiime2 binary files not unique per input file set',
+             'FeatureClassify':'Qiime2 binary files not unique per input file set',
              'SCIMM':'Random number inconsistency',
              #'HMMER':'Random number inconsistency',
              'MetaCluster':'Random number inconsistency',

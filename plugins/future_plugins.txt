@@ -74,3 +74,7 @@ Rosalind Bioinformatics Collection
 R machine learning
 https://en.wikipedia.org/wiki/List_of_RNA-Seq_bioinformatics_tools
 
+NirvanaBiome -> Autism and WGS
+MANIEA (when released)
+MENA pipeline (MENAP)
+https://cran.r-project.org/web/packages/pcalg/index.html  (Causality algorithms)
