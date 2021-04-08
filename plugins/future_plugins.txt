@@ -6,6 +6,9 @@ DEG
 SVM
 Logistic Regression
 
+Docker/CUDA
+https://github.com/NVIDIA/nvidia-docker
+
 TPMCalculator
 CAPE
 SNPDel
