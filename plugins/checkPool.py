@@ -39,17 +39,21 @@ def printout(text, colour=WHITE):
 
 
 #import urllib2
-response = urllib.request.urlopen("http://biorg.cis.fiu.edu/pluma/plugins")
+response = urllib.request.urlopen("http://biorg.cis.fiu.edu/pluma/plugins.html")
 page_source = str(response.read())
 
 pool = set()
 local = set()
+normalprintout("************************************", GREEN)
+print("")
+normalprintout("PLUGIN COUNTS:", GREEN)
+print("")
 # Plugin Table
 while (page_source.find("</table>") != -1):
  plugin_table = page_source[page_source.find("<table "):page_source.find("</table>")]
-
  # Individual Plugins
  plugins = plugin_table.split("<tr>")
+ count=0
  for plugin in plugins:
   while(plugin.find("</a>") != -1):
    content = plugin[plugin.find("<a href="):plugin.find("</a>")]
@@ -57,13 +61,15 @@ while (page_source.find("</table>") != -1):
    data = content.split('>')
    if (len(data) == 2):
       pool.add(data[1])
+      count += 1
       #if (os.path.exists(data[1])):
       #   print("Plugin "+data[1]+" already installed.")
       #else:
       #   repo = data[0][1:len(data[0])-1] # Remove quotes
          #os.system("git clone "+repo)
    plugin = plugin[plugin.find("</a>")+1:]
-
+ normalprintout(str(count)+" ", GREEN)
+ #print(count,end=" ")
  
  page_source = page_source[page_source.find("</table>")+1:]
 
@@ -75,6 +81,10 @@ else:
 for plugin in plugins:
    local.add(plugin)
 
+normalprintout("\nTOTAL="+str(len(pool)), RED)
+print("")
+normalprintout("************************************", GREEN)
+print("")
 normalprintout("************************************", BLUE)
 print("")
 normalprintout("PLUGINS IN POOL, NOT LOCAL:", BLUE)
@@ -89,7 +99,7 @@ print("")
 normalprintout("PLUGINS LOCAL, NOT IN POOL:", MAGENTA)
 print("")
 for plugin in local-pool:
-   if (plugin[0] != "." and plugin != "README" and not plugin.endswith(".py")):
+   if (plugin[0] != "." and plugin != "README" and not plugin.endswith(".py") and not plugin.endswith(".txt")):
       normalprintout(plugin, MAGENTA)
       print("")
 normalprintout("************************************", MAGENTA)
