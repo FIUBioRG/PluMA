@@ -17,7 +17,7 @@ while (len(thepipelines) != 0):
          theplugins.add(contents[1])
      
 #import urllib2
-response = urllib.request.urlopen("http://biorg.cis.fiu.edu/pluma/plugins")
+response = urllib.request.urlopen("http://biorg.cis.fiu.edu/pluma/plugins.html")
 page_source = str(response.read())
 
 if (len(sys.argv) > 2):
