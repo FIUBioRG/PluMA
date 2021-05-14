@@ -3,6 +3,8 @@ Note: Some of these may be server-based
 Tensorflow
 
 Machine Learning
+RNN
+BERT
 CAE (Concrete Autoencoder)
 DEG
 SVM
