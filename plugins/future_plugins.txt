@@ -1,10 +1,26 @@
 Note: Some of these may be server-based
 
+Tensorflow
+
 Machine Learning
 CAE (Concrete Autoencoder)
 DEG
 SVM
 Logistic Regression
+GMM
+HMM
+DBN (Deep Belief Network)
+VAE
+GAN
+KNN (K-Nearest Neighbor)
+SVM
+DT
+CRF
+
+
+FATCAT
+ProtoMol
+
 
 Docker/CUDA
 https://github.com/NVIDIA/nvidia-docker
