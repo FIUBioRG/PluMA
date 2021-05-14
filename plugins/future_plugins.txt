@@ -1,6 +1,8 @@
 Note: Some of these may be server-based
 
-Tensorflow
+Flint
+Jasper
+AMBER
 
 Machine Learning
 RNN
