@@ -1,6 +1,9 @@
 vendor/**
 .vagrant
+<<<<<<< HEAD
 *.def
+=======
+>>>>>>> develop
 
 ####
 # PluMA specific ignores
