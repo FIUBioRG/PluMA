@@ -104,7 +104,7 @@ void Perl::executePlugin(
     do {
         if (infile) delete infile;
         filename = path+"/"+pluginname+"/"+pluginname+"Plugin.pl";
-        infile = new std::ifstream(filename, std::ios::in);
+        infile = new std::ifstream(filename.c_str(), std::ios::in);
         tmppath = tmppath.substr(tmppath.find_first_of(":")+1, tmppath.length());
         path = tmppath.substr(0, tmppath.find_first_of(":"));
     } while (!(*infile) && path.length() > 0);// {

@@ -1,20 +1,30 @@
 vendor/**
+.vagrant
+*.def
 
 ####
 # PluMA specific ignores
 ####
 pluma
 PluGen/plugen
-# End of https://www.gitignore.io/api/c,r,c++,cuda,perl,python,rust
+*_wrap.cxx
+PerlPluMA.pm
+PyPluma.py
+RPluMA.R
 .sconsign.dblite
 .env
-
 pluma
 PluGen/plugen
 .sconf_temp/
 obj/
 out/
 .perlconfig.txt
+plugins/
+!plugins/getPool.py
+!plugins/README
+logs/*
+PyPluMA.py
+models.txt
 
 # Created by https://www.toptal.com/developers/gitignore/api/c++,r,python,cuda
 # Edit at https://www.toptal.com/developers/gitignore?templates=c++,r,python,cuda

@@ -37,6 +37,7 @@
 
 #include "PluginMaker.h"
 
+#include <cstdlib>
 #include <string>
 #include <map>
 #include <vector>
@@ -137,10 +138,5 @@ public:
 private:
     std::ofstream* logfile;
 };
-
-//static __declspec(dllexport) PluginManager pluginManager;
-
-//   PluginManager::getInstance().log(msg);
-//}
 
 #endif
