@@ -1,2 +1,0 @@
-Prefix tests/PythonTest/example
-Plugin PythonTest inputfile input.txt outputfile results.txt
