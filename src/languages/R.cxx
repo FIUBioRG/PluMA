@@ -34,6 +34,7 @@
 #include "R.h"
 #include "RInside.h"
 #include "Rinterface.h"
+#endif
 #include "../PluginManager.h"
 
 namespace MiAMi {
