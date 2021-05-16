@@ -1328,11 +1328,7 @@ static swig_module_info swig_module = {swig_types, 1, 0, 0, 0, 0};
 #include <stdexcept>
 
 
-extern void log(char* msg);
-extern void dependency(char* plugin);
-extern char* prefix();
-extern void languageLoad(char* lang);
-extern void languageUnload(char* lang);
+#include "PluginWrapper.h"
 
 
 SWIGINTERN char *
@@ -1346,6 +1342,52 @@ SWIG_strdup(const char *str)
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+SWIGEXPORT SEXP
+R_swig_languageLoad ( SEXP lang)
+{
+  char *arg1 = (char *) 0 ;
+  unsigned int r_nprotect = 0;
+  SEXP r_ans = R_NilValue ;
+  VMAXTYPE r_vmax = vmaxget() ;
+  
+  arg1 = reinterpret_cast< char * >(SWIG_strdup(CHAR(STRING_ELT(lang, 0))));
+  languageLoad(arg1);
+  r_ans = R_NilValue;
+  free(arg1);
+  vmaxset(r_vmax);
+  if(r_nprotect)  Rf_unprotect(r_nprotect);
+  
+  return r_ans;
+  fail: SWIGUNUSED;
+  free(arg1);
+  Rf_error("%s %s", SWIG_ErrorType(SWIG_lasterror_code), SWIG_lasterror_msg);
+  return R_NilValue;
+}
+
+
+SWIGEXPORT SEXP
+R_swig_languageUnload ( SEXP lang)
+{
+  char *arg1 = (char *) 0 ;
+  unsigned int r_nprotect = 0;
+  SEXP r_ans = R_NilValue ;
+  VMAXTYPE r_vmax = vmaxget() ;
+  
+  arg1 = reinterpret_cast< char * >(SWIG_strdup(CHAR(STRING_ELT(lang, 0))));
+  languageUnload(arg1);
+  r_ans = R_NilValue;
+  free(arg1);
+  vmaxset(r_vmax);
+  if(r_nprotect)  Rf_unprotect(r_nprotect);
+  
+  return r_ans;
+  fail: SWIGUNUSED;
+  free(arg1);
+  Rf_error("%s %s", SWIG_ErrorType(SWIG_lasterror_code), SWIG_lasterror_msg);
+  return R_NilValue;
+}
+
 
 SWIGEXPORT SEXP
 R_swig_log ( SEXP msg)
@@ -1408,52 +1450,6 @@ R_swig_prefix ( )
   
   return r_ans;
   fail: SWIGUNUSED;
-  Rf_error("%s %s", SWIG_ErrorType(SWIG_lasterror_code), SWIG_lasterror_msg);
-  return R_NilValue;
-}
-
-
-SWIGEXPORT SEXP
-R_swig_languageLoad ( SEXP lang)
-{
-  char *arg1 = (char *) 0 ;
-  unsigned int r_nprotect = 0;
-  SEXP r_ans = R_NilValue ;
-  VMAXTYPE r_vmax = vmaxget() ;
-  
-  arg1 = reinterpret_cast< char * >(SWIG_strdup(CHAR(STRING_ELT(lang, 0))));
-  languageLoad(arg1);
-  r_ans = R_NilValue;
-  free(arg1);
-  vmaxset(r_vmax);
-  if(r_nprotect)  Rf_unprotect(r_nprotect);
-  
-  return r_ans;
-  fail: SWIGUNUSED;
-  free(arg1);
-  Rf_error("%s %s", SWIG_ErrorType(SWIG_lasterror_code), SWIG_lasterror_msg);
-  return R_NilValue;
-}
-
-
-SWIGEXPORT SEXP
-R_swig_languageUnload ( SEXP lang)
-{
-  char *arg1 = (char *) 0 ;
-  unsigned int r_nprotect = 0;
-  SEXP r_ans = R_NilValue ;
-  VMAXTYPE r_vmax = vmaxget() ;
-  
-  arg1 = reinterpret_cast< char * >(SWIG_strdup(CHAR(STRING_ELT(lang, 0))));
-  languageUnload(arg1);
-  r_ans = R_NilValue;
-  free(arg1);
-  vmaxset(r_vmax);
-  if(r_nprotect)  Rf_unprotect(r_nprotect);
-  
-  return r_ans;
-  fail: SWIGUNUSED;
-  free(arg1);
   Rf_error("%s %s", SWIG_ErrorType(SWIG_lasterror_code), SWIG_lasterror_msg);
   return R_NilValue;
 }
@@ -1727,11 +1723,11 @@ extern "C" {
 #endif
 
 SWIGINTERN R_CallMethodDef CallEntries[] = {
-   {"R_swig_log", (DL_FUNC) &R_swig_log, 1},
    {"R_swig_languageLoad", (DL_FUNC) &R_swig_languageLoad, 1},
+   {"R_swig_log", (DL_FUNC) &R_swig_log, 1},
    {"R_swig_prefix", (DL_FUNC) &R_swig_prefix, 0},
-   {"R_swig_dependency", (DL_FUNC) &R_swig_dependency, 1},
    {"R_swig_languageUnload", (DL_FUNC) &R_swig_languageUnload, 1},
+   {"R_swig_dependency", (DL_FUNC) &R_swig_dependency, 1},
    {NULL, NULL, 0}
 };
 
