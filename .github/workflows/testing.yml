@@ -11,7 +11,10 @@ jobs:
               uses: actions/checkout@v2
 
             - name: install dependencies
-              run: sudo apt-get install -y scons swig r r-cran-rinside r-cra-rcpp perl python3-pip
+              run: sudo apt-get install -y scons swig r-base perl python3-pip
+
+            - name: install R packages
+              run: sudo Rscript -e 'install.packages("r-inside")'
 
             - name: install plugins
               run: python3 ./plugins/getPool.py
