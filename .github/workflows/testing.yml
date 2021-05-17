@@ -17,7 +17,7 @@ jobs:
               run: sudo Rscript -e 'install.packages("r-inside")'
 
             - name: install plugins
-              run: python3 ./plugins/getPool.py
+              run: cd plugins && python3 ./plugins/getPool.py && cd ..
 
             - name: build applicaiton
               run: scons
