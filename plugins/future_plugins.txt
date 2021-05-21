@@ -1,6 +1,18 @@
 Note: Some of these may be server-based
 
+DCA
+Zachs Algorithms
+VAST
+diSBPred
+DALI
+SSAP
+SWORD
+SWIPE
+Prokka+friends
+
 MaAsLin2 
+
+Maaft
 
 Flint
 Jasper
@@ -81,9 +93,7 @@ Pipelines
 WGS
 T2D
 Bubble Chart
-DADA2 [Current Bug: CALLOC Error]
 Overlap Tests (DB and SW)
-Qiime2 (Code: Fantaysia)
 
 RFE
 RNN
