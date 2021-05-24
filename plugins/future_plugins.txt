@@ -10,6 +10,17 @@ SWORD
 SWIPE
 Prokka+friends
 
+SABRE
+idemp
+fastx_toolkit
+Breakaway
+trimmomatic
+bbtols
+SEPP
+TIPP
+DivNet
+CORNCOB
+
 MaAsLin2 
 
 Maaft
