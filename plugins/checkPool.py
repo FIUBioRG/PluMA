@@ -42,6 +42,8 @@ def printout(text, colour=WHITE):
 response = urllib.request.urlopen("http://biorg.cis.fiu.edu/pluma/plugins.html")
 page_source = str(response.read())
 
+dirPath = os.path.dirname(os.path.realpath(__file__))
+
 pool = set()
 local = set()
 normalprintout("************************************", GREEN)
@@ -70,13 +72,13 @@ while (page_source.find("</table>") != -1):
    plugin = plugin[plugin.find("</a>")+1:]
  normalprintout(str(count)+" ", GREEN)
  #print(count,end=" ")
- 
+
  page_source = page_source[page_source.find("</table>")+1:]
 
 if (len(sys.argv) > 1):
    plugins = [sys.argv[1]]
 else:
-   plugins = os.listdir(".")
+   plugins = os.listdir(dirPath)
 
 for plugin in plugins:
    local.add(plugin)
@@ -109,11 +111,11 @@ print("")
 normalprintout("PLUGINS THAT DIFFER FROM REPOSITORY:", YELLOW)
 print("")
 for plugin in local.intersection(pool):
-   x = os.popen('cd '+plugin+'; git diff; cd ..').read()
+   x = os.popen('cd '+ dirPath + '/' + plugin +'; git diff; cd ..').read()
    if (len(x) != 0):
       normalprintout(plugin, YELLOW)
       print("")
    os.system("cd ..")
 normalprintout("************************************", YELLOW)
 print("")
-   
+

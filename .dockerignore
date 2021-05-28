@@ -1,0 +1,11 @@
+__pycache__
+.sconf_temp/
+lib/
+obj/
+.perlconfig.txt
+.sconsign.dblite
+config.log
+pluma
+PluGen/
+.vagrant
+Vagrantfile
