@@ -9,6 +9,7 @@ SSAP
 SWORD
 SWIPE
 Prokka+friends
+MUMmer
 
 SABRE
 idemp
