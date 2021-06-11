@@ -19,8 +19,8 @@ trimmomatic
 bbtols
 SEPP
 TIPP
-DivNet
-CORNCOB
+xDivNet
+xCORNCOB
 
 MaAsLin2 
 
@@ -31,19 +31,19 @@ Jasper
 AMBER
 
 Machine Learning
-RNN
+xRNN
 BERT
-CAE (Concrete Autoencoder)
+* CAE (Concrete Autoencoder) (ERRORS)
 DEG
-SVM
+xSVM
+xRBM
 Logistic Regression
-GMM
-HMM
-DBN (Deep Belief Network)
-VAE
+xGMM
+xHMM
+xDNN 
+VAE (ERRORS)
 GAN
 KNN (K-Nearest Neighbor)
-SVM
 DT
 CRF
 
@@ -108,10 +108,12 @@ Bubble Chart
 Overlap Tests (DB and SW)
 
 RFE
-RNN
 RF
-DNN
 Survival Analysis
+
+CLC Genomics
+SMRT Portal
+MAUVE
 
 Rust-Bio functions (cf. Koster et al, 2015)
 Rosalind Bioinformatics Collection
