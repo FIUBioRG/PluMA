@@ -98,6 +98,22 @@ AddOption(
     help="Enable experimental support for Rust language plugins"
 )
 
+AddOption(
+    "--r-include-dir",
+    dest="r-include-dir",
+    action="store",
+    default="/usr/local/lib/R/include",
+    help="Set the include directory for the R installation on the system"
+)
+
+AddOption(
+    "--r-lib-dir",
+    dest="r-lib-dir",
+    action="store",
+    default="/usr/local/lib/R/lib",
+    help="Set the lib directory for the R installation on the system"
+)
+
 ###################################################################
 # Gets the environment variables set by the user on the OS level or
 # defaults to 'sane' values.
@@ -285,6 +301,41 @@ else:
                 LIBS=["R", "RInside"],
             )
 
+            if getenv("R_INCLUDE_DIR"):
+                config.env.AppendUnique(
+                    CPPATH=[
+                        Dir(getenv("R_INCLUDE_DIR"))
+                    ]
+                )
+
+            if getenv("R_LIB_DIR"):
+                config.env.AppendUnique(
+                    LIBPATH=[
+                        Dir(getenv("R_LIB_DIR"))
+                    ]
+                )
+
+            if getenv("RINSIDE_LIB_DIR"):
+                config.env.AppendUnique(
+                    LIBPATH=[
+                        Dir(getenv("RINSIDE_LIB_DIR"))
+                    ]
+                )
+
+            if getenv("RINSIDE_INCLUDE_DIR"):
+                config.env.AppendUnique(
+                    CPPPATH=[
+                        Dir(getenv("RINSIDE_INCLUDE_DIR"))
+                    ]
+                )
+
+            if getenv("RCPP_INCLUDE_DIR"):
+                config.env.AppendUnique(
+                    CPPPATH=[
+                        Dir(getenv("RCPP_INCLUDE_DIR"))
+                    ]
+                )
+
             config.env.Append(CPPDEFINES=["-DWITH_R"])
 
     if GetOption("with-rust"):
@@ -297,8 +348,8 @@ else:
 
         envPluginCuda = Environment(
             ENV=os.environ,
-            CUDA_PATH=[os.getenv("CUDA_PATH", "/usr/local/cuda")],
-            CUDA_SDK_PATH=[os.getenv("CUDA_SDK_PATH", "/usr/local/cuda")],
+            CUDA_PATH=[getenv("CUDA_PATH", "/usr/local/cuda")],
+            CUDA_SDK_PATH=[getenv("CUDA_SDK_PATH", "/usr/local/cuda")],
             NVCCFLAGS=[
                 "-I" + os.getcwd(),
                 "--ptxas-options=-v",
