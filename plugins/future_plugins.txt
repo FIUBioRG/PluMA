@@ -1,5 +1,16 @@
 Note: Some of these may be server-based
 
+Compound Discoverer 3.1
+MS-DIAL
+CSI:FingerID
+CFM-ID
+MS-FINDER
+MetFrag
+MS2LDA
+Metaboanalyst
+FELLA (R package)
+ChemRICH
+
 DCA
 Zachs Algorithms
 VAST
