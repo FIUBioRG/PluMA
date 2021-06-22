@@ -10,6 +10,18 @@ MS2LDA
 Metaboanalyst
 FELLA (R package)
 ChemRICH
+MetaMapp
+Pathview
+Metscape
+
+RAMMCAP
+MetaVelvet
+SOAPdenovo2
+MOCAT
+SmashCommunity
+FANTOM
+MetaCV
+Phymm
 
 DCA
 Zachs Algorithms
