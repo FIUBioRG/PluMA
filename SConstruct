@@ -107,7 +107,7 @@ if (docuda==1):
    envPluginCUDA2 = Environment(ENV = os.environ)
    envPluginCUDA.Tool('cuda')
    envPluginCUDA.Append(NVCCFLAGS = '-I'+os.environ['PWD'])
-   envPluginCUDA.Append(NVCCFLAGS = ['-arch=sm_30'])
+   #envPluginCUDA.Append(NVCCFLAGS = ['-arch=sm_30'])
    envPluginCUDA.Append(NVCCFLAGS = ['--ptxas-options=-v']) 
    envPluginCUDA.Append(NVCCFLAGS = ['-std=c++11'])
    envPluginCUDA.Append(NVCCFLAGS = ['-Xcompiler'])
@@ -147,8 +147,8 @@ if (perl==1):
    if (env['PLATFORM'] != 'darwin'):
       env.Append(LIBS = ['crypt'])
    env.Append(LIBS = ['util'])
-   if (env['PLATFORM'] != 'darwin'):
-      env.Append(LIBS = ['nsl'])
+   #if (env['PLATFORM'] != 'darwin'):
+   #   env.Append(LIBS = ['nsl'])
    env.Append(CCFLAGS = '-DREENTRANT')
    env.Append(CCFLAGS = '-D_GNU_SOURCE')
    env.Append(CCFLAGS = '-DDEBIAN')
@@ -258,7 +258,7 @@ if (docuda==1):
         if (len(sharedpluginname) == 0):
          print("WARNING: NULL PLUGIN IN FOLDER: "+folder+", IGNORING")
         else:
-         x = envPluginCUDA.Command(sharedpluginname+".so", sourcefiles, "nvcc -o $TARGET -shared "+srcstring+"-std=c++11 -arch=sm_30 --ptxas-options=-v -Xcompiler -fpic -I"+os.environ['PWD'])
+         x = envPluginCUDA.Command(sharedpluginname+".so", sourcefiles, "nvcc -o $TARGET -shared "+srcstring+"-std=c++11 --ptxas-options=-v -Xcompiler -fpic -I"+os.environ['PWD'])
       cur_folder = plugin.get_dir()
       sharedpluginname = ''
       sourcefiles = []
@@ -273,7 +273,7 @@ if (docuda==1):
    if (not firsttime and len(sharedpluginname) == 0):
          print("WARNING: NULL PLUGIN IN FOLDER: "+folder+", IGNORING")
    elif (not firsttime):
-         x = envPluginCUDA.Command(sharedpluginname+".so", sourcefiles, "nvcc -o $TARGET -shared "+srcstring+"-std=c++11 -arch=sm_30 --ptxas-options=-v -Xcompiler -fpic -I"+os.environ['PWD'])
+         x = envPluginCUDA.Command(sharedpluginname+".so", sourcefiles, "nvcc -o $TARGET -shared "+srcstring+"-std=c++11 --ptxas-options=-v -Xcompiler -fpic -I"+os.environ['PWD'])
 
 
       #envPluginCUDA.Object(source=plugin)
