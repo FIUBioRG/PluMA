@@ -1,2 +1,0 @@
-Prefix plugins/Velvet/example
-Plugin Velvet inputfile parameters.txt outputfile Velvet
