@@ -1,0 +1,12 @@
+VELVETH
+51
+shortPaired
+separate
+fastq
+R1.fastq
+R2.fastq
+VELVETG
+ins_length	101
+exp_cov	auto
+cov_cutoff	auto
+amos_file	yes
