@@ -211,8 +211,6 @@ else:
         "crypt",
         "pcre",
         "rt",
-        "blas",
-        "rt",
         "c",
     ]
 
