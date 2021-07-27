@@ -4,7 +4,6 @@ vendor/**
 hmmout.*
 output.contig.*
 Rplots.pdf
-pythonds/
 
 ####
 # PluMA specific ignores
