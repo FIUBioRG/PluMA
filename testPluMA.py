@@ -149,6 +149,7 @@ def localplugin(msg):
 turnedoff = {#'SparCC':'',
              #'Ensemble':'',
              'Deblur':'Qiime2 binary files not unique per input file set',
+             'FASTQ2QZA':'Qiime2 binary files not unique per input file set',
              'Qiime2Viz':'Qiime2 binary files not unique per input file set',
              'QualityFilter':'Qiime2 binary files not unique per input file set',
              'FASTA2QZA':'Qiime2 binary files not unique per input file set',
