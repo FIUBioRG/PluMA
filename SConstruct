@@ -172,7 +172,7 @@ if env.GetOption("clean"):
             relpath("derep.fasta"),
             Glob("logs/*.log.txt"),
             Glob("pvals.*.txt"),
-            relpath("pythonds"),
+            #relpath("pythonds"),
             Glob("*.pdf"),
             Glob("*.so"),
             relpath("tmp"),
