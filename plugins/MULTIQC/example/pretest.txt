@@ -1,2 +1,0 @@
-bash -c "rm -r plugins/MULTIQC/example/multiqc_data* >& /dev/null"
-bash -c "rm -r plugins/MULTIQC/example/multiqc_report*.html >& /dev/null"
