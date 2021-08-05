@@ -291,7 +291,10 @@ for plugin in plugins:
                            #print "diff <(sort "+outputfile+") <(sort "+expected+") > plugins/"+plugin+"/example/diff_output.txt"
                            #os.system("diff <(sort "+outputfile+") <(sort "+expected+") > plugins/"+plugin+"/example/diff_output.txt")  # Run diff
                            #print outputfile, expected
-                           subprocess.call(["bash", "-c", "diff <(sort "+outputfile+") <(sort "+expected+") > plugins/"+plugin+"/example/diff_output.txt"])
+                           if (expected.endswith(".gz.expected")):
+                              subprocess.call(["bash", "-c", "zdiff "+outputfile+" "+expected+" > plugins/"+plugin+"/example/diff_output.txt"])
+                           else:
+                              subprocess.call(["bash", "-c", "diff <(sort "+outputfile+") <(sort "+expected+") > plugins/"+plugin+"/example/diff_output.txt"])
                            diffsize = os.path.getsize("plugins/"+plugin+"/example/diff_output.txt")
                            if (diffsize > 0):
                               if (not checkAccuracy(outputfile, expected)):
@@ -317,7 +320,10 @@ for plugin in plugins:
                      if (not result):
                         err("Output does not match expected, see example/diff_output.txt")
                         #print outputfile, expected
-                        os.system("diff <(sort "+outputfile+") <(sort "+expected+") > plugins/"+plugin+"/example/diff_output.txt")  # Run diff
+                        if (expected.endswith(".gz.expected")):
+                          os.system("zdiff "+outputfile+" "+expected+" > plugins/"+plugin+"/example/diff_output.txt")  # Run diff
+                        else:
+                          os.system("diff <(sort "+outputfile+") <(sort "+expected+") > plugins/"+plugin+"/example/diff_output.txt")  # Run diff
                         numfail += 1
                      else:
                         passed()
