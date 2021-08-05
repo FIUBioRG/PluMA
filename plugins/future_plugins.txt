@@ -14,6 +14,7 @@ MetaMapp
 Pathview
 Metscape
 
+
 RAMMCAP
 MetaVelvet
 SOAPdenovo2
@@ -22,6 +23,36 @@ SmashCommunity
 FANTOM
 MetaCV
 Phymm
+
+DUST
+ALLPATH
+ESOM
+CLAMS
+Amplicon Noise
+CRT
+PILER-CR
+SILVANGS
+
+(Have links for these)
+Genomemeta
+SOrt-ITEMS
+DiScRiBinATE
+MetaVelvet
+RayMeta
+MetaGeneMark
+GlimmerMG
+BLASTX
+MetaORFA
+MinPath
+MetaPath
+GhostKOALA
+ProVIDE
+Metagenome Seq
+Shotgun Functionalize (R)
+IMG/M
+Phinch
+CAMERA
+Meta Comp
 
 DCA
 Zachs Algorithms
@@ -150,3 +181,7 @@ NirvanaBiome -> Autism and WGS
 MANIEA (when released)
 MENA pipeline (MENAP)
 https://cran.r-project.org/web/packages/pcalg/index.html  (Causality algorithms)
+
+GGTREE
+JALVIEW
+YULAB-SMU.TOP/TREEDATA-BOOK/
