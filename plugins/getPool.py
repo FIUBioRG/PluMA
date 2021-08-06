@@ -2,7 +2,7 @@
 import os
 import urllib.request
 #import urllib2
-response = urllib.request.urlopen("http://biorg.cis.fiu.edu/pluma/plugins")
+response = urllib.request.urlopen("http://biorg.cis.fiu.edu/pluma/plugins.html")
 page_source = str(response.read())
 
 # Plugin Table
