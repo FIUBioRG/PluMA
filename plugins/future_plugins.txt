@@ -14,6 +14,22 @@ MetaMapp
 Pathview
 Metscape
 
+ MANIEA (when released)
+ MENA pipeline (MENAP)
+ https://cran.r-project.org/web/packages/pcalg/index.html  (Causality algorithms)
++
++Covid-19 Pipeline
++SWISS-MODEL
++PatchDock
++HADDOCK
++FireDock
++Vaxjen
++AlgPred
++SOLpro
++Expasy Protparam
++RAMPAGE (Ramachandran)
+
+
 
 RAMMCAP
 MetaVelvet
