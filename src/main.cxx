@@ -69,12 +69,13 @@ void readConfig(char* inputfile, std::string prefix, bool doRestart, std::string
     std::string pipeline = "";
     std::string oldprefix = prefix;
     std::string kitty = "";
-    std::string junk, name, inputname, outputname;
-    while (infile >> junk) {
+    while (!infile.eof()) {
+        std::string junk, name, inputname, outputname;
         /**
         * Read one line
         * Plugin (Name) inputfile (input file) outputfile (output file)
         */
+        infile >> junk;
         if (junk[0] == '#') {
             // the line is a comment
             getline(infile, junk);
