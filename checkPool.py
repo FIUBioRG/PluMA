@@ -76,7 +76,7 @@ while (page_source.find("</table>") != -1):
 if (len(sys.argv) > 1):
    plugins = [sys.argv[1]]
 else:
-   plugins = os.listdir(".")
+   plugins = os.listdir("./plugins")
 
 for plugin in plugins:
    local.add(plugin)

@@ -17,11 +17,11 @@ while (page_source.find("</table>") != -1):
    content = content.replace('<a href=', '')
    data = content.split('>')
    if (len(data) == 2):
-      if (os.path.exists(data[1])):
+      if (os.path.exists("plugins/"+data[1])):
          print("Plugin "+data[1]+" already installed.")
       else:
          repo = data[0][1:len(data[0])-1] # Remove quotes
-         os.system("git clone "+repo)
+         os.system("git clone "+repo+" plugins/"+repo)
    plugin = plugin[plugin.find("</a>")+1:]
 
  page_source = page_source[page_source.find("</table>")+1:]
