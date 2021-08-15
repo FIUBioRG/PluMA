@@ -1,0 +1,26 @@
+name: PluMA Testing
+on:
+    push:
+        branches: [master, develop]
+
+jobs:
+    testing:
+        runs-on: ubuntu-latest
+        steps:
+            - name: checkout repository code
+              uses: actions/checkout@v2
+
+            - name: install dependencies
+              run: sudo apt-get install -y scons swig r-base perl python3-pip
+
+            - name: install R packages
+              run: sudo Rscript -e 'install.packages("r-inside")'
+
+            - name: install plugins
+              run: cd plugins && python3 getPool.py && cd ..
+
+            - name: build applicaiton
+              run: scons
+
+            - name: run tests
+              run: python3 ./testPluMA.py
