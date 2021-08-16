@@ -62,8 +62,6 @@ std::string toString(int val) {
 //////////////////////////////////////////
 
 void readConfig(char* inputfile, std::string prefix, bool doRestart, std::string restartPoint) {
-    std::cout << "READING: " << inputfile << std::endl;
-    std::cout << "PREFIX: " << prefix << std::endl;
     std::ifstream infile(inputfile, std::ios::in);
     bool restartFlag = false;
     std::string pipeline = "";
