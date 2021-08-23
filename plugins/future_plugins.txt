@@ -1,5 +1,7 @@
 Note: Some of these may be server-based
 
+
+
 Compound Discoverer 3.1
 MS-DIAL
 CSI:FingerID
@@ -201,3 +203,20 @@ https://cran.r-project.org/web/packages/pcalg/index.html  (Causality algorithms)
 GGTREE
 JALVIEW
 YULAB-SMU.TOP/TREEDATA-BOOK/
+
+ShortBRED
+M2mini2
+cms+
+IEomics
+LipidQC
+LipdMatch
+LipdPrimer
+Vitalli MM pipeline
+FLIPPER
+PRINSEQ
+MEtaxa2
+CARD
+RGPs
+PanSeq
+Spine
+AGEnt
