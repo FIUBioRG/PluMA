@@ -25,6 +25,7 @@ out/
 plugins/
 !plugins/getPool.py
 !plugins/README
+!plugins/.gitkeep
 logs/*
 PyPluMA.py
 models.txt
