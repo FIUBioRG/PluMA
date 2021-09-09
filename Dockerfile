@@ -12,14 +12,14 @@ WORKDIR /app
 
 ADD ./ ./
 
-RUN apk add --no-cache build-base scons blas clang clang-dev musl musl-dev blas-dev perl-dev perl git R R-mathlib R-dev python3-dev libffi-dev libexecinfo-dev python3 libffi libc-dev musl-dev py3-pip swig pcre-dev \
+RUN apk add --no-cache build-base scons blas clang-dev musl-dev blas-dev perl-dev git R-dev R R-mathlib python3-dev libffi-dev libexecinfo-dev libc-dev py3-pip py3-pandas py3-numpy swig pcre-dev chrony \
   && ln -sf /usr/bin/python3 /usr/bin/python \
   && ln -sf /usr/bin/pip3 /usr/bin/pip \
   && mkdir -p /root/.R \
   && printf 'CXX=clang++\nPKG_CXXFLAGS += -D__MUSL__' > ~/.R/Makevars \
-  && Rscript -e "install.packages('RInside', repos = 'https://cloud.r-project.org')"
-
-RUN scons \
+  && Rscript -e "install.packages('RInside', repos = 'https://cloud.r-project.org')" \
+  && pip install pythonds \
+  && scons \
   && rm -rf /var/cache/apk/*
 
 VOLUME ["/app/plugins"]
