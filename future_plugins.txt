@@ -1,0 +1,227 @@
+Note: Some of these may be server-based
+
+
+
+Compound Discoverer 3.1
+MS-DIAL
+CSI:FingerID
+CFM-ID
+MS-FINDER
+MetFrag
+MS2LDA
+Metaboanalyst
+FELLA (R package)
+ChemRICH
+MetaMapp
+Pathview
+Metscape
+
+ MANIEA (when released)
+ MENA pipeline (MENAP)
+ https://cran.r-project.org/web/packages/pcalg/index.html  (Causality algorithms)
++
++Covid-19 Pipeline
++SWISS-MODEL
++PatchDock
++HADDOCK
++FireDock
++Vaxjen
++AlgPred
++SOLpro
++Expasy Protparam
++RAMPAGE (Ramachandran)
+
+
+
+RAMMCAP
+MetaVelvet
+SOAPdenovo2
+MOCAT
+SmashCommunity
+FANTOM
+MetaCV
+Phymm
+
+DUST
+ALLPATH
+ESOM
+CLAMS
+Amplicon Noise
+CRT
+PILER-CR
+SILVANGS
+
+(Have links for these)
+Genomemeta
+SOrt-ITEMS
+DiScRiBinATE
+MetaVelvet
+RayMeta
+MetaGeneMark
+GlimmerMG
+BLASTX
+MetaORFA
+MinPath
+MetaPath
+GhostKOALA
+ProVIDE
+Metagenome Seq
+Shotgun Functionalize (R)
+IMG/M
+Phinch
+CAMERA
+Meta Comp
+
+DCA
+Zachs Algorithms
+VAST
+diSBPred
+DALI
+SSAP
+SWORD
+SWIPE
+Prokka+friends
+MUMmer
+
+SABRE
+idemp
+fastx_toolkit
+Breakaway
+trimmomatic
+bbtols
+SEPP
+TIPP
+xDivNet
+xCORNCOB
+
+MaAsLin2 
+
+Maaft
+
+Flint
+Jasper
+AMBER
+
+Machine Learning
+xRNN
+BERT
+* CAE (Concrete Autoencoder) (ERRORS)
+DEG
+xSVM
+xRBM
+Logistic Regression
+xGMM
+xHMM
+xDNN 
+VAE (ERRORS)
+GAN
+KNN (K-Nearest Neighbor)
+DT
+CRF
+
+
+FATCAT
+ProtoMol
+
+
+Docker/CUDA
+https://github.com/NVIDIA/nvidia-docker
+
+TPMCalculator
+CAPE
+SNPDel
+
+MEME-MAST
+eMOMs (Vitalii GitHub) 
+RANSAC 
+Masif
+Chainer
+MXNet
+PyTorch
+Reverse Complement
+PALM (Pipeline for Analysis of Longitudinal Multi-Omics Data)
+Reverse Best Blast
+Enrichment (Giri)
+ConSurf
+Masif
+Tigramite
+PyCausal
+
+(Evolution)
+MCI
+SGS
+IG
+GES
+tsGFCI
+
+(Bayesian Networks)
+BN
+DBN
+CGDBN
+2TDBN
+
+See (giriemail)
+MDS
+SOM
+Monocle2
+GTMLLE
+PHATE
+Sammon
+Splatter Paths
+Isomap
+viSNE
+
+Orthovenn [Current Bug: Hanging]
+
+Pipelines
+WGS
+T2D
+Bubble Chart
+Overlap Tests (DB and SW)
+
+RFE
+RF
+Survival Analysis
+
+CLC Genomics
+SMRT Portal
+MAUVE
+
+Rust-Bio functions (cf. Koster et al, 2015)
+Rosalind Bioinformatics Collection
+
+16S datasets - MicrobiomeHD Database
+16S processing pipeline (Duvallet et al, 2017): https://github.com/thomasgurry/amplicon_sequencing_pipeline
+R machine learning
+https://en.wikipedia.org/wiki/List_of_RNA-Seq_bioinformatics_tools
+
+NirvanaBiome -> Autism and WGS
+MANIEA (when released)
+MENA pipeline (MENAP)
+https://cran.r-project.org/web/packages/pcalg/index.html  (Causality algorithms)
+
+GGTREE
+JALVIEW
+YULAB-SMU.TOP/TREEDATA-BOOK/
+
+ShortBRED
+M2mini2
+cms+
+IEomics
+LipidQC
+LipdMatch
+LipdPrimer
+Vitalli MM pipeline
+FLIPPER
+PRINSEQ
+MEtaxa2
+CARD
+RGPs
+PanSeq
+Spine
+AGEnt
+SIGI-HMM
+PAI-IDA
+Centroid
+PredictBas
+MobileFinder
