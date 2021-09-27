@@ -7,7 +7,5 @@ obj/
 config.log
 pluma
 PluGen/
-.vagrant
-Vagrantfile
-plugins/
-pipelines/
+plugins/*
+pipelines/*

@@ -279,19 +279,21 @@ else:
                     "-Wformat-security",
                     "-Werror=format-security",
                     "-Wl,--export-dynamic",
+                    "-Wl,-rpath,/usr/local/lib/R/site-library/RInside/lib "
                 ],
                 CPPPATH=[
-                    Dir("/usr/lib/R/library/Rcpp/include"),
-                    Dir("/usr/lib/R/library/RInside/include"),
+                    Dir('/usr/lib/R/library/Rcpp/include'),
+                    Dir('/usr/lib/R/library/RInside/include'),
                     Dir('/usr/lib/R/site-library/RInside/include'),
                     Dir('/usr/lib/R/site-library/Rcpp/include'),
                     Dir("/usr/local/lib/R/library/Rcpp/include"),
                     Dir("/usr/local/lib/R/library/RInside/include"),
                     Dir('/usr/local/lib/R/site-library/RInside/include'),
                     Dir('/usr/local/lib/R/site-library/Rcpp/include'),
+                    Dir('/usr/local/lib/R/site-library/RInside/lib')
                 ],
                 LIBPATH=[
-                    Dir("/usr/lib/R/library/RInside/lib"),
+                    Dir('/usr/lib/R/library/RInside/lib'),
                     Dir('/usr/lib/R/site-library/RInside/lib'),
                     Dir("/usr/local/lib/R/library/RInside/lib"),
                     Dir('/usr/local/lib/R/site-library/RInside/lib'),
@@ -333,6 +335,8 @@ else:
                         Dir(getenv("RCPP_INCLUDE_DIR"))
                     ]
                 )
+
+            config.CheckLib('RInside')
 
             config.env.Append(CPPDEFINES=["-DWITH_R"])
 
@@ -546,7 +550,7 @@ else:
             "util",
             "perl",
             "R",
-            "RInside",
+            "RInside"
         ],
     )
     ###################################################################
