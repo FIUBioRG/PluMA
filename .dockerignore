@@ -9,3 +9,5 @@ pluma
 PluGen/
 .vagrant
 Vagrantfile
+plugins/
+pipelines/
