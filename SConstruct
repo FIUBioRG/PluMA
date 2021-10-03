@@ -128,9 +128,9 @@ env = Environment(
     CXX=getenv("CXX", "c++"),
     CPPDEFINES=["HAVE_PYTHON"],
     SHCCFLAGS=["-fpermissive", "-fPIC", "-I.", "-O2"],
-    SHCXXFLAGS=["-std=c++11", "-fPIC", "-I.", "-O2"],
+    SHCXXFLAGS=["-std=c++11", "-fPIC", "-I.", "-O2"], # Should update all plugins to C++17...
     CCFLAGS=["-fpermissive", "-fPIC", "-I.", "-O2"],
-    CXXFLAGS=["-std=c++11", "-fPIC", "-O2"],
+    CXXFLAGS=["-std=c++17", "-fPIC", "-O2"],
     CPPPATH=include_search_path,
     LIBPATH=lib_search_path,
     LICENSE=["MIT"],
@@ -278,7 +278,7 @@ else:
                     "-Wformat",
                     "-Wformat-security",
                     "-Werror=format-security",
-                    "-Wl,--export-dynamic",
+                    # "-Wl,--export-dynamic",
                 ],
                 CPPPATH=[
                     Dir("/usr/lib/R/library/Rcpp/include"),

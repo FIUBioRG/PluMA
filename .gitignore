@@ -28,6 +28,7 @@ plugins/
 logs/*
 PyPluMA.py
 models.txt
+pythonds
 
 # Created by https://www.toptal.com/developers/gitignore/api/c++,r,python,cuda
 # Edit at https://www.toptal.com/developers/gitignore?templates=c++,r,python,cuda

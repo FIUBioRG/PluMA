@@ -74,8 +74,8 @@ void Py::executePlugin(
     PluginManager::getInstance().log("[PluMA] Executing output() For Python Plugin "+pluginname);
     PyRun_SimpleString(("plugin.output(\""+outputname+"\")").c_str());
     //Py_Finalize();
-    PluginManager::getInstance().log("[PluMA] Python Plugin "+pluginname+" complted successfully.");
-    delete buffer;
+    PluginManager::getInstance().log("[PluMA] Python Plugin "+pluginname+" completed successfully.");
+    delete[] buffer;
 #endif
 }
 

@@ -69,8 +69,6 @@ Perl::Perl(
 #ifdef HAVE_PERL
     PERL_SYS_INIT3(&argc2, &argv2, &env);
 #endif
-    //my_perl = perl_alloc();
-    //perl_construct(my_perl);
 }
 
 Perl::~Perl()
@@ -110,7 +108,7 @@ void Perl::executePlugin(
     } while (!(*infile) && path.length() > 0);// {
     delete infile;
     //argv2[1] = (char*) ("plugins/"+pluginname+"/"+pluginname+"Plugin.pl").c_str();
-    argv2[0] = "";
+    argv2[0] = (char*) "";
     argv2[1] = (char*) filename.c_str();
     //printf("%s\n", args_input[0]);
     //PERL_SYS_INIT3(&argc2,&argv2,&env);
