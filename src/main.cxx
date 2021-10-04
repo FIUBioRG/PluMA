@@ -356,7 +356,6 @@ int main(int argc, char** argv) {
     switch(arguments.action) {
         // Install dependencies for all plugins
         case PLUMA_MAIN_ACTIONS::ACTION_INSTALL_DEPENDENCIES:
-
             for(auto const &path: paths) {
                 std::cout << "Searching for plugin dependency files in " << path << std::endl;
 
@@ -368,7 +367,6 @@ int main(int argc, char** argv) {
                     if (std::filesystem::exists(fp + "requirements.txt")) {
                         python_deps.insert({name, fp + "requirements.txt"});
                     }
-
 #if __linux__
                     // Check for Linux (Ubuntu) dependencies.
                     // These dependencies should be `sh` compatible
@@ -412,7 +410,6 @@ int main(int argc, char** argv) {
                         exit(PLUMA_ERROR::ERR_INSTALL_PYTHON_DEP);
                     }
                 }
-
             } else {
                 std::cout << "No python dependencies found..." << std::endl;
             }
@@ -487,7 +484,7 @@ int main(int argc, char** argv) {
 
             for (auto const& path: paths) {
                 for (int i = 0; i < PluginManager::supported.size(); i++) {
-                    PluginManager::supported[i]->loadPlugin(path, &globbuf, &(PluginManager::getInstance().pluginLanguages), true);
+                    PluginManager::supported[i]->loadPlugin(path, &globbuf, &(PluginManager::getInstance().pluginLanguages));
                 }
 
                 for (auto const& itr : PluginManager::getInstance().pluginLanguages) {

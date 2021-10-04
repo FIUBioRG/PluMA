@@ -94,7 +94,8 @@ public:
 
     static void dependency(std::string plugin) {
        if (getInstance().installed.count(plugin) == 0) {
-           *(getInstance().logfile) << "[PluMA] Plugin dependency " << plugin << " not met.  Exiting..." << std::endl;  exit(1);
+           *(getInstance().logfile) << "[PluMA] Plugin dependency " << plugin << " not met.  Exiting..." << std::endl;
+           exit(1);
         } else {
             *(getInstance().logfile) << "[PluMA] Plugin dependency " << plugin << " met." << std::endl;
         }
@@ -107,8 +108,8 @@ public:
     static void supportedLanguages(
         std::string pluginpath,
         int argc,
-        char** argv)
-    {
+        char** argv
+    ) {
 #if defined(APPLE) || defined(__APPLE__) || __APPLE__
         supported.push_back(new Compiled("C", "dylib", pluginpath, "lib"));
 #else
