@@ -34,11 +34,8 @@
 #ifndef RR_H
 #define RR_H
 
-#ifdef HAVE_R
-#include "R.h"
 #include "RInside.h"
 #include "Rinterface.h"
-#endif
 #include "Language.h"
 
 // @TODO: Change to PluMA namespace?
@@ -52,9 +49,7 @@ namespace MiAMi {
         void load();
 
     private:
-#ifdef HAVE_R
         RInside* myR;
-#endif
         int argc;
         char** argv;
     };
