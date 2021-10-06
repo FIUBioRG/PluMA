@@ -47,7 +47,7 @@
 #include <string>
 #include <vector>
 
-#include "exec.hxx"
+#include "execbuf.hxx"
 #include "Plugin.h"
 #include "PluginProxy.h"
 
@@ -433,18 +433,7 @@ int main(int argc, char** argv) {
             }
 #if __linux__
             if (!linux_deps.empty()) {
-                std::cout << "Installing Linux dependencies..." << std::endl;
-
-                for (auto it = linux_deps.cbegin(); it != linux_deps.cend(); it++) {
-                    std::cout << "    " << it->first << "..." << std::endl;
-
-                    std::string command = "sh " + it->second;
-
-                    if(system(command.c_str()) != 0) {
-                        std::cerr << "An error occurred while installing plugin dependencies." << std::endl;
-                        exit(PLUMA_ERROR::ERR_INSTALL_LINUX_DEP);
-                    }
-                }
+                install_dependencies("Linux", "sh", &linux_deps);
             } else {
                 std::cout << "No Linux dependencies found..." << std::endl;
             }
