@@ -47,6 +47,7 @@
 #include <string>
 #include <vector>
 
+#include "exec.hxx"
 #include "Plugin.h"
 #include "PluginProxy.h"
 
@@ -323,6 +324,34 @@ void print_banner() {
     std::cout << "***********************************************************************************" << std::endl;
 }
 
+/**
+ * Install dependencies for a given platform.
+ *
+ * @since v2.1.0
+ * @param platform The platform the dependencies are being installed for (Eg: Python, Linux...).
+ */
+void install_dependencies(const std::string platform, const std::string command, const std::map<std::string, std::string>* dependencies) {
+    std::cout << "Installing " << platform << " dependencies..." << std::endl;
+
+    for (auto it = dependencies->cbegin(); it != dependencies->cend(); it++) {
+        std::string answer;
+        std::cout << it->first << " has dependencies to install. Install them? (Y/N) ";
+
+        std::cin >> answer;
+
+        if (answer == "y" || answer == "Y") {
+            std::string cmd = command + " " + it->second;
+
+            try {
+                pluma::execbuf(cmd.c_str());
+            } catch (...) {
+                std::cerr << "An error occurred while installing plugin dependencies for " << it->first << std::endl;
+            }
+        }
+    }
+
+}
+
 int main(int argc, char** argv) {
     struct arguments arguments;
 
@@ -398,20 +427,9 @@ int main(int argc, char** argv) {
             }
 
             if (!python_deps.empty()) {
-                std::cout << "Installing python dependencies..." << std::endl;
-
-                for (auto it = python_deps.cbegin(); it != python_deps.cend(); it++) {
-                    std::cout << "    " << it->first << "..." << std::endl;
-
-                    std::string command = "pip install -r " + it->second;
-
-                    if (system(command.c_str()) != 0) {
-                        std::cerr << "An error occurred while installing plugin dependencies." << std::endl;
-                        exit(PLUMA_ERROR::ERR_INSTALL_PYTHON_DEP);
-                    }
-                }
+                install_dependencies("Python", "pip install -r", &python_deps);
             } else {
-                std::cout << "No python dependencies found..." << std::endl;
+                std::cout << "No Python dependencies found..." << std::endl;
             }
 #if __linux__
             if (!linux_deps.empty()) {
