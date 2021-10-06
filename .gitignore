@@ -254,3 +254,13 @@ vignettes/*.pdf
 /*_files/
 
 # End of https://www.toptal.com/developers/gitignore/api/c++,r,python,cuda
+.test.txt.swp
+completion.txt
+genomes/
+nodes/
+results/
+jobs.sh
+post_process_all.sh
+post_process_root.sh
+uger_jobs.sh
+test.txt

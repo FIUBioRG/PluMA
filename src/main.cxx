@@ -256,7 +256,7 @@ void readConfig(char *inputfile, std::string prefix, bool doRestart, char* resta
         PluginManager::getInstance().log("Creating plugin " + name);
         try {
             bool executed = false;
-            for (int i = 0; i < PluginManager::supported.size() && !executed; i++) {
+            for (unsigned int i = 0; i < PluginManager::supported.size() && !executed; i++) {
                 if (PluginManager::getInstance().pluginLanguages[name+"Plugin"] == PluginManager::supported[i]->lang()) {
                     std::cout << "[PluMA] Running Plugin: " << name << std::endl;
                     PluginManager::supported[i]->executePlugin(name, inputname, outputname);
@@ -490,7 +490,7 @@ int main(int argc, char** argv) {
             glob_t globbuf;
 
             for (auto const& path: paths) {
-                for (int i = 0; i < PluginManager::supported.size(); i++) {
+                for (unsigned int i = 0; i < PluginManager::supported.size(); i++) {
                     PluginManager::supported[i]->loadPlugin(path, &globbuf, &(PluginManager::getInstance().pluginLanguages));
                 }
 
@@ -514,7 +514,7 @@ int main(int argc, char** argv) {
             readConfig(arguments.config_file, "", arguments.do_restart, arguments.restart_point);
 
             // Clean up
-            for (int i = 0; i < PluginManager::supported.size(); i++) {
+            for (unsigned int i = 0; i < PluginManager::supported.size(); i++) {
                 PluginManager::supported[i]->unload();
             }
             // El Finito!

@@ -121,7 +121,7 @@ public:
     }
 
     static void languageLoad(std::string lang) {
-        for (int i = 0; i < supported.size(); i++) {
+        for (unsigned int i = 0; i < supported.size(); i++) {
             if (supported[i]->lang() == lang) {
                 supported[i]->load();
             }
@@ -129,7 +129,7 @@ public:
     }
 
     static void languageUnload(std::string lang) {
-        for (int i = 0; i < supported.size(); i++) {
+        for (unsigned int i = 0; i < supported.size(); i++) {
             if (supported[i]->lang() == lang) {
                 supported[i]->unload();
             }
