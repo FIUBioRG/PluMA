@@ -15,7 +15,7 @@ from os import environ, getenv
 from os.path import relpath, abspath
 import logging
 import re
-import subprocess
+from subprocess import call
 import sys
 
 from build_config import *
@@ -113,6 +113,19 @@ AddOption(
     default="/usr/local/lib/R/lib",
     help="Set the lib directory for the R installation on the system"
 )
+
+AddOption(
+    "--git",
+    type="string",
+    nargs=1,
+    action="store",
+    help="Use --git=no-update to disable the submodule update."
+)
+
+## Update the git submodules
+if GetOption("git") != "no-update":
+    print("Updating git submodules...")
+    call(["git", "submodule", "update", "--init", "--recursive"])
 
 ###################################################################
 # Gets the environment variables set by the user on the OS level or

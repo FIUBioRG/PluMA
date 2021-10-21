@@ -47,7 +47,7 @@
 #include <string>
 #include <vector>
 
-#include "execbuf.hxx"
+#include "cpp-subprocess/include/subprocess.hpp"
 #include "Plugin.h"
 #include "PluginProxy.h"
 
@@ -342,14 +342,19 @@ void install_dependencies(const std::string platform, const std::string command,
         if (answer == "y" || answer == "Y") {
             std::string cmd = command + " " + it->second;
 
-            try {
-                pluma::execbuf(cmd.c_str());
-            } catch (...) {
-                std::cerr << "An error occurred while installing plugin dependencies for " << it->first << std::endl;
+            auto subprocess = subprocess::popen(cmd.c_str(), {});
+
+            std::cout << subprocess.stdout().rdbuf() << std::endl;
+
+            subprocess.stderr().seekg(0, subprocess.stderr().end);
+            size_t sz = subprocess.stderr().tellg();
+
+            if (sz > 0) {
+                std::cerr << subprocess.stderr().rdbuf() << std::endl;
+                exit(EXIT_FAILURE);
             }
         }
     }
-
 }
 
 int main(int argc, char** argv) {
