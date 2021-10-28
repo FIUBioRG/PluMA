@@ -71,25 +71,35 @@ Compiled::Compiled(
 void Compiled::executePlugin(
     std::string pluginname,
     std::string inputname,
-    std::string outputname)
-{
+    std::string outputname
+) {
     std::string tmppath = pluginpath;
     std::string path = tmppath.substr(0, pluginpath.find_first_of(":"));
     std::ifstream* infile = NULL;
     std::string filename;
+
+    std::cout << pluginname << std::endl;
     do {
         if (infile) delete infile;
-        filename = path+"/"+pluginname+"/lib"+pluginname+"Plugin."+ext();//so";
+
+        filename = path+"/"+pluginname+"/lib"+pluginname+"Plugin."+ext();
+
         infile = new std::ifstream(filename.c_str(), std::ios::in);
+
         tmppath = tmppath.substr(tmppath.find_first_of(":")+1, tmppath.length());
+
         path = tmppath.substr(0, tmppath.find_first_of(":"));
-    } while (!(*infile) && path.length() > 0);// {
+
+    } while (!(*infile) && path.length() > 0);
+
     // Dynamic load takes place here
     void* handle = dlopen(filename.c_str(), RTLD_LAZY | RTLD_GLOBAL);
+
     if (!handle) {
         std::cout << "Warning: Null Handle" << std::endl;
         std::cout << dlerror() << std::endl;
     }
+
     Plugin* plugin = PluginManager::getInstance().create(pluginname);
 
     PluginManager::getInstance().log("Executing input() For C++/CUDA Plugin "+pluginname);

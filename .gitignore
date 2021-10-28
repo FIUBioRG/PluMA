@@ -28,6 +28,7 @@ plugins/
 logs/*
 PyPluMA.py
 models.txt
+pythonds
 
 # Created by https://www.toptal.com/developers/gitignore/api/c++,r,python,cuda
 # Edit at https://www.toptal.com/developers/gitignore?templates=c++,r,python,cuda
@@ -253,3 +254,13 @@ vignettes/*.pdf
 /*_files/
 
 # End of https://www.toptal.com/developers/gitignore/api/c++,r,python,cuda
+.test.txt.swp
+completion.txt
+genomes/
+nodes/
+results/
+jobs.sh
+post_process_all.sh
+post_process_root.sh
+uger_jobs.sh
+test.txt

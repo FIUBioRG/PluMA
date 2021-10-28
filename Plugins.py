@@ -93,7 +93,7 @@ def check_plugins():
     normalprintout('************************************\n', BLUE)
     normalprintout('PLUGINS IN POOL, NOT LOCAL:\n', BLUE)
 
-    for plugin in plugins.difference(local):
+    for plugin in (set(plugins).difference(local)):
         normalprintout(plugin + '\n', BLUE)
 
     normalprintout('************************************\n', BLUE)

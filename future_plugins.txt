@@ -1,5 +1,26 @@
 Note: Some of these may be server-based
 
+MGMapper
+ORCA
+BioBoxes
+Biocontainers
+Scoary
+Islandviewer
+EGID
+PredictBias
+
+Genomic/DNA-based
+ABSOLUTE
+EXPANDS
+MATH
+PhyloWGS
+
+Transcriptomic
+tITH
+sITH
+DEPTH
+
+Seaborn (scatter plots)
 
 
 Compound Discoverer 3.1

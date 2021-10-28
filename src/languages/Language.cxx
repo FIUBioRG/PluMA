@@ -31,41 +31,40 @@
 \*********************************************************************************/
 
 #include "Language.h"
-#include <iostream>
-#include <dlfcn.h>
 
 void Language::loadPlugin(
     std::string path,
     glob_t* globbuf,
-    std::map<std::string, std::string>* pluginLanguages,
-    bool list=false
+    std::map<std::string, std::string>* pluginLanguages
 ) {
-    std::string pathGlob = path + "/" + "*/*" + "Plugin." + extension;
-    int ext_len = extension.length()+2;
+    std::string pathGlob = path + "*/*" + "Plugin." + extension;
+
+    int ext_len = extension.length() + 2;
+
     if (glob(pathGlob.c_str(), 0, NULL, &(*globbuf)) == 0) {
         for (unsigned int i = 0; i < globbuf->gl_pathc; i++) {
-            std::string filename = globbuf->gl_pathv[i];
             std::string name;
+            std::string filename = globbuf->gl_pathv[i];
             std::string::size_type pos = filename.find_last_of("/");
+
             if (pos != std::string::npos) {
                 name = filename.substr(pos + prefix.length()+1, filename.length()-pos-prefix.length()-ext_len);
             } else {
                 name = filename.substr(prefix.length(), filename.length()-pos-ext_len);
             }
+
             if (name == "__init__") continue;
             //std::cout << "Plugin: " << name.substr(0, name.length()-6) << " Language: " << language << " Path: " << path << std::endl;
-            if (!list) {
-                if (extension == "so") {
-                    void* handle = dlopen(filename.c_str(), RTLD_LAZY | RTLD_GLOBAL);
-                    if (!handle) {
-                        std::cout << "Warning: Null Handle" << std::endl;
-                        std::cout << dlerror() << std::endl;
-                    } else {
-                        (*pluginLanguages)[name] = language;
-                    }
+            if (extension == "so") {
+                void* handle = dlopen(filename.c_str(), RTLD_LAZY | RTLD_GLOBAL);
+                if (!handle) {
+                    std::cout << "Warning: Null Handle" << std::endl;
+                    std::cout << dlerror() << std::endl;
                 } else {
                     (*pluginLanguages)[name] = language;
                 }
+            } else {
+                (*pluginLanguages)[name] = language;
             }
         }
     } else {

@@ -51,11 +51,14 @@ void PluginGenerator::generate(std::string pluginname, std::vector<std::string>&
 }
 
 void PluginGenerator::makeDirectory(std::string pluginname) {
-   std::string directory = myPath+"/"+pluginname;
-   // Check if directory exists, if so return, if not make it
-   DIR* dir = opendir(directory.c_str());
-   if (!dir) {
-      system(("mkdir "+directory).c_str());
+    std::string directory = myPath+"/"+pluginname;
+    // Check if directory exists, if so return, if not make it
+    DIR* dir = opendir(directory.c_str());
+    if (!dir) {
+        std::string cmd = std::string("mkdir " + directory);
+        if (system(cmd.c_str()) != 0) {
+            std::cout << "An error occurred while making the plugin directory." << std::endl;
+        }
    }
 }
 

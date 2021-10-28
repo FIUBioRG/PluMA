@@ -15,7 +15,7 @@ from os import environ, getenv
 from os.path import relpath, abspath
 import logging
 import re
-import subprocess
+from subprocess import call
 import sys
 
 from build_config import *
@@ -114,6 +114,19 @@ AddOption(
     help="Set the lib directory for the R installation on the system"
 )
 
+AddOption(
+    "--git",
+    type="string",
+    nargs=1,
+    action="store",
+    help="Use --git=no-update to disable the submodule update."
+)
+
+## Update the git submodules
+if GetOption("git") != "no-update":
+    print("Updating git submodules...")
+    call(["git", "submodule", "update", "--init", "--recursive"])
+
 ###################################################################
 # Gets the environment variables set by the user on the OS level or
 # defaults to 'sane' values.
@@ -128,9 +141,9 @@ env = Environment(
     CXX=getenv("CXX", "c++"),
     CPPDEFINES=["HAVE_PYTHON"],
     SHCCFLAGS=["-fpermissive", "-fPIC", "-I.", "-O2"],
-    SHCXXFLAGS=["-std=c++11", "-fPIC", "-I.", "-O2"],
+    SHCXXFLAGS=["-std=c++11", "-fPIC", "-I.", "-O2"], # Should update all plugins to C++17...
     CCFLAGS=["-fpermissive", "-fPIC", "-I.", "-O2"],
-    CXXFLAGS=["-std=c++11", "-fPIC", "-O2"],
+    CXXFLAGS=["-std=c++17", "-fPIC", "-O2"],
     CPPPATH=include_search_path,
     LIBPATH=lib_search_path,
     LICENSE=["MIT"],
@@ -212,6 +225,7 @@ else:
         "pcre",
         "rt",
         "c",
+        "stdc++fs"
     ]
 
     for lib in libs:
@@ -278,8 +292,12 @@ else:
                     "-Wformat",
                     "-Wformat-security",
                     "-Werror=format-security",
+<<<<<<< HEAD
                     "-Wl,--export-dynamic",
                     "-Wl,-rpath,/usr/local/lib/R/site-library/RInside/lib "
+=======
+                    # "-Wl,--export-dynamic",
+>>>>>>> feature/plugin-dependency
                 ],
                 CPPPATH=[
                     Dir('/usr/lib/R/library/Rcpp/include'),
@@ -550,7 +568,12 @@ else:
             "util",
             "perl",
             "R",
+<<<<<<< HEAD
             "RInside"
+=======
+            "RInside",
+            "stdc++fs",
+>>>>>>> feature/plugin-dependency
         ],
     )
     ###################################################################
