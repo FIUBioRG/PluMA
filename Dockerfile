@@ -28,5 +28,6 @@ RUN apt-get update -qq \
 
 VOLUME ["/app/plugins"]
 VOLUME ["/app/pipelines"]
+VOLUME ["/app/logs"]
 
 CMD ["/app/pluma"]
