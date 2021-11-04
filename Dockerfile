@@ -29,5 +29,6 @@ RUN apt-get update -qq \
 VOLUME ["/app/plugins"]
 VOLUME ["/app/pipelines"]
 VOLUME ["/app/logs"]
+VOLUME ["/app/config"]
 
-CMD ["/app/pluma"]
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
