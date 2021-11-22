@@ -292,12 +292,7 @@ else:
                     "-Wformat",
                     "-Wformat-security",
                     "-Werror=format-security",
-<<<<<<< HEAD
-                    "-Wl,--export-dynamic",
-                    "-Wl,-rpath,/usr/local/lib/R/site-library/RInside/lib "
-=======
                     # "-Wl,--export-dynamic",
->>>>>>> feature/plugin-dependency
                 ],
                 CPPPATH=[
                     Dir('/usr/lib/R/library/Rcpp/include'),
@@ -568,12 +563,8 @@ else:
             "util",
             "perl",
             "R",
-<<<<<<< HEAD
-            "RInside"
-=======
             "RInside",
             "stdc++fs",
->>>>>>> feature/plugin-dependency
         ],
     )
     ###################################################################
