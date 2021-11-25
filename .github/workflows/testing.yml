@@ -10,16 +10,25 @@ jobs:
             - name: checkout repository code
               uses: actions/checkout@v2
 
-            - name: install dependencies
-              run: sudo apt-get install -y scons swig r-base perl python3-pip
+            - name: Install Scons
+              run: sudo apt-get install -y software-properties-common dirmngr wget scons build-essential gcc g++ scons perl libperl-dev libffi-dev libc++-11-dev pkg-config python3 python3-dev python3-numpy python3-pandas python3-pip libpcre++-dev git swig libc++1-11 libc++abi1-11
+
+            - name: Install R-project
+              run: wget -qO- https://cloud.r-project.org/bin/linux/ubuntu/marutter_pubkey.asc | sudo tee -a /etc/apt/trusted.gpg.d/cran_ubuntu_key.asc && sudo add-apt-repository "deb https://cloud.r-project.org/bin/linux/ubuntu $(lsb_release -cs)-cran40/"
+
+            - name: Install more dependencies
+              run: sudo apt-get update && sudo apt-get install -y r-base
 
             - name: install R packages
               run: sudo Rscript -e 'install.packages("r-inside")'
 
-            - name: install plugins
-              run: cd plugins && python3 getPool.py && cd ..
+            - name: Install pythonds
+              run: sudo pip3 install pythonds
 
-            - name: build applicaiton
+            - name: install plugins
+              run: python3 getPool.py
+
+            - name: build application
               run: scons
 
             - name: run tests
