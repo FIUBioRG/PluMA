@@ -353,6 +353,8 @@ void install_dependencies(const std::string platform, const std::string command,
                 std::cerr << subprocess.stderr().rdbuf() << std::endl;
                 exit(EXIT_FAILURE);
             }
+        } else {
+            exit(0);
         }
     }
 }

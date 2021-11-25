@@ -1,3 +1,7 @@
-#!/usr/bin/sh
+#!/usr/bin/env bash
 
-exec $@
+if [ -x "$(command -v $1)" ]; then
+    exec $@
+else
+    exec /app/pluma $@
+fi
