@@ -74,10 +74,23 @@ def download_plugins():
     plugins, urls = get_plugins()
 
     for i in range(len(urls)):
+        os.chdir(args.dirPath)
         if path.exists(path.join(args.dirPath, plugins[i])):
             print('Plugin ' + plugins[i] + ' already installed.')
         else:
             os.system('git clone ' + urls[i] + ' ' + path.join(args.dirPath, plugins[i]))
+            os.chdir(path.join(args.dirPath, plugins[i]))
+            os.system('git submodule update --init')
+
+def update_plugins():
+    ''' Updates all plugins in the specified plugins directory '''
+    os.chdir(args.dirPath)
+    directories = [path.abspath(d) for d in os.listdir('.') if path.isdir(d)]
+    for directory in directories:
+        print('Updating ' + directory[directory.rfind('/') + 1:] + '...')
+        os.chdir(directory)
+        os.system('git pull')
+        os.system('git submodule update --init')
 
 def check_plugins():
     '''
@@ -121,7 +134,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser('Download or check plugins from the public PluMA plugin pool.')
 
-    parser.add_argument('action', metavar='ACTION', action='store', help="Action to take. [ 'download' or 'check' ]")
+    parser.add_argument('action', metavar='ACTION', action='store', help="Action to take. [ 'download', 'update' or 'check' ]")
     parser.add_argument('--directory', dest='dirPath', metavar='DIRECTORY', action='store',
         default=path.join(path.realpath(path.dirname(__file__)), 'plugins'),
         help='Directory to download plugins to or directory where plugins are downloaded to.')
@@ -132,5 +145,7 @@ if __name__ == '__main__':
         check_plugins()
     elif args.action == 'download':
         download_plugins()
+    elif args.action == 'update':
+        update_plugins()
     else:
         exit(1)

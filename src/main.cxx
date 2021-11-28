@@ -50,6 +50,7 @@
 #include "cpp-subprocess/include/subprocess.hpp"
 #include "Plugin.h"
 #include "PluginProxy.h"
+#include "PluMAMain.hxx"
 
 /**
  * Actions the PluMA application can take.
@@ -59,8 +60,7 @@
 enum PLUMA_MAIN_ACTIONS {
     ACTION_PIPELINE,
     ACTION_PRINT_PLUGINS,
-    ACTION_INSTALL_DEPENDENCIES,
-    ACTION_COMPILE_PLUGINS
+    ACTION_INSTALL_DEPENDENCIES
 };
 
 enum PLUMA_ERROR {
@@ -99,8 +99,7 @@ static char args_doc[] = "[CONFIGURATION FILE] [OPTIONAL: RESTART POINT]";
  */
 static struct argp_option options[] = {
     {"verbose", 'v', 0, 0, "Produce verbose output"},
-    {"install-dependencies", 'i', 0, 0, "Install dependencies of all plugins in the PLUMA_PLUGINS_PATH (default: '$(pwd)/plugins')"},
-    {"compile-plugins", 'c', 0, 0, "Compile C++/CUDA plugins found in PLUMA_PLUGINS_PATH"},
+    {"install", 'i', 0, 0, "Install dependencies and compile C++/CUDA plugins in the PLUMA_PLUGINS_PATH (default: '$(pwd)/plugins')"},
     {"plugins", 'p', 0, 0, "Prints a list of currently installed plugins in PLUMA_PLUGINS_PATH"},
     { 0 }
 };
@@ -144,10 +143,6 @@ static error_t parse_opt(int key, char* arg, struct argp_state *state) {
             arguments->action = PLUMA_MAIN_ACTIONS::ACTION_PRINT_PLUGINS;
             break;
 
-        case 'c':
-            arguments->action = PLUMA_MAIN_ACTIONS::ACTION_COMPILE_PLUGINS;
-            break;
-
         case ARGP_KEY_ARG:
             if(state->arg_num >= 2) {
                 // Too many arguments
@@ -181,8 +176,8 @@ static error_t parse_opt(int key, char* arg, struct argp_state *state) {
 static struct argp argp = { options, parse_opt, args_doc, doc };
 
 /**
- * Read a PluMA configuration file for use in running a
- * Bioinformatics pipeline.
+ * Read a PluMA configuration file for use in running
+ * a Bioinformatics pipeline.
  *
  * @since v1.0.0
  *
@@ -330,37 +325,59 @@ void print_banner() {
  * @since v2.1.0
  * @param platform The platform the dependencies are being installed for (Eg: Python, Linux...).
  */
-void install_dependencies(const std::string platform, const std::string command, const std::map<std::string, std::string>* dependencies) {
+void install_dependencies(const std::string platform, const std::string command, std::vector<std::string> *a, const std::map<std::string, std::string>* dependencies) {
     std::cout << "Installing " << platform << " dependencies..." << std::endl;
 
     for (auto it = dependencies->cbegin(); it != dependencies->cend(); it++) {
-        std::string answer;
-        std::cout << it->first << " has dependencies to install. Install them? (Y/N) ";
+        std::cout << it->first << " has dependencies to install." << std::endl;
 
-        std::cin >> answer;
+        a->push_back(it->second);
 
-        if (answer == "y" || answer == "Y") {
-            std::string cmd = command + " " + it->second;
+        auto subprocess = subprocess::popen(command.c_str(), *a);
 
-            auto subprocess = subprocess::popen(cmd.c_str(), {});
+        std::cout << subprocess.stdout().rdbuf() << std::endl;
 
-            std::cout << subprocess.stdout().rdbuf() << std::endl;
+        subprocess.stderr().seekg(0, subprocess.stderr().end);
 
-            subprocess.stderr().seekg(0, subprocess.stderr().end);
-            size_t sz = subprocess.stderr().tellg();
+        size_t sz = subprocess.stderr().tellg();
 
-            if (sz > 0) {
-                std::cerr << subprocess.stderr().rdbuf() << std::endl;
-                exit(EXIT_FAILURE);
-            }
-        } else {
-            exit(0);
+        if (sz > 0) {
+            std::cerr << subprocess.stderr().rdbuf() << std::endl;
+            exit(EXIT_FAILURE);
+        }
+    }
+}
+
+/**
+ * Install libraries for a given platform.
+ *
+ * @since v2.1.0
+ * @param platform The platform the dependencies are being installed for (Eg: Linux, MacOS...).
+ */
+void install_library(const std::string platform, const std::string command, std::vector<std::string> *a, const std::map<std::string, std::string> *dependencies)
+{
+    std::cout << "Installing " << platform << " libraries..." << std::endl;
+
+    for (auto it = dependencies->cbegin(); it != dependencies->cend(); it++)
+    {
+        a->push_back(it->second);
+        auto subprocess = subprocess::popen(command.c_str(), *a);
+
+        std::cout << subprocess.stdout().rdbuf() << std::endl;
+
+        subprocess.stderr().seekg(0, subprocess.stderr().end);
+        size_t sz = subprocess.stderr().tellg();
+
+        if (sz > 0) {
+            std::cerr << subprocess.stderr().rdbuf() << std::endl;
+            exit(EXIT_FAILURE);
         }
     }
 }
 
 int main(int argc, char** argv) {
     struct arguments arguments;
+    PluMA pluma;
 
     // Default argument configuration
     arguments.verbose = 0;
@@ -376,101 +393,33 @@ int main(int argc, char** argv) {
     print_banner();
 
     // Setup plugin path.
-    std::string pluginpath = std::string(getenv("PWD")) + "/plugins/";
-    if (getenv("PLUMA_PLUGIN_PATH") != NULL) {
-        pluginpath += ":";
-        pluginpath += std::string(getenv("PLUMA_PLUGIN_PATH"));
-    }
-    pluginpath += ":";
+    // std::string pluginpath = std::string(getenv("PWD")) + "/plugins/";
+    // if (getenv("PLUMA_PLUGIN_PATH") != NULL) {
+    //     pluginpath += ":";
+    //     pluginpath += std::string(getenv("PLUMA_PLUGIN_PATH"));
+    // }
+    // pluginpath += ":";
 
-    PluginManager::supportedLanguages(pluginpath, argc, argv);
+    PluginManager::supportedLanguages(pluma.pluginpath, argc, argv);
 
-    std::vector<std::string> paths = split(pluginpath, ":");
-    std::map<std::string, std::string> python_deps, linux_deps,
-        macos_deps, windows_deps;
+    // std::vector<std::string> paths = split(pluginpath, ":");
+    // std::map<std::string, std::string> python_deps, linux_deps, linux_buildfiles,
+    //     macos_deps, windows_deps;
 
     switch(arguments.action) {
         // Install dependencies for all plugins
         case PLUMA_MAIN_ACTIONS::ACTION_INSTALL_DEPENDENCIES:
-            for(auto const &path: paths) {
-                std::cout << "Searching for plugin dependency files in " << path << std::endl;
+            pluma.search();
+            pluma.install_dependencies();
+            pluma.install_library();
 
-                for (auto const p: std::filesystem::directory_iterator(path)) {
-                    std::string fp = p.path().string();
-                    std::string name = fp.substr(fp.find_last_of("/") + 1, fp.length());
-
-                    // Check for Python dependencies.
-                    if (std::filesystem::exists(fp + "requirements.txt")) {
-                        python_deps.insert({name, fp + "requirements.txt"});
-                    }
-#if __linux__
-                    // Check for Linux (Ubuntu) dependencies.
-                    // These dependencies should be `sh` compatible
-                    if (std::filesystem::exists(fp + "requirements.sh")) {
-                        linux_deps.insert({name, fp + "requirements.sh"});
-                    }
-#elif __APPLE__
-                    /*
-                     * Check for macOS (Brew) dependencies.
-                     * These dependencies should be Bourne Shell/Z-shell compatible
-                     * and should use the Brew package manager for installation
-                     * or relevent command-line inputs
-                     */
-                    if (std::filesystem::exists(fp + "requirements-macos.sh")) {
-                        macos_deps.insert({name, fp + "requirements-macos.sh"});
-                    }
-#elif defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__) || defined(_WIN64)
-                    /*
-                     * Check for Windows batch files to install dependencies.
-                     * @TODO: Make work correctly with Windows
-                     */
-                    if (std::filesystem::exists(fp + "requirements.bat")) {
-                        windows_deps.insert({name, fp + "requirements.bat"});
-                    }
-#else
-#error "Unknown operating system"
-#endif
-                }
-            }
-
-            if (!python_deps.empty()) {
-                install_dependencies("Python", "pip install -r", &python_deps);
-            } else {
-                std::cout << "No Python dependencies found..." << std::endl;
-            }
-#if __linux__
-            if (!linux_deps.empty()) {
-                install_dependencies("Linux", "sh", &linux_deps);
-            } else {
-                std::cout << "No Linux dependencies found..." << std::endl;
-            }
-#elif __APPLE__
-            if (!macos_deps.empty()) {
-                // @TODO: Implement macOS installation of dependencies
-            } else {
-                std::cout << "No macOS dependencies found..." << std::endl;
-            }
-#elif defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__) || defined(_WIN64)
-            if (!windows_deps.empty()) {
-                // @TODO: Implement Windows installation of dependencies
-            } else {
-                std::cout << "No Windows dependencies found..." << std:endl;
-            }
-#else
-#error "Unknown operating system"
-#endif
-            return 0;
-            break;
-
-        // Compile cloned C++/CUDA plugins
-        case PLUMA_MAIN_ACTIONS::ACTION_COMPILE_PLUGINS:
-            // @TODO: Work on compilation system
-            std::cout << "This feature is not currently completed." << std::endl;
+            exit(EXIT_SUCCESS);
             break;
 
         // Print a list of installed plugins
         case PLUMA_MAIN_ACTIONS::ACTION_PRINT_PLUGINS:
-            for(auto const& path: paths) {
+            // for(auto const& path: paths) {
+            for (auto const& path: pluma.split(pluma.pluginpath, ":")) {
                 std::cout << "Currently installed plugins in " << path << ":" << std::endl;
 
                 std::vector<std::string> plugins;
@@ -488,13 +437,14 @@ int main(int argc, char** argv) {
                     std::cout << "    " << plugin << std::endl;
                 }
             }
-            return 0;
+            exit(EXIT_SUCCESS);
             break;
 
         // Follow normal execution
         case PLUMA_MAIN_ACTIONS::ACTION_PIPELINE:
         default:
             glob_t globbuf;
+            auto paths = pluma.split(pluma.pluginpath, ":");
 
             for (auto const& path: paths) {
                 for (unsigned int i = 0; i < PluginManager::supported.size(); i++) {
@@ -518,13 +468,16 @@ int main(int argc, char** argv) {
 
             PluginManager::getInstance().setLogFile(logfile);
 
-            readConfig(arguments.config_file, "", arguments.do_restart, arguments.restart_point);
+            pluma.read_config(arguments.config_file, "", arguments.do_restart, arguments.restart_point);
+
+            // readConfig(arguments.config_file, "", arguments.do_restart, arguments.restart_point);
 
             // Clean up
             for (unsigned int i = 0; i < PluginManager::supported.size(); i++) {
                 PluginManager::supported[i]->unload();
             }
             // El Finito!
-            return 0;
+            exit(EXIT_SUCCESS);
+            break;
     }
 }

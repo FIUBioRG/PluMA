@@ -17,6 +17,7 @@ import logging
 import re
 from subprocess import call
 import sys
+import platform
 
 from build_config import *
 from build_support import *
@@ -88,6 +89,14 @@ AddOption(
     action="store_true",
     default=False,
     help="Disable R plugin compilation",
+)
+
+AddOption(
+    "--without-java",
+    dest="without-java",
+    action="store_true",
+    default=False,
+    help="Disable Java plugin compilation",
 )
 
 AddOption(
@@ -353,6 +362,22 @@ else:
 
             config.env.Append(CPPDEFINES=["-DWITH_R"])
 
+    if not GetOption("without-java"):
+        config.env.AppendUnique(
+            CPPPATH=[
+                Dir("/usr/lib/jvm/java-8-openjdk-amd64/include"),
+                Dir("/usr/lib/jvm/java-8-openjdk-amd64/include/" + sys.platform.lower())
+            ],
+            LIBPATH=[
+                Dir("/usr/lib/jvm/java-8-openjdk-amd64/include"),
+                Dir("/usr/lib/jvm/java-8-openjdk-amd64/include/" + sys.platform.lower())
+            ]
+        )
+
+        if not config.CheckHeader("jni.h"):
+            logging.error("!! Could not find `jni.h`")
+            Exit(1)
+
     if GetOption("with-rust"):
         config.CheckProg("rustc")
         config.CheckProg("cargo")
@@ -408,6 +433,13 @@ else:
             "swig -r -c++ -module $TARGET -o ${TARGET}_wrap.cxx $SOURCE"
         )
 
+    if not env.GetOption("without-java"):
+        env.Command(
+            "JavaPluMA",
+            "src/PluginWrapper.i",
+            "swig -java -c++ -module $TARGET -o ${TARGET}_wrap.cxx $SOURCE"
+        )
+
     ###################################################################
     # Execute compilation for our plugins.
     # Note: CUDA is already prepared from the initial environment setup.
@@ -458,6 +490,21 @@ else:
             ObjectPath("RPluMA_wrap.os"),
         ],
         target="RPluMA.so",
+    )
+    ###################################################################
+
+    ###################################################################
+    # JAVA PLUGINS
+    env.SharedObject(
+        source="JavaPluMA_wrap.cxx",
+        target=ObjectPath("JavaPluMA_wrap.os"),
+    )
+    env.SharedLibrary(
+        source=[
+            ObjectPath("PluMA.os"),
+            ObjectPath("JavaPluMA_wrap.os"),
+        ],
+        target="JavaPluMA.so",
     )
     ###################################################################
 
@@ -551,6 +598,7 @@ else:
         source=[
             SourcePath("main.cxx"),
             SourcePath("PluginManager.cxx"),
+            SourcePath("PluMAMain.cxx"),
             languages,
         ],
         LIBS=[

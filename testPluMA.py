@@ -4,6 +4,8 @@
 import sys
 import glob
 import subprocess
+import os
+import filecmp
 
 BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN, WHITE = range(8)
 EPS=1e-8
@@ -28,7 +30,6 @@ def has_colours(stream):
         # guess false in case of error
         return False
 has_colours = has_colours(sys.stdout)
-
 
 def is_number(s):
    try:
@@ -74,8 +75,6 @@ def check(file1, file2, filetype):
                      return False
             return True
 
-
-
 def checkAccuracy(file1, file2):
    if (file1.endswith("csv")):
       return check(file1, file2, "CSV")
@@ -106,9 +105,6 @@ def printout(text, colour=WHITE):
 #printout("[error]   ", RED)
 #print("in red")
 #############################################################################
-
-import os
-import filecmp
 
 def warn(msg):
    global numwarn
@@ -350,3 +346,8 @@ normalprintout("Tests Failed: "+str(numfail)+"\n", RED)
 normalprintout("--------------------\n", WHITE)
 normalprintout("Passing Rate: "+str(passrate)+"%\n", WHITE)
 normalprintout("************************************\n", WHITE)
+
+if numfail > 0:
+    exit(1)
+else
+    exit(0)
