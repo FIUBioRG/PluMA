@@ -10,19 +10,38 @@ COPY ./ ./
 
 ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib/R/site-library/RInside/lib/
 
+ARG DEBIAN_FRONTEND=noninteractive
+
+ADD https://cloud.r-project.org/bin/linux/ubuntu/marutter_pubkey.asc /etc/apt/trusted.gpg.d/cran_ubuntu_key.asc
+
 RUN rm -f /etc/apt/apt.conf.d/docker-clean; echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
 
-RUN --mount=type=cache,target=/var/cache/apt --mount=type=cache,target=/var/lib/apt --mount=type=cache,target=/usr/lib/R/site-library/ \
-  apt-get update -qq \
-  && apt-get install -y software-properties-common dirmngr wget \
-  && wget -qO- https://cloud.r-project.org/bin/linux/ubuntu/marutter_pubkey.asc | tee -a /etc/apt/trusted.gpg.d/cran_ubuntu_key.asc \
+RUN --mount=type=cache,target=/var/cache/apt --mount=type=cache,target=/var/lib/apt --mount=type=cache,target=/usr/lib/R/site-library \
+  chmod 755 /etc/apt/trusted.gpg.d/cran_ubuntu_key.asc \
+  && apt-get update -qq \
+  && apt-get install -y --no-install-recommends \
+    build-essential \
+    g++ \
+    gcc \
+    git \
+    libc++-11-dev \
+    libpcre++-dev \
+    libpcre3 \
+    libpcre3-dev \
+    libperl-dev \
+    openjdk-8-jdk-headless \
+    perl \
+    pkg-config \
+    python3 \
+    python3-dev \
+    python3-pip \
+    scons \
+    software-properties-common \
+    swig \
   && add-apt-repository "deb https://cloud.r-project.org/bin/linux/ubuntu $(lsb_release -cs)-cran40/" \
   && apt-get update -qq \
-  && apt-get install -y build-essential \
-    gcc g++ scons perl libperl-dev libffi-dev libc++-11-dev \
-    pkg-config python3 python3-dev \
-    python3-pip libpcre++-dev r-base git swig libpcre3-dev libpcre3 libpcre++-dev openjdk-8-jdk-headless \
-  && pip install pythonds numpy scipy pandas \
+  && apt-get install -y --no-install-recommends r-base \
+  && pip3 install pythonds numpy scipy pandas \
   && Rscript -e "if(!require(RInside)) install.packages('RInside', repos = 'https://cloud.r-project.org')" \
   && echo "/usr/local/lib/R/site-library/RInside/lib" > /etc/ld.so.conf.d/RInside.conf \
   && scons \

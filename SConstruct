@@ -248,7 +248,7 @@ else:
         config.CheckProg("python3")
 
         config.env.ParseConfig("/usr/bin/python3-config --includes --ldflags")
-        config.env.Append(LIBS=["util"])
+        config.env.Append(LIBS=["util"], CCPDEFINES=["HAVE_PYTHON"])
 
         if sys.version_info[0] == "2":
             logging.warning(
@@ -360,7 +360,7 @@ else:
 
             config.CheckLib('RInside')
 
-            config.env.Append(CPPDEFINES=["-DWITH_R"])
+            config.env.Append(CPPDEFINES=["WITH_R"])
 
     if not GetOption("without-java"):
         config.env.AppendUnique(
@@ -377,6 +377,8 @@ else:
         if not config.CheckHeader("jni.h"):
             logging.error("!! Could not find `jni.h`")
             Exit(1)
+
+        config.env.Append(CCPDEFINES=["HAVE_JAVA"])
 
     if GetOption("with-rust"):
         config.CheckProg("rustc")
