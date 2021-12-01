@@ -20,8 +20,9 @@ while (page_source.find("</table>") != -1):
       if (os.path.exists("plugins/"+data[1])):
          print("Plugin "+data[1]+" already installed.")
       else:
+         # Fix for ssh
          repo = data[0][1:len(data[0])-1] # Remove quotes
-         os.system("git clone "+repo+" plugins/"+repo)
+         os.system("git clone "+repo.replace('https://github.com/', 'git@github.com:')+" plugins/"+data[1])
    plugin = plugin[plugin.find("</a>")+1:]
 
  page_source = page_source[page_source.find("</table>")+1:]
