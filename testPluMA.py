@@ -151,6 +151,7 @@ turnedoff = {#'SparCC':'',
              'Deblur':'Qiime2 binary files not unique per input file set',
              'FASTQ2QZA':'Qiime2 binary files not unique per input file set',
              'Qiime2Viz':'Qiime2 binary files not unique per input file set',
+             'Qiime2DADA2':'Qiime2 binary files not unique per input file set',
              'QualityFilter':'Qiime2 binary files not unique per input file set',
              'FASTA2QZA':'Qiime2 binary files not unique per input file set',
              'VSearch':'Qiime2 binary files not unique per input file set',
@@ -342,10 +343,10 @@ else:
 normalprintout("\n\n************************************\n", WHITE)
 normalprintout("Tests Passed: "+str(numpass)+"\n", GREEN)
 normalprintout("Tests Failed: "+str(numfail)+"\n", RED)
-#normalprintout("Warnings: "+str(numwarn)+"\n", YELLOW)
-#normalprintout("Off: "+str(numoff)+"\n", BLUE)
-#normalprintout("Local: "+str(numlocal)+"\n", MAGENTA)
-#normalprintout("Incompatible: "+str(numincompat)+"\n", CYAN)
+normalprintout("Warnings: "+str(numwarn)+"\n", YELLOW)
+normalprintout("Off: "+str(numoff)+"\n", BLUE)
+normalprintout("Local: "+str(numlocal)+"\n", MAGENTA)
+normalprintout("Incompatible: "+str(numincompat)+"\n", CYAN)
 normalprintout("--------------------\n", WHITE)
 normalprintout("Passing Rate: "+str(passrate)+"%\n", WHITE)
 normalprintout("************************************\n", WHITE)
