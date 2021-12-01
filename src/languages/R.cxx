@@ -100,6 +100,19 @@ void R::unload()
 #ifdef HAVE_R
     //delete myR->instancePtr();
     delete myR;
+
+     //R_dot_Last();
+     //R_RunExitFinalizers();
+     //R_CleanTempDir();
+     //Rf_KillAllDevices();
+     //#ifndef WIN32
+     //fpu_setup(FALSE);
+     //#endif
+     //Rf_endEmbeddedR(0);
+     //RInside::instance_m = 0 ;
+     //delete RInside::global_env_m;
+
+
     Rf_KillAllDevices();
     R_GlobalContext = NULL;
     Rf_endEmbeddedR(0);
