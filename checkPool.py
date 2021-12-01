@@ -109,7 +109,7 @@ print("")
 normalprintout("PLUGINS THAT DIFFER FROM REPOSITORY:", YELLOW)
 print("")
 for plugin in local.intersection(pool):
-   x = os.popen('cd '+plugin+'; git diff; cd ..').read()
+   x = os.popen('cd plugins/'+plugin+'; git diff; cd ..').read()
    if (len(x) != 0):
       normalprintout(plugin, YELLOW)
       print("")
