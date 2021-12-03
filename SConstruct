@@ -591,16 +591,14 @@ else:
 
     plugenFiles = Glob(str(SourcePath("PluGen/*.cxx")))
 
-    env.Program("PluGen/plugen", Glob("src/PluGen/*.cxx"))
+    env.Program("PluGen/plugen", plugenFiles)
 
     sourceFiles = Glob("src/*.cxx")
 
     env.Program(
         target="pluma",
         source=[
-            SourcePath("main.cxx"),
-            SourcePath("PluginManager.cxx"),
-            SourcePath("PluMAMain.cxx"),
+            sourceFiles,
             languages,
         ],
         LIBS=[

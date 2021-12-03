@@ -48,6 +48,7 @@
 #include <vector>
 
 #include "cpp-subprocess/include/subprocess.hpp"
+#include "utils.hxx"
 #include "Plugin.h"
 #include "PluginProxy.h"
 #include "PluMAMain.hxx"
@@ -230,7 +231,7 @@ int main(int argc, char** argv) {
         // Print a list of installed plugins
         case PLUMA_MAIN_ACTIONS::ACTION_PRINT_PLUGINS:
             // for(auto const& path: paths) {
-            for (auto const& path: pluma.split(pluma.pluginpath, ":")) {
+            for (auto const& path: utils::split(pluma.pluginpath, ":")) {
                 std::cout << "Currently installed plugins in " << path << ":" << std::endl;
 
                 std::vector<std::string> plugins;
@@ -255,7 +256,7 @@ int main(int argc, char** argv) {
         case PLUMA_MAIN_ACTIONS::ACTION_PIPELINE:
         default:
             glob_t globbuf;
-            auto paths = pluma.split(pluma.pluginpath, ":");
+            auto paths = utils::split(pluma.pluginpath, ":");
 
             for (auto const& path: paths) {
                 for (unsigned int i = 0; i < PluginManager::supported.size(); i++) {

@@ -8,6 +8,7 @@
 
 #include "PluginManager.h"
 #include "cpp-subprocess/include/subprocess.hpp"
+#include "utils.hxx"
 
 using namespace std;
 namespace fs = std::filesystem;
@@ -132,7 +133,7 @@ void PluMA::read_config(char *inputfile, string prefix, bool doRestart, char *re
 }
 
 void PluMA::search() {
-    vector<string> paths = split(pluginpath, ":");
+    vector<string> paths = utils::split(pluginpath, ":");
 
     for (auto const &path : paths) {
         std::cout << "Searching for plugin dependency files in " << path << std::endl;
