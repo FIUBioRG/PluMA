@@ -13,6 +13,16 @@ using namespace std;
 namespace fs = std::filesystem;
 
 PluMA::PluMA() {
+    python_deps = new map<string, fs::path>();
+    buildfiles =new map<string, fs::path>();
+#if __linux__
+    linux_deps = new map<string, fs::path>();
+#elif __APPLE__
+    macos_deps = map<string, fs::path>();
+#elif #elif defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__) || defined(_WIN64)
+    windows_deps = new map<string, fs::path>();
+#endif
+
     pluginpath = string(getenv("PWD")) + "/plugins/";
     if (getenv("PLUMA_PLUGIN_PATH") != NULL) {
         pluginpath += ":" + string(getenv("PLUMA_PLUGIN_PATH"));
@@ -20,6 +30,18 @@ PluMA::PluMA() {
     pluginpath += ":";
 }
 
+/**
+ * Read a PluMA configuration file for use in running
+ * a Bioinformatics pipeline.
+ *
+ * @since v1.0.0
+ *
+ * @param inputfile The file input to be parsed as a configuration.
+ * @param prefix The prefix to be given to the input.
+ * @param doRestart Whether we are restarting the pipeline from a certain point.
+ * @param restartPoint The point at which we restart the pipeline.
+ * @param pluginManager The currently used PluginManager instance.
+ */
 void PluMA::read_config(char *inputfile, string prefix, bool doRestart, char *restartPoint) {
     ifstream infile(inputfile, ios::in);
     bool restartFlag = false;
@@ -123,13 +145,13 @@ void PluMA::search() {
             fs::path requirements = fs::path(fp + fs::path::preferred_separator + "requirements.txt");
 
             if (fs::exists(requirements)) {
-                python_deps.insert({name, requirements});
+                python_deps->insert({name, requirements});
             }
 
             fs::path sconstruct = fs::path(fp + fs::path::preferred_separator + "SConstruct");
 
             if (fs::exists(sconstruct)) {
-                buildfiles.insert({name, sconstruct});
+                buildfiles->insert({name, sconstruct});
             }
 #if __linux__
             /*
@@ -139,7 +161,7 @@ void PluMA::search() {
             fs::path requirements_sh = fs::path(fp + fs::path::preferred_separator + "requirements.sh");
 
             if (fs::exists(requirements_sh)) {
-                linux_deps.insert({name, requirements_sh});
+                linux_deps->insert({name, requirements_sh});
             }
 #elif __APPLE__
             /*
@@ -149,7 +171,7 @@ void PluMA::search() {
              * or relevent command-line inputs
              */
             if (fs::exists(fp + "requirements-macos.sh")) {
-                macos_deps.insert({name, fp + "requirements-macos.sh"});
+                macos_deps->insert({name, fp + "requirements-macos.sh"});
             }
 #elif defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__) || defined(_WIN64)
             /*
@@ -157,60 +179,39 @@ void PluMA::search() {
              * @TODO: Make work correctly with Windows
              */
             if (fs::exists(fp + "requirements.bat")) {
-                windows_deps.insert({name, fp + "requirements.bat"});
+                windows_deps->insert({name, fp + "requirements.bat"});
             }
 #endif
         }
     }
 }
 
-void PluMA::install_dependencies() {
-    if (!python_deps.empty()) {
+/**
+ * Install libraries and dependencies for a given platform.
+ *
+ * @since v2.1.0
+ */
+void PluMA::install() {
+    if (!python_deps->empty()) {
         vector<string> args = { "install", "--no-input", "-r" };
-        install("Python", "Dependencies", "pip", &args, &python_deps);
+        _install("Python", "Dependencies", "pip", &args, python_deps);
     }
 #if __linux__
-    if (!linux_deps.empty()) {
+    if (!linux_deps->empty()) {
         vector<string> args = {};
-        install("Linux", "Dependencies", "sh", &args, &linux_deps);
+        _install("Linux", "Dependencies", "sh", &args, linux_deps);
     }
 #elif __APPLE__
-    if (!linux_deps.empty()) {
+    if (!macos_deps->empty()) {
         vector<string> args = {};
-        install("MacOS", "Dependencies", "zsh"< &args, &macos_deps);
+        _install("MacOS", "Dependencies", "zsh"< &args, macos_deps);
     }
 #elif defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__) || defined(_WIN64)
     // @TODO:
 #endif
-}
 
-void PluMA::install_library() {
-    cout << buildfiles.empty() << endl;
-    if (!buildfiles.empty()) {
+    if (!buildfiles->empty()) {
         vector<string> args = {"-f"};
-        install("Library", "Buildfiles", "scons", &args, &buildfiles);
-    }
-}
-
-void PluMA::install(const string platform, const string type, const string command, vector<string> *args, const map<string, fs::path> *installs) {
-    cout << "Installing " << platform << " " << type << "..." << endl;
-
-    for (auto it = installs->cbegin(); it != installs->cend(); it++) {
-        cout << it->first << ": " << type << endl;
-
-        args->push_back(it->second.string());
-
-        auto subprocess = subprocess::popen(command.c_str(), *args);
-
-        cout << subprocess.stdout().rdbuf() << endl;
-
-        subprocess.stderr().seekg(0, subprocess.stderr().end);
-
-        size_t sz = subprocess.stderr().tellg();
-
-        if (sz > 0) {
-            cerr << subprocess.stderr().rdbuf() << endl;
-            exit(EXIT_FAILURE);
-        }
+        _install("Library", "Buildfiles", "scons", &args, buildfiles);
     }
 }

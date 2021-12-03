@@ -71,17 +71,6 @@ enum PLUMA_ERROR {
     ERR_INSTALL_WINDOWS_DEP = 04U
 };
 
-std::vector<std::string> split(std::string str, const std::string delim) {
-    std::vector<std::string> tokens;
-    size_t pos = 0;
-
-    while((pos = str.find(delim)) != std::string::npos) {
-        tokens.push_back(str.substr(0, pos));
-        str.erase(0, pos + delim.length());
-    }
-
-    return tokens;
-}
 
 // Auto-generated program version
 const char* argp_program_version = "PluMA v2.1.0";
@@ -176,115 +165,6 @@ static error_t parse_opt(int key, char* arg, struct argp_state *state) {
 static struct argp argp = { options, parse_opt, args_doc, doc };
 
 /**
- * Read a PluMA configuration file for use in running
- * a Bioinformatics pipeline.
- *
- * @since v1.0.0
- *
- * @param inputfile The file input to be parsed as a configuration.
- * @param prefix The prefix to be given to the input.
- * @param doRestart Whether we are restarting the pipeline from a certain point.
- * @param restartPoint The point at which we restart the pipeline.
- * @param pluginManager The currently used PluginManager instance.
- */
-void readConfig(char *inputfile, std::string prefix, bool doRestart, char* restartPoint)
-{
-    std::ifstream infile(inputfile, std::ios::in);
-    bool restartFlag = false;
-    std::string pipeline = "";
-    std::string oldprefix = prefix;
-    std::string kitty = "";
-
-    while (!infile.eof()) {
-        std::string junk, name, inputname, outputname;
-        /*
-        * Read one line
-        * Plugin (Name) inputfile (input file) outputfile (output file)
-        */
-        infile >> junk;
-
-        if (junk[0] == '#') {
-            // the line is a comment
-            getline(infile, junk);
-            continue;
-        } else if (junk == "Prefix") {
-            // the line is a prefix
-            infile >> prefix;
-            prefix += "/";
-            PluginManager::myPrefix = prefix;
-            oldprefix = prefix;
-            continue;
-        } else if (junk == "Pipeline") {
-            infile >> pipeline;
-            readConfig((char *)pipeline.c_str(), prefix, false, (char*) "");
-        } else if (junk == "Kitty") {
-            infile >> kitty;
-            if (oldprefix != "")
-            {
-                prefix = oldprefix;
-            }
-            prefix += "/" + kitty + "/";
-            PluginManager::myPrefix = prefix;
-            continue;
-        } else {
-            infile >> name >> junk >> inputname >> junk >> outputname;
-        }
-
-        if (inputname[0] != '/') {
-            inputname = prefix + inputname;
-        }
-
-        if (outputname[0] != '/') {
-            outputname = prefix + outputname;
-        }
-
-        // If we are restarting and have not hit that point yet, skip this plugin
-        if (doRestart && !restartFlag) {
-            if (name == restartPoint) {
-                restartFlag = true;
-            } else {
-                continue;
-            }
-        }
-
-        // Try to create and run all three steps of the plugin in the appropriate language
-        PluginManager::getInstance().log("Creating plugin " + name);
-        try {
-            bool executed = false;
-            for (unsigned int i = 0; i < PluginManager::supported.size() && !executed; i++) {
-                if (PluginManager::getInstance().pluginLanguages[name+"Plugin"] == PluginManager::supported[i]->lang()) {
-                    std::cout << "[PluMA] Running Plugin: " << name << std::endl;
-                    PluginManager::supported[i]->executePlugin(name, inputname, outputname);
-                    executed = true;
-                }
-            }
-            // In this case we found the plugin, but the language is not PluginManager::supported.
-            if (!executed && name != "") {
-                PluginManager::getInstance().log("Error, no suitable language for plugin: " + name + ".");
-            }
-        } catch (...) {
-            /*
-             * This hits if the plugin errored while running it
-             * Message(s) will be output to the logfile, and output files will be removed.
-             */
-            PluginManager::getInstance().log("ERROR IN PLUGIN: " + name + ".");
-            ;
-            if (access(outputname.c_str(), F_OK) != -1)
-            {
-                int c;
-                PluginManager::getInstance().log("REMOVING OUTPUT FILE: " + outputname + ".");
-                c = system(("rm " + outputname).c_str());
-                if (c != 0) {
-                    std::cerr << "Error while removing output file..." << std::endl;
-                    PluginManager::getInstance().log("Error while removing output file");
-                }
-                exit(1);
-            }
-        }
-    }
-}
-
-/**
  * Print the standard PluMA banner
  *
  * @since v2.1.0
@@ -319,62 +199,6 @@ void print_banner() {
     std::cout << "***********************************************************************************" << std::endl;
 }
 
-/**
- * Install dependencies for a given platform.
- *
- * @since v2.1.0
- * @param platform The platform the dependencies are being installed for (Eg: Python, Linux...).
- */
-void install_dependencies(const std::string platform, const std::string command, std::vector<std::string> *a, const std::map<std::string, std::string>* dependencies) {
-    std::cout << "Installing " << platform << " dependencies..." << std::endl;
-
-    for (auto it = dependencies->cbegin(); it != dependencies->cend(); it++) {
-        std::cout << it->first << " has dependencies to install." << std::endl;
-
-        a->push_back(it->second);
-
-        auto subprocess = subprocess::popen(command.c_str(), *a);
-
-        std::cout << subprocess.stdout().rdbuf() << std::endl;
-
-        subprocess.stderr().seekg(0, subprocess.stderr().end);
-
-        size_t sz = subprocess.stderr().tellg();
-
-        if (sz > 0) {
-            std::cerr << subprocess.stderr().rdbuf() << std::endl;
-            exit(EXIT_FAILURE);
-        }
-    }
-}
-
-/**
- * Install libraries for a given platform.
- *
- * @since v2.1.0
- * @param platform The platform the dependencies are being installed for (Eg: Linux, MacOS...).
- */
-void install_library(const std::string platform, const std::string command, std::vector<std::string> *a, const std::map<std::string, std::string> *dependencies)
-{
-    std::cout << "Installing " << platform << " libraries..." << std::endl;
-
-    for (auto it = dependencies->cbegin(); it != dependencies->cend(); it++)
-    {
-        a->push_back(it->second);
-        auto subprocess = subprocess::popen(command.c_str(), *a);
-
-        std::cout << subprocess.stdout().rdbuf() << std::endl;
-
-        subprocess.stderr().seekg(0, subprocess.stderr().end);
-        size_t sz = subprocess.stderr().tellg();
-
-        if (sz > 0) {
-            std::cerr << subprocess.stderr().rdbuf() << std::endl;
-            exit(EXIT_FAILURE);
-        }
-    }
-}
-
 int main(int argc, char** argv) {
     struct arguments arguments;
     PluMA pluma;
@@ -392,26 +216,13 @@ int main(int argc, char** argv) {
     // Print the PluMA banner if argument parsing is successful
     print_banner();
 
-    // Setup plugin path.
-    // std::string pluginpath = std::string(getenv("PWD")) + "/plugins/";
-    // if (getenv("PLUMA_PLUGIN_PATH") != NULL) {
-    //     pluginpath += ":";
-    //     pluginpath += std::string(getenv("PLUMA_PLUGIN_PATH"));
-    // }
-    // pluginpath += ":";
-
     PluginManager::supportedLanguages(pluma.pluginpath, argc, argv);
-
-    // std::vector<std::string> paths = split(pluginpath, ":");
-    // std::map<std::string, std::string> python_deps, linux_deps, linux_buildfiles,
-    //     macos_deps, windows_deps;
 
     switch(arguments.action) {
         // Install dependencies for all plugins
         case PLUMA_MAIN_ACTIONS::ACTION_INSTALL_DEPENDENCIES:
             pluma.search();
-            pluma.install_dependencies();
-            pluma.install_library();
+            pluma.install();
 
             exit(EXIT_SUCCESS);
             break;
