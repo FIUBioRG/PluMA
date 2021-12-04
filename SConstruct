@@ -589,7 +589,7 @@ else:
                 target=output
             )
 
-    plugenFiles = Glob(str(SourcePath("PluGen/*.cxx")))
+    plugenFiles = Glob("src/PluGen/*.cxx")
 
     env.Program("PluGen/plugen", plugenFiles)
 

@@ -74,7 +74,7 @@ enum PLUMA_ERROR {
 
 
 // Auto-generated program version
-const char* argp_program_version = "PluMA v2.1.0";
+const char* argp_program_version = "PluMA v2.2.0";
 // Bug address for submitting issues. Github URL instead of email address.
 const char* argp_program_bug_address = "<https://github.com/FIUBioRG/PluMA/issues>";
 // Top-level doc block

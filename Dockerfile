@@ -10,6 +10,8 @@ COPY ./ ./
 
 ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib/R/site-library/RInside/lib/
 
+ENV PERL_MM_USE_DEFAULT=1
+
 ARG DEBIAN_FRONTEND=noninteractive
 
 ADD https://cloud.r-project.org/bin/linux/ubuntu/marutter_pubkey.asc /etc/apt/trusted.gpg.d/cran_ubuntu_key.asc
@@ -31,6 +33,7 @@ RUN --mount=type=cache,target=/var/cache/apt --mount=type=cache,target=/var/lib/
     libperl-dev \
     openjdk-8-jdk-headless \
     perl \
+    perl-doc \
     pkg-config \
     python3 \
     python3-dev \
