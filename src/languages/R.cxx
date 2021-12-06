@@ -32,6 +32,8 @@
 
 #include "R.h"
 #include "../PluginManager.h"
+#include <vector>
+#include <string>
 
 namespace MiAMi {
 
@@ -99,4 +101,20 @@ namespace MiAMi {
 #endif
     }
 
+    void R::installDependencies(std::vector<std::string> dependencies) {
+#ifdef HAVE_R
+        for(auto &dependency: dependencies) {
+            installDependency(dependency);
+        }
+#endif
+    }
+
+    void R::installDependency(std::string &dependency) {
+#ifdef HAVE_R
+        std::string command = "if(!(require(" + dependency;
+        command += "))) install.packages(\"" + dependency + "\")";
+        myR->parseEvalQ(command);
+        PluginManager::getInstance().log("R dependency " + dependency + " installed");
+#endif
+    }
 }

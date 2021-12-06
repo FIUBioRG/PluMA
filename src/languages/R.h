@@ -37,6 +37,8 @@
 #include "RInside.h"
 #include "Rinterface.h"
 #include "Language.h"
+#include <vector>
+#include <string>
 
 // @TODO: Change to PluMA namespace?
 namespace MiAMi {
@@ -47,11 +49,13 @@ namespace MiAMi {
         void executePlugin(std::string pluginname, std::string inputname, std::string outputname);
         void unload();
         void load();
+        void installDependencies(std::vector<std::string> dependencies);
 
     private:
         RInside* myR;
         int argc;
         char** argv;
+        void installDependency(std::string &dependency);
     };
 }
 #endif

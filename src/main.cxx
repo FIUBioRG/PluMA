@@ -47,11 +47,11 @@
 #include <string>
 #include <vector>
 
+#include "PluMA.hxx"
 #include "cpp-subprocess/include/subprocess.hpp"
 #include "utils.hxx"
 #include "Plugin.h"
 #include "PluginProxy.h"
-#include "PluMAMain.hxx"
 
 /**
  * Actions the PluMA application can take.

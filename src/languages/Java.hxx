@@ -30,13 +30,13 @@
 
 \*********************************************************************************/
 
-#pragma once
-
 #ifndef _PLUMA_JAVA_H
 #define _PLUMA_JAVA_H
 
 #include <string>
+#ifdef HAVE_JAVA
 #include <jni.h>
+#endif
 #include "Language.h"
 
 class Java : public Language {
