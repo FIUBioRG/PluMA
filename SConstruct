@@ -95,7 +95,7 @@ AddOption(
     "--without-java",
     dest="without-java",
     action="store_true",
-    default=False,
+    default=True,
     help="Disable Java plugin compilation",
 )
 
@@ -363,14 +363,19 @@ else:
             config.env.Append(CPPDEFINES=["WITH_R"])
 
     if not GetOption("without-java"):
+        java_home = getenv('JAVA_HOME');
+
+        if not java_home:
+            java_home = subprocess.check_output(["readlink", "-f", "/usr/bin/java"]).replace("/bin/java", "")
+
         config.env.AppendUnique(
             CPPPATH=[
-                Dir("/usr/lib/jvm/java-8-openjdk-amd64/include"),
-                Dir("/usr/lib/jvm/java-8-openjdk-amd64/include/" + sys.platform.lower())
+                Dir(java_home + "/include"),
+                Dir(java_home + "/include/" + sys.platform.lower())
             ],
             LIBPATH=[
-                Dir("/usr/lib/jvm/java-8-openjdk-amd64/include"),
-                Dir("/usr/lib/jvm/java-8-openjdk-amd64/include/" + sys.platform.lower())
+                Dir(java_home + "/include"),
+                Dir(java_home + "/include/" + sys.platform.lower())
             ]
         )
 
@@ -452,62 +457,66 @@ else:
     )
     ###################################################################
     # PYTHON PLUGINS
-    env.SharedObject(
-        source="PyPluMA_wrap.cxx",
-        target=ObjectPath("PyPluMA_wrap.os"),
-    )
+    if not env.GetOption('without-python'):
+        env.SharedObject(
+            source="PyPluMA_wrap.cxx",
+            target=ObjectPath("PyPluMA_wrap.os"),
+        )
 
-    env.SharedLibrary(
-        source=[
-            ObjectPath("PyPluMA_wrap.os"),
-            ObjectPath("PluMA.os"),
-        ],
-        target="_PyPluMA.so",
-    )
+        env.SharedLibrary(
+            source=[
+                ObjectPath("PyPluMA_wrap.os"),
+                ObjectPath("PluMA.os"),
+            ],
+            target="_PyPluMA.so",
+        )
     ###################################################################
 
     ###################################################################
     # PERL PLUGINS
-    env.SharedObject(
-        source="PerlPluMA_wrap.cxx",
-        target=ObjectPath("PerlPluMA_wrap.os"),
-    )
+    if not env.GetOption('without-perl'):
+        env.SharedObject(
+            source="PerlPluMA_wrap.cxx",
+            target=ObjectPath("PerlPluMA_wrap.os"),
+        )
 
-    env.SharedLibrary(
-        source=[
-            ObjectPath("PluMA.os"),
-            ObjectPath("PerlPluMA_wrap.os"),
-        ],
-        target="PerlPluMA.so",
-    )
+        env.SharedLibrary(
+            source=[
+                ObjectPath("PluMA.os"),
+                ObjectPath("PerlPluMA_wrap.os"),
+            ],
+            target="PerlPluMA.so",
+        )
     ###################################################################
     # R PLUGINS
-    env.SharedObject(
-        source="RPluMA_wrap.cxx",
-        target=ObjectPath("RPluMA_wrap.os"),
-    )
-    env.SharedLibrary(
-        source=[
-            ObjectPath("PluMA.os"),
-            ObjectPath("RPluMA_wrap.os"),
-        ],
-        target="RPluMA.so",
-    )
+    if not env.GetOption('without-r'):
+        env.SharedObject(
+            source="RPluMA_wrap.cxx",
+            target=ObjectPath("RPluMA_wrap.os"),
+        )
+        env.SharedLibrary(
+            source=[
+                ObjectPath("PluMA.os"),
+                ObjectPath("RPluMA_wrap.os"),
+            ],
+            target="RPluMA.so",
+        )
     ###################################################################
 
     ###################################################################
     # JAVA PLUGINS
-    env.SharedObject(
-        source="JavaPluMA_wrap.cxx",
-        target=ObjectPath("JavaPluMA_wrap.os"),
-    )
-    env.SharedLibrary(
-        source=[
-            ObjectPath("PluMA.os"),
-            ObjectPath("JavaPluMA_wrap.os"),
-        ],
-        target="JavaPluMA.so",
-    )
+    if not env.GetOption('without-java'):
+        env.SharedObject(
+            source="JavaPluMA_wrap.cxx",
+            target=ObjectPath("JavaPluMA_wrap.os"),
+        )
+        env.SharedLibrary(
+            source=[
+                ObjectPath("PluMA.os"),
+                ObjectPath("JavaPluMA_wrap.os"),
+            ],
+            target="JavaPluMA.so",
+        )
     ###################################################################
 
     ###################################################################

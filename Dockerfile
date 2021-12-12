@@ -11,6 +11,7 @@ COPY ./ ./
 ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib/R/site-library/RInside/lib/
 
 ENV PERL_MM_USE_DEFAULT=1
+ENV JAVA_HOME="$(readlink -f /usr/bin/java | sed 's/\/bin\/java//')"
 
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -50,7 +51,8 @@ RUN --mount=type=cache,target=/var/cache/apt --mount=type=cache,target=/var/lib/
   && echo "/usr/local/lib/R/site-library/RInside/lib" > /etc/ld.so.conf.d/RInside.conf \
   && scons \
   && apt-get clean \
-  && ldconfig
+  && ldconfig \
+  && update-java-alternatives --auto
 
 VOLUME ["/app/plugins"]
 VOLUME ["/app/pipelines"]

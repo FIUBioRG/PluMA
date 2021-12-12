@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-'''Module for dowwnloading and checking plugins from the public PluMA plugin pool'''
+'''Module for downloading and checking plugins from the public PluMA plugin pool'''
 import os
 from os import path
 import sys
