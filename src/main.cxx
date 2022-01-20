@@ -150,6 +150,8 @@ void readConfig(char* inputfile, std::string prefix, bool doRestart, std::string
                 exit(1);
             }
         }
+      //PluginManager::languageUnload("R");
+      //PluginManager::languageLoad("R");
         ////////////////////////////////////////////////////////////////////////////////////////////////////////
     }
 }
@@ -332,8 +334,9 @@ int main(int argc, char** argv)
             PluginManager::getInstance().log("REMOVING OUTPUT FILE: "+outputname+".");
             system(("rm "+outputname).c_str());
             exit(1);
-         }
+	    }
       }
+      std::cout << "HERE" << std::endl;
       ////////////////////////////////////////////////////////////////////////////////////////////////////////
    }*/
    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
