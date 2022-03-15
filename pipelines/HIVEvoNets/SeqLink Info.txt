@@ -1,0 +1,12 @@
+SeqLink
+
+Implementation of algorithm described in
+Ogishima, S., F. Ren, et al. (2001). 
+"Reconstruction and Analysis of Within-host Longitudinal HIV-1 Evolution by a Distance-based Sequential-linking Algorithm." 
+Chem-Bio Informatics Journal 1(2): 73-83
+
+Command Line Parameters
+[input-file in Phylip format] [output-file]
+
+Example
+in.phy out.txt

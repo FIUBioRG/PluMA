@@ -1,0 +1,85 @@
+<html>
+
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<meta name="GENERATOR" content="Microsoft FrontPage 4.0">
+<meta name="ProgId" content="FrontPage.Editor.Document">
+<title>MinPD v</title>
+</head>
+
+<body>
+
+<font SIZE="2">
+<h1 align="left">MinPD v. 1</h1>
+<h2 align="left" style="text-indent: 0">A program to create evolutionary
+frameworks from serially-sampled data</h2>
+</font>
+<p align="left" style="text-indent: 0"><font size="4">Patricia Buendia and Dr.
+Giri Narasimhan</font></p>
+<p style="margin-top: 0; margin-bottom: 0"><font size="3">Bioinformatics
+Research Group (BioRG),</font></p>
+<p style="margin-top: 0; margin-bottom: 0"><font size="3">School of Computing
+and Information Science,</font></p>
+<p style="margin-top: 0; margin-bottom: 12"><font size="3">Florida International
+University, Miami, FL 33199, USA</font></p>
+<p style="margin-top: 0; margin-bottom: 0"><font size="3">e-mail: <a href="mailto:pbuen001@fiu.edu">pbuen001@fiu.edu</a>&nbsp;</font></p>
+<p style="margin-top: 0; margin-bottom: 0"><font size="3">WWW: <a href="http://biorg.cis.fiu.edu/CSADL/MinPD">http://biorg.cis.fiu.edu/CSADL/MinPD</a></font></p>
+<font SIZE="2">
+<p>&nbsp;</p>
+<h2>Introduction</h2>
+<p style="margin-top: 0; margin-bottom: 0">The MinPD algorithm is based on the
+concept of minimum pairwise distance.</font> <font SIZE="2">It assumes that an
+ancestor of any given taxa must have been sampled at one</font> <font SIZE="2">of
+the previous time points and that the distance to the closest ancestor</font> <font SIZE="2">must
+be the minimum among all distances to taxa sampled during all prior time points.</font>
+<font SIZE="2">It utilizes the same criteria to find minimum distance fragments
+to all other</font> <font SIZE="2">sequences to identify possible recombinant
+strains.</font> <font SIZE="2">MinPD calculates pairwise distances using the
+Tamura-Nei 93 method with</font> <font SIZE="2">gamma rate heterogeneity (Tamura
+and Nei 1993) and finds a closest ancestor</font> <font SIZE="2">by searching
+the distance matrix for minimum distances.</font> <font SIZE="2">For each set of
+sequences with the same chosen ancestor, MinPD constructs a NJ tree</font> <font SIZE="2">and
+connects the root of the NJ tree to the chosen ancestor.</font></p>
+<p style="margin-top: 0; margin-bottom: 0"><font SIZE="2"></p>
+<h2 style="margin-top: 0; margin-bottom: 0">Command Line Input</h2>
+<p style="margin-top: 0; margin-bottom: 0">[input-file] [output-file]
+[details-file] [align=0|1] [fragments=1|4|8]</p>
+<p style="margin-top: 0; margin-bottom: 0">&nbsp;</p>
+<p style="margin-top: 0; margin-bottom: 0"><b>Example:</b></p>
+<p style="margin-top: 0; margin-bottom: 0">in.txt out.txt d.txt 0 1</p>
+<p style="margin-top: 0; margin-bottom: 0">&nbsp;</p>
+<h3 style="margin-top: 0; margin-bottom: 0"><b>Parameters</b></h3>
+<p style="margin-top: 0; margin-bottom: 0">[align=0|1]</p>
+<blockquote>
+  <p style="margin-top: 0; margin-bottom: 0">1= MinPD aligns sequences pairwise
+  (no global alignment)</p>
+  <p style="margin-top: 0; margin-bottom: 0">0= no alignment of sequences</p>
+</blockquote>
+<p style="margin-top: 0; margin-bottom: 0">[fragments=1|4|8]</p>
+<blockquote>
+  <p style="margin-top: 0; margin-bottom: 0">1= no recombination detection</p>
+  <p style="margin-top: 0; margin-bottom: 0">4= 4 fragment recombination
+  detection</p>
+  <p style="margin-top: 0; margin-bottom: 0">8= 8 fragment recombination
+  detection</p>
+</blockquote>
+<h3 style="margin-top: 0; margin-bottom: 0">Input</h3>
+<p style="margin-top: 0; margin-bottom: 0">The input file should be in Fasta
+format</p>
+<p style="margin-top: 0; margin-bottom: 0">&nbsp;</p>
+<h3 style="margin-top: 0; margin-bottom: 0">Output</h3>
+<p style="margin-top: 0; margin-bottom: 0">The output file contains the
+ancestor-descendant relationships</p>
+<p style="margin-top: 0; margin-bottom: 0">and the partial NJ trees to build the
+evolutionary framework.</p>
+<p style="margin-top: 0; margin-bottom: 0">&nbsp;</p>
+<h2 style="margin-top: 0; margin-bottom: 0">Download and Install</h2>
+<p style="margin-top: 0; margin-bottom: 0">Click <a href="MinPD.zip">here</a> to
+download. The program is written in C and compiled in Microsoft Visual C++
+Version 6.</p>
+<p style="margin-top: 0; margin-bottom: 0">&nbsp;</p>
+</font>
+
+</body>
+
+</html>

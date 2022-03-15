@@ -1,0 +1,38 @@
+<html>
+<body>
+<pre>
+<h1>Build Log</h1>
+<h3>
+--------------------Configuration: SEQLINK - Win32 Debug--------------------
+</h3>
+<h3>Command Lines</h3>
+Creating temporary file "D:\DOCUME~1\ADMINI~1.PAT\LOCALS~1\Temp\RSP78.tmp" with contents
+[
+/nologo /MLd /W3 /Gm /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /Fp"Debug/SEQLINK.pch" /YX /Fo"Debug/" /Fd"Debug/" /FD /GZ /c 
+"D:\Storage\SeqLink\Heapsort.c"
+"D:\Storage\SeqLink\NJ.c"
+"D:\Storage\SeqLink\SeqLink.c"
+]
+Creating command line "cl.exe @D:\DOCUME~1\ADMINI~1.PAT\LOCALS~1\Temp\RSP78.tmp" 
+Creating temporary file "D:\DOCUME~1\ADMINI~1.PAT\LOCALS~1\Temp\RSP79.tmp" with contents
+[
+kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:console /incremental:yes /pdb:"Debug/SEQLINK.pdb" /debug /machine:I386 /out:"Debug/SEQLINK.exe" /pdbtype:sept 
+.\Debug\Heapsort.obj
+.\Debug\NJ.obj
+.\Debug\SeqLink.obj
+]
+Creating command line "link.exe @D:\DOCUME~1\ADMINI~1.PAT\LOCALS~1\Temp\RSP79.tmp"
+<h3>Output Window</h3>
+Compiling...
+Heapsort.c
+NJ.c
+SeqLink.c
+Linking...
+
+
+
+<h3>Results</h3>
+SEQLINK.exe - 0 error(s), 0 warning(s)
+</pre>
+</body>
+</html>

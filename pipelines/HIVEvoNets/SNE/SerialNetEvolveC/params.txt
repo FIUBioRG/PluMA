@@ -1,0 +1,29 @@
+BEGIN TVBLOCK
+	[sequence length] l1000
+	[sample size] s30
+	[mutation rate] u0.00001
+	[number of replicates] n1
+	[substitution model] vHKY t4.0 f0.3,0.2,0.3,0.2 [f0.3,0.2,0.3,0.2] [r0.1,0.1,0.5,0.2,0.1,1.0]
+	[rate heterogeneity] a0.5 g4 [c0.2,0.2,1.0] [a0.1 g8]
+	[output coalescent times]
+	[haploid]
+	[sample size per time] z6
+	[sampling times] p5
+	[internal Nodes sampling probability] i1 [0=No-sampling, 0<i<=1 random sampling, >1 all]
+	[No clock] k
+	[generation time/variance in offspring number] b1.0 [1.0 = Wright-Fisher]
+	[Output File] xC:\out.txt
+
+	*PERIOD  1
+		[length of period] t2200.0
+		[population size] n1000000 e0.0
+		[subdivision] d1 [m0.000001]
+		[recombination] r0.0000000001
+	*END
+
+	*PERIOD  2
+		[population size] np e0.001
+		[subdivision] d1 [m0.000001]
+		[recombination] r0.00000002
+	*END
+

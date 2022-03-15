@@ -1,0 +1,80 @@
+Serial NetEvolve 1.0
+==========================================
+
+Serial NetEvolve is a modification of the Treevolve program in which serially sampled 
+sequences are evolved along a randomly generated coalescent tree or network 
+(Grassly et al. 1999; Hudson 1983; Kingman 1982) . Treevolve offers a variety of 
+evolutionary model and population parameters including a rate of recombination and 
+as such it was chosen over other programs to be adapted for the simulation of serially 
+sampled data. The new features include the choice of either a clock-like model of evolution
+or a variable rate of evolution, simulation of serial samples and the output of the 
+randomly generated tree or network in Newick format or in our newly formulated NeTwick 
+format.
+Here we will only list the features that differentiate Serial NetEvolve from the original 
+Treevolve. For information on the parameters integral to the original Treevolve v1.3, 
+please consult with its manual that can be found here:
+http://evolve.zoo.ox.ac.uk/software/treevolve/manual.php
+
+==========================================
+
+New Parameters
+The parameter file contains all the parameter settings. The new global parameters in 
+Serial NetEvolve as they appear in the parameter file are:
+
+[sample size per time] z6
+[sampling times] p5
+[internal nodes sampling probability] i0.1 [0=No-sampling, 0<i<=1 sampling, >1 all]
+[no clock] k
+
+-Sample Size Per Time
+This setting specifies the number of sequences to sample at each sampling time point.
+When this setting and the “sampling times” setting are chosen, the setting “sample size” 
+is ignored. Equivalently, when these two settings are not set, the classic Treevolve
+version will run and use the “sample size” to return sequences from the zero-time baseline.
+
+-Sampling Times
+The number of sampling time points.
+
+-Internal Nodes Sampling Probability
+The probability with which sequences from the internal nodes are sampled are discussed 
+in (Drummond and Rodrigo 2000) . If the probability is set to 0, then only sequences 
+from the leaves are sampled. If 1 then sequences at internal nodes have the same probability
+as the sequences at the leaves to be randomly sampled. If larger than 1 then all internal 
+sequences are included in the output. Any value in between 0 and 1 may be chosen as 
+the probability and it is suggested to pick smaller probabilities with increasing sequence 
+lengths. The default is 1 for a sequence length of 1000.
+
+-No Clock
+Treevolve assumes a molecular clock by default. In NetEvolve the default is “No clock”
+which simulates variable rates of evolution for serial samples. The no-clock option 
+has no effect when NetEvolve is run with the original Treevolve settings 
+(no serial sampling).
+
+==========================================
+Instructions for linux users:
+
+- unzip files in desired directory
+- cd to directory
+- type "make"
+- execute by typing "./snetevolve < params.txt > out.txt"
+===========================================
+
+
+Acknowledgements
+Many thanks to Andrew Rambaut for recommending Treevolve and making the source code 
+available.
+
+==========================================
+
+References
+Drummond, A. and A. G. Rodrigo. 2000. Reconstructing genealogies of serial samples under 
+the assumption of a molecular clock using serial-sample UPGMA (sUPGMA). Molecular Biology 
+and Evolution 17:1807-1815.
+Felsenstein, J. 1999. The Newick tree format: 
+<http://evolution.genetics.washington.edu/phylip/newicktree.html>
+Grassly, N., et al. 1999. Population dynamics of HIV-1 inferred from gene sequences. 
+Genetics 151:427-438.
+Hudson, R. R. 1983. Properties of a neutral allele model with intragenic recombination. 
+Theoretical Population Biology 23:183-201.
+Kingman, J. F. C. 1982. The coalescent. Stoch. Process. Appl. 13:235-248.
+
