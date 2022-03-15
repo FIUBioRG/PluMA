@@ -1,0 +1,235 @@
+<program_options>
+        { Value => "1",
+         Type => "check_box",
+         Name => "Report_SlidingMinPD",
+         Label => "run Sliding MinPD",
+         Description => "", }
+
+        { Value => "1",
+         Type => "check_box",
+         Name => "Report_Transitions",
+         Label => "transitions",
+         Description => "", }
+
+        { Value => "1",
+         Type => "check_box",
+         Name => "Report_Aggregates",
+         Label => "aggregates",
+         Description => "", }
+
+        { Value => "1",
+         Type => "check_box",
+         Name => "Report_Summary",
+         Label => "summary",
+         Description => "", }
+
+        { Value => "1",
+         Type => "check_box",
+         Name => "Report_R",
+         Label => "markov model",
+         Description => "", }
+
+        { Value => "1",
+         Type => "check_box",
+         Name => "Report_Shortest_Paths",
+         Label => "shortest paths",
+         Description => "", }
+
+        { Value => "0",
+         Type => "check_box",
+         Name => "Report_Graphs",
+         Label => "pathway graphs",
+         Description => "", }
+
+        { Value => "1",
+         Type => "check_box",
+         Name => "Report_Pruned_R",
+         Label => "pruned markov model",
+         Description => "", }
+
+        { Value => "0",
+         Type => "check_box",
+         Name => "Report_Pruned_Graphs",
+         Label => "pruned pathway graphs",
+         Description => "", }
+
+        { Value => "1",
+         Type => "check_box",
+         Name => "Report_Pruned_Shortest_Paths",
+         Label => "pruned shortest paths",
+         Description => "", }
+
+</program_options>
+<SlidingMinPD>
+    <algorithm>
+            { Value => "1",
+             Type => "check_box",
+             Name => "Report_Distances",
+             Label => "report distances",
+             Description => "", }
+
+            { Value => "0",
+             Type => "check_box",
+             Name => "Activate_Recombination",
+             Label => "activate recombination",
+             Description => "", }
+
+            { Value => "2",
+             Options  => {          'B-RIP' => 2,          'RIP' => 1,          'SB' => 3        },
+             Name => "Recombination_Detection_Option",
+             Label => "recombination detection option",
+             Description => "",
+             Key => "B-RIP", }
+
+            { Value => "1",
+             Options  => {          'only one' => 1,          'many' => 0        },
+             Name => "Crossover_Option",
+             Label => "crossover option",
+             Description => "",
+             Key => "only one", }
+
+            { Value => ".4",
+             Name => "PCC_Threshold",
+             Label => "PCC threshold",
+             Description => "", }
+
+            { Value => "200",
+             Name => "Window_Size",
+             Label => "window size",
+             Description => "", }
+
+            { Value => "20",
+             Name => "Step_Size",
+             Label => "step size",
+             Description => "", }
+
+            { Value => "1",
+             Type => "check_box",
+             Default => "0",
+             Name => "Tie_Breaker",
+             Label => "tie breaker",
+             Description => "", }
+
+            { Value => "-3",
+             Name => "Bootscan_Seed",
+             Label => "bootscan seed",
+             Description => "", }
+
+            { Value => "92",
+             Name => "Bootscan_Threshold",
+             Label => "bootscan threshold",
+             Description => "", }
+
+            { Value => "0",
+             Options  => {          'bootstrap' => 1,          'bootknife' => 0        },
+             Name => "Bootstrap_Bootknife",
+             Label => "bootstrap bootknife",
+             Description => "",
+             Key => "bootknife", }
+
+            { Value => "TN93",
+             Options  => {          'JC69' => 'JC69',          'K2P' => 'K2P',          'TN93' => 'TN93'        },
+             Name => "Substitution_Model",
+             Label => "substitution model",
+             Description => "",
+             Key => "TN93", }
+
+            { Value => "0.5",
+             Name => "Gamma_Shape",
+             Label => "gamma shape",
+             Description => "", }
+
+            { Value => "0",
+             Type => "check_box",
+             Default => "0",
+             Name => "ShowBootstrap_Values",
+             Label => "show bootstrap values",
+             Description => "", }
+
+            { Value => "0.001",
+             Default => "0.001",
+             Name => "Clustering_Threshold",
+             Label => "clustering threshold value",
+             Description => "", }
+
+            { Value => "4",
+             Options  => {          'postclustering (amino acid)' => 4,          'preclustering (distance only)' => 3,          'postclustering (nucleotides)' => 5,          'preclustering (nucleotides)' => 2,          'preclustering (amino acid)' => 1,          'no clustering' => 0,          'postclustering (distance only)' => 6        },
+             Name => "Clustering",
+             Label => "",
+             Description => "",
+             Key => "postclustering (amino acid)", }
+
+    </algorithm>
+        { Value => "minpd",
+         Name => "SlidingMinPD_File_Input",
+         Label => "SlidingMinPD",
+         Description => "path to Sliding MinPD executable", }
+
+</SlidingMinPD>
+<R>
+        { Value => "1,8,16,20",
+         Name => "Times",
+         Label => "times",
+         Description => "", }
+
+        { Value => "R",
+         Name => "R_Path_File_Input",
+         Label => "path to R executable",
+         Description => "", }
+
+</R>
+<pruned>
+        { Value => "1",
+         Name => "Prune_Minimum_Quantity",
+         Label => "prune minimum quantity",
+         Description => "", }
+
+</pruned>
+<shortest_paths>
+        { Value => "5",
+         Name => "K",
+         Label => "k",
+         Description => "", }
+
+        { Value => "5",
+         Name => "Max_Edges",
+         Label => "max edges",
+         Description => "", }
+
+</shortest_paths>
+    { Value => "Bacheler Dataset",
+     Name => "Output_Directory",
+     Label => "main output directory",
+     Description => "", }
+
+    { Value => "70",
+     Name => "Bootstrap_Threshold",
+     Label => "bootstrap threshold",
+     Description => "", }
+
+    { Value => "1",
+     Type => "check_box",
+     Name => "Aggregate",
+     Label => "aggregate",
+     Description => "", }
+
+    { Value => "2",
+     Type => "check_box",
+     Name => "Verbose",
+     Label => "verbosity",
+     Description => "", }
+
+    { Value => "-",
+     Name => "Gap_Character",
+     Label => "gap character",
+     Description => "", }
+
+    { Value => "markers.txt",
+     Name => "Markers_File_Input",
+     Label => "markers file",
+     Description => "", }
+
+    { Value => "DNA",
+     Name => "DNA_Directory",
+     Label => "DNA directory",
+     Description => "", }
