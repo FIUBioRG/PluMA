@@ -1,5 +1,9 @@
 Note: Some of these may be server-based
 
+SHAMAN
+AlienTrimmer
+Pear
+
 Seurat
 
 MM_GBSA
@@ -24,6 +28,7 @@ PanConFun, can't find
 Piggy, requires Roary, which doesn't currently work
 seq-seq-pan, requires snakemake, no standard installation available
 NGSPanPipe, another workflow with multiple commands, need time to learn
+
 
 
 MGMapper
