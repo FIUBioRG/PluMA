@@ -24,7 +24,7 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v2
     - name: Initialize CodeQL
-      uses: github/codeql-action/init@v1
+      uses: github/codeql-action/init@v2
       with:
         languages: ${{ matrix.language }}
     - name: Install Scons
@@ -38,18 +38,7 @@ jobs:
     - name: Install R packages
       run: sudo Rscript -e "install.packages('RInside', repos = 'https://cloud.r-project.org')" && echo "/usr/local/lib/R/site-library/RInside/lib" | sudo tee /etc/ld.so.conf.d/RInside.conf && sudo ldconfig
     - name: Autobuild
-      uses: github/codeql-action/autobuild@v1
-
-    # ℹ️ Command-line programs to run using the OS shell.
-    # 📚 https://git.io/JvXDl
-
-    # ✏️ If the Autobuild fails above, remove it and uncomment the following three lines
-    #    and modify them (or add more) to build your code if your project
-    #    uses a compiled language
-
-    #- run: |
-    #   make bootstrap
-    #   make release
+      uses: github/codeql-action/autobuild@v2
 
     - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v1
+      uses: github/codeql-action/analyze@v2
