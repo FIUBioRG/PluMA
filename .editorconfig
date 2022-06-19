@@ -17,3 +17,6 @@ indent_size = 4
 
 [.txt]
 insert_final_newline = false
+
+[.ymy]
+indent_size = 2

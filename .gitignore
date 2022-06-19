@@ -23,6 +23,7 @@ obj/
 out/
 .perlconfig.txt
 plugins/
+!plugins/.gitkeep
 !plugins/getPool.py
 !plugins/README
 logs/*
