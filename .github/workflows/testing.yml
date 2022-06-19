@@ -1,20 +1,26 @@
 name: PluMA Testing
 on:
-    push:
-        branches: [master, develop]
+  push:
+    branches: [master, develop]
 
 jobs:
-    testing:
-        runs-on: ubuntu-latest
-        steps:
-            - name: Checkout repository code
-              uses: actions/checkout@v2
+  testing:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout repository code
+        uses: actions/checkout@v2
 
-            - name: Build container
-              run: docker build -t pluma:latest .
+      - name: install dependencies
+        run: sudo apt-get install -y scons swig r-base perl python3-pip
 
-            - name: Download plugins
-              run: python3 ./Plugins.py download
+      - name: install R packages
+        run: sudo Rscript -e 'install.packages("r-inside")'
 
-            - name: Run tests
-              run: docker -v "$PWD/plugins":/app/plugins -v "$PWD/pipelines":/app/pipelines -v "$PWD/logs":/app/logs -t pluma:latest python3 ./testPluma.py
+      - name: install plugins
+        run: ./pluadmn download
+
+      - name: build applicaiton
+        run: scons
+
+      - name: run tests
+        run: python3 ./testPluMA.py

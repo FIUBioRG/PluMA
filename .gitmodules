@@ -1,3 +1,0 @@
-[submodule "src/cpp-subprocess"]
-	path = src/cpp-subprocess
-	url = https://github.com/tsaarni/cpp-subprocess

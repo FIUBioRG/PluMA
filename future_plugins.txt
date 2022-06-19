@@ -1,5 +1,36 @@
 Note: Some of these may be server-based
 
+SHAMAN
+AlienTrimmer
+Pear
+
+Seurat
+
+MM_GBSA
+NN_Rosetta
+
+Pangenome software->
+Roary (tries to read from nonexistent intermediate folders, have never been able to resolve this problem)
+GET_HOMOLOGUES, need to take time to learn R features
+ITEP, can't find
+PanOCT, missing Perl dependencies
+PGAP, missing CWL facilities
+PanViz, uses Javascript
+EUPAN, did not compile
+Panseq, missing Perl dependencies
+PanGet, missing Perl dependencies
+micropan, need to take time to learn R features
+DeNoGAP, missing Perl dependencies
+PanACEA, error while running
+PanCake, multiple dependent commands, missing some steps
+Panaconda, requires Python 2, last update 2017
+PanConFun, can't find
+Piggy, requires Roary, which doesn't currently work
+seq-seq-pan, requires snakemake, no standard installation available
+NGSPanPipe, another workflow with multiple commands, need time to learn
+
+
+
 MGMapper
 ORCA
 BioBoxes
@@ -51,7 +82,6 @@ Metscape
 +SOLpro
 +Expasy Protparam
 +RAMPAGE (Ramachandran)
-
 
 
 RAMMCAP
@@ -112,8 +142,6 @@ trimmomatic
 bbtols
 SEPP
 TIPP
-xDivNet
-xCORNCOB
 
 MaAsLin2 
 
@@ -124,26 +152,18 @@ Jasper
 AMBER
 
 Machine Learning
-xRNN
 BERT
 * CAE (Concrete Autoencoder) (ERRORS)
 DEG
-xSVM
-xRBM
 Logistic Regression
-xGMM
-xHMM
-xDNN 
 VAE (ERRORS)
 GAN
 KNN (K-Nearest Neighbor)
 DT
 CRF
 
-
 FATCAT
 ProtoMol
-
 
 Docker/CUDA
 https://github.com/NVIDIA/nvidia-docker
@@ -182,11 +202,9 @@ CGDBN
 2TDBN
 
 See (giriemail)
-MDS
 SOM
 Monocle2
 GTMLLE
-PHATE
 Sammon
 Splatter Paths
 Isomap
@@ -195,8 +213,6 @@ viSNE
 Orthovenn [Current Bug: Hanging]
 
 Pipelines
-WGS
-T2D
 Bubble Chart
 Overlap Tests (DB and SW)
 
@@ -206,7 +222,6 @@ Survival Analysis
 
 CLC Genomics
 SMRT Portal
-MAUVE
 
 Rust-Bio functions (cf. Koster et al, 2015)
 Rosalind Bioinformatics Collection
@@ -221,6 +236,7 @@ MANIEA (when released)
 MENA pipeline (MENAP)
 https://cran.r-project.org/web/packages/pcalg/index.html  (Causality algorithms)
 
+RFE (Recursive Feature Elimination)
 GGTREE
 JALVIEW
 YULAB-SMU.TOP/TREEDATA-BOOK/
@@ -234,12 +250,11 @@ LipdMatch
 LipdPrimer
 Vitalli MM pipeline
 FLIPPER
-PRINSEQ
+PRINSEQ -> Cannot install, dated version of Cairo
 MEtaxa2
 CARD
 RGPs
 PanSeq
-Spine
 AGEnt
 SIGI-HMM
 PAI-IDA

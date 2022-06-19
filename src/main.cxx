@@ -48,7 +48,6 @@
 #include <vector>
 
 #include "PluMA.hxx"
-#include "cpp-subprocess/include/subprocess.hpp"
 #include "utils.hxx"
 #include "Plugin.h"
 #include "PluginProxy.h"
@@ -89,7 +88,6 @@ static char args_doc[] = "[CONFIGURATION FILE] [OPTIONAL: RESTART POINT]";
  */
 static struct argp_option options[] = {
     {"verbose", 'v', 0, 0, "Produce verbose output"},
-    {"install", 'i', 0, 0, "Install dependencies and compile C++/CUDA plugins in the PLUMA_PLUGINS_PATH (default: '$(pwd)/plugins')"},
     {"plugins", 'p', 0, 0, "Prints a list of currently installed plugins in PLUMA_PLUGINS_PATH"},
     { 0 }
 };
@@ -123,10 +121,6 @@ static error_t parse_opt(int key, char* arg, struct argp_state *state) {
     switch(key) {
         case 'v':
             arguments->verbose = 1;
-            break;
-
-        case 'i':
-            arguments->action = PLUMA_MAIN_ACTIONS::ACTION_INSTALL_DEPENDENCIES;
             break;
 
         case 'p':
@@ -220,14 +214,6 @@ int main(int argc, char** argv) {
     PluginManager::supportedLanguages(pluma.pluginpath, argc, argv);
 
     switch(arguments.action) {
-        // Install dependencies for all plugins
-        case PLUMA_MAIN_ACTIONS::ACTION_INSTALL_DEPENDENCIES:
-            pluma.search();
-            pluma.install();
-
-            exit(EXIT_SUCCESS);
-            break;
-
         // Print a list of installed plugins
         case PLUMA_MAIN_ACTIONS::ACTION_PRINT_PLUGINS:
             // for(auto const& path: paths) {

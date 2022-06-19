@@ -295,6 +295,7 @@ else:
 
             config.env.AppendUnique(
                 CXXFLAGS=[
+                    "-fno-gnu-unique",
                     "-fpermissive",
                     "-fopenmp",
                     "--param=ssp-buffer-size=4",

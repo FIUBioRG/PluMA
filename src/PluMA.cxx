@@ -46,7 +46,6 @@
 #include <filesystem>
 
 #include "PluginManager.h"
-#include "cpp-subprocess/include/subprocess.hpp"
 #include "utils.hxx"
 
 using namespace std;
@@ -173,108 +172,5 @@ void PluMA::read_config(char *inputfile, string prefix, bool doRestart, char *re
                 exit(EXIT_FAILURE);
             }
         }
-    }
-}
-
-void PluMA::search() {
-    vector<string> paths = utils::split(pluginpath, ":");
-
-    for (auto const &path : paths) {
-        std::cout << "Searching for plugin dependency files in " << path << std::endl;
-
-        for (auto p : fs::directory_iterator(path)) {
-
-            string fp = p.path().string();
-            string name = fp.substr(fp.find_last_of("/") + 1, fp.length());
-
-#ifdef HAVE_PYTHON
-            fs::path requirements_python = fs::path(fp + PATH_SEPARATOR+ "requirements.txt");
-
-            if (fs::exists(requirements_python)) {
-                python_deps->insert({name, requirements_python});
-            }
-#endif
-
-#ifdef HAVE_PERL
-            fs::path requirements_perl = fs::path(fp + PATH_SEPARATOR + "requirements.pl");
-
-            if (fs::exists(requirements_perl)) {
-                perl_deps->insert({name, requirements_perl});
-            }
-#endif
-            fs::path sconstruct = fs::path(fp + PATH_SEPARATOR + "SConstruct");
-
-            if (fs::exists(sconstruct)) {
-                buildfiles->insert({name, sconstruct});
-            }
-#if __linux__
-            /*
-             * Check for Linux (Ubuntu) dependencies.
-             * These dependencies should be `sh` compatable`
-             */
-            fs::path requirements_sh = fs::path(fp + PATH_SEPARATOR + "requirements.sh");
-
-            if (fs::exists(requirements_sh)) {
-                linux_deps->insert({name, requirements_sh});
-            }
-#elif __APPLE__
-            /*
-             * Check for macOS (Brew) dependencies.
-             * These dependencies should be Bourne Shell/Z-shell compatible
-             * and should use the Brew package manager for installation
-             * or relevent command-line inputs
-             */
-            if (fs::exists(fp + "requirements-macos.sh")) {
-                macos_deps->insert({name, fp + "requirements-macos.sh"});
-            }
-#elif defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__) || defined(_WIN64)
-            /*
-             * Check for Windows batch files to install dependencies.
-             * @TODO: Make work correctly with Windows
-             */
-            if (fs::exists(fp + "requirements.bat")) {
-                windows_deps->insert({name, fp + "requirements.bat"});
-            }
-#endif
-        }
-    }
-}
-
-/**
- * Install libraries and dependencies for a given platform.
- *
- * @since v2.1.0
- */
-void PluMA::install() {
-#ifdef HAVE_PYTHON
-    if (!python_deps->empty()) {
-        vector<string> args = {"install", "--no-input", "-r"};
-        _install("Python", "Dependencies", "pip", &args, python_deps);
-    }
-#endif
-
-#ifdef HAVE_PERL
-    if (!perl_deps->empty()) {
-        vector<string> args = {};
-        _install("Perl", "Dependencies", "perl", &args, perl_deps);
-    }
-#endif
-#if __linux__
-    if (!linux_deps->empty()) {
-        vector<string> args = {};
-        _install("Linux", "Dependencies", "sh", &args, linux_deps);
-    }
-#elif __APPLE__
-    if (!macos_deps->empty()) {
-        vector<string> args = {};
-        _install("MacOS", "Dependencies", "zsh" < &args, macos_deps);
-    }
-#elif defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__) || defined(_WIN64)
-    // @TODO:
-#endif
-
-    if (!buildfiles->empty()) {
-        vector<string> args = {"-f"};
-        _install("Library", "Buildfiles", "scons", &args, buildfiles);
     }
 }
