@@ -79,5 +79,5 @@ public:
 private:
     string plugin_path;
     map<string, fs::path> *buildfiles;
-}
+};
 #endif

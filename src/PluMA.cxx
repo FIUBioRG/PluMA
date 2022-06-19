@@ -52,21 +52,6 @@ using namespace std;
 namespace fs = std::filesystem;
 
 PluMA::PluMA() {
-#ifdef HAVE_PYTHON
-    python_deps = new map<string, fs::path>();
-#endif
-#ifdef HAVE_PERL
-    perl_deps = new map<string, fs::path>();
-#endif
-    buildfiles = new map<string, fs::path>();
-#if __linux__
-    linux_deps = new map<string, fs::path>();
-#elif __APPLE__
-    macos_deps = map<string, fs::path>();
-#elif #elif defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__) || defined(_WIN64)
-    windows_deps = new map<string, fs::path>();
-#endif
-
     pluginpath = string(getenv("PWD")) + "/plugins/";
     if (getenv("PLUMA_PLUGIN_PATH") != NULL) {
         pluginpath += ":" + string(getenv("PLUMA_PLUGIN_PATH"));

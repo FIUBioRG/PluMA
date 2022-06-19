@@ -2,7 +2,7 @@
 '''Module for downloading, updating, and checking plugins from the public PluMA plugin pool'''
 import os
 from os import path, listdir
-from path import isdir, isfile, join
+from os.path import isdir, isfile, join
 import subprocess
 import sys
 import argparse

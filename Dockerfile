@@ -19,9 +19,7 @@ ADD https://cloud.r-project.org/bin/linux/ubuntu/marutter_pubkey.asc /etc/apt/tr
 
 RUN rm -f /etc/apt/apt.conf.d/docker-clean; echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
 
-RUN --mount=type=cache,target=/var/cache/apt --mount=type=cache,target=/var/lib/apt --mount=type=cache,target=/usr/lib/R/site-library \
-  --mount=type=cache,target=/usr/lib/python3/dist-packages \
-  chmod 755 /etc/apt/trusted.gpg.d/cran_ubuntu_key.asc \
+RUN chmod 755 /etc/apt/trusted.gpg.d/cran_ubuntu_key.asc \
   && apt-get update -qq \
   && apt-get install -y --no-install-recommends \
     build-essential \
