@@ -74,6 +74,7 @@ void readConfig(char* inputfile, std::string prefix, bool doRestart, std::string
         * Plugin (Name) inputfile (input file) outputfile (output file)
         */
         infile >> junk;
+	//std::cout << "JUNK: " << junk << std::endl;
         if (junk[0] == '#') {
             // the line is a comment
             getline(infile, junk);

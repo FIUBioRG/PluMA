@@ -41,6 +41,8 @@ def printout(text, colour=WHITE):
 #import urllib2
 response = urllib.request.urlopen("http://biorg.cis.fiu.edu/pluma/plugins.html")
 page_source = str(response.read())
+#print(page_source)
+
 
 pool = set()
 local = set()
@@ -48,10 +50,10 @@ normalprintout("************************************", GREEN)
 print("")
 normalprintout("PLUGIN COUNTS:", GREEN)
 print("")
+websites =set()
 # Plugin Table
 while (page_source.find("</table>") != -1):
  plugin_table = page_source[page_source.find("<table "):page_source.find("</table>")]
- # Individual Plugins
  plugins = plugin_table.split("<tr>")
  count=0
  for plugin in plugins:
@@ -59,19 +61,52 @@ while (page_source.find("</table>") != -1):
    content = plugin[plugin.find("<a href="):plugin.find("</a>")]
    content = content.replace('<a href=', '')
    data = content.split('>')
-   if (len(data) == 2):
-      pool.add(data[1])
-      count += 1
+   websites.add(data[0][1:len(data[0])-1])
+   plugin = plugin[plugin.find("</a>")+1:]
+   #if (len(data) == 2):
+      #print(data[0])
+      #pool.add(data[1])
+      #count += 1
       #if (os.path.exists(data[1])):
       #   print("Plugin "+data[1]+" already installed.")
       #else:
       #   repo = data[0][1:len(data[0])-1] # Remove quotes
          #os.system("git clone "+repo)
-   plugin = plugin[plugin.find("</a>")+1:]
- normalprintout(str(count)+" ", GREEN)
- #print(count,end=" ")
- 
+
+   #normalprintout(str(count)+" ", GREEN)
+   #print(count,end=" ")
  page_source = page_source[page_source.find("</table>")+1:]
+
+count=0
+for website in websites:
+  localcount = 0
+  response = urllib.request.urlopen("http://biorg.cis.fiu.edu/pluma/"+website)
+  page_source = str(response.read())
+  while (page_source.find("</table>") != -1):
+    plugin_table = page_source[page_source.find("<table "):page_source.find("</table>")]
+    # Individual Plugins
+    plugins = plugin_table.split("<tr>")
+    for plugin in plugins:
+     while(plugin.find("</a>") != -1):
+      content = plugin[plugin.find("<a href="):plugin.find("</a>")]
+      content = content.replace('<a href=', '')
+      data = content.split('>')
+      if (len(data) == 2):
+         pool.add(data[1])
+         count += 1
+         localcount += 1
+         #if (os.path.exists(data[1])):
+         #   print("Plugin "+data[1]+" already installed.")
+         #else:
+         #   repo = data[0][1:len(data[0])-1] # Remove quotes
+      #os.system("git clone "+repo)
+      plugin = plugin[plugin.find("</a>")+1:]
+
+      #normalprintout(str(count)+" ", GREEN)
+      #print(count,end=" ")
+
+    page_source = page_source[page_source.find("</table>")+1:]
+  normalprintout(website+"\t["+str(localcount)+"]\n", GREEN)
 
 if (len(sys.argv) > 1):
    plugins = [sys.argv[1]]
@@ -81,7 +116,7 @@ else:
 for plugin in plugins:
    local.add(plugin)
 
-normalprintout("\nTOTAL="+str(len(pool)), RED)
+normalprintout("\nTOTAL\t["+str(len(pool))+"]\n", RED)
 print("")
 normalprintout("************************************", GREEN)
 print("")
