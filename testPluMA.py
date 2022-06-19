@@ -152,12 +152,14 @@ turnedoff = {#'SparCC':'',
              'FASTQ2QZA':'Qiime2 binary files not unique per input file set',
              'Qiime2Viz':'Qiime2 binary files not unique per input file set',
              'Qiime2DADA2':'Qiime2 binary files not unique per input file set',
+             'Qiime2Filter':'Qiime2 binary files not unique per input file set',
              'QualityFilter':'Qiime2 binary files not unique per input file set',
              'FASTA2QZA':'Qiime2 binary files not unique per input file set',
              'VSearch':'Qiime2 binary files not unique per input file set',
              'FeatureClassify':'Qiime2 binary files not unique per input file set',
              'PlotAlphaDiversity':'Random number inconsistency',
              'PlotBetaDiversity3D':'Random number inconsistency',
+             'GetKraken':'Will change with every database update',
              'CNN':'Random number inconsistency',
              'Mothur':'Random number inconsistency',
              'SCIMM':'Random number inconsistency',
@@ -179,6 +181,7 @@ turnedoff = {#'SparCC':'',
              'IDBA':'Random number inconsistency',
              'MegaHit':'Random number inconsistency',
              'WikiPathway':'Changes with every database update',
+             'STRING':'Changes with every database update',
              'Caffe':'Requires BVLC database installation, and agreement to license',
              'SIMLR':'Requires machine-dependent compilation of projsplx_R.so' 
            }
@@ -288,6 +291,7 @@ for plugin in plugins:
                      result = filecmp.cmp(outputfile, expected) # Compare expected and actual output
                      if (not result):
                         if (os.path.exists("plugins/"+plugin+"/example/test.py")): # Own test
+                           print("RUNNING OWN TEST")
                            exec(open("plugins/"+plugin+"/example/test.py").read())
                            result = test(outputfile, expected)
                            if (not result):
@@ -317,6 +321,7 @@ for plugin in plugins:
                     numfail += 1
 
            else:
+              anyfail = False
               expected = "plugins/"+plugin+"/example/screen.expected"
               if (not os.path.exists(expected)):
                  warn("No expected output present")
@@ -325,15 +330,27 @@ for plugin in plugins:
                      os.system("./pluma plugins/"+plugin+"/example/config.txt > plugins/"+plugin+"/example/pluma_output.txt 2>/dev/null") # Run PluMA
                      result = filecmp.cmp(outputfile, expected) # Compare expected and actual output
                      if (not result):
+                      if (os.path.exists("plugins/"+plugin+"/example/test.py")): # Own test
+                           print("RUNNING OWN TEST")
+                           exec(open("plugins/"+plugin+"/example/test.py").read())
+                           result = test(outputfile, expected)
+                           if (not result):
+                              err("Output "+outputfile+" does not match expected, see example/diff_output.txt")
+                              anyfail = True
+                      else:
                         err("Output does not match expected, see example/diff_output.txt")
                         #print outputfile, expected
                         if (expected.endswith(".gz.expected")):
                           os.system("zdiff "+outputfile+" "+expected+" > plugins/"+plugin+"/example/diff_output.txt")  # Run diff
                         else:
                           os.system("diff <(sort "+outputfile+") <(sort "+expected+") > plugins/"+plugin+"/example/diff_output.txt")  # Run diff
-                        numfail += 1
-                     else:
-                        passed()
+                        anyfail = True
+
+              if (not anyfail):
+                    passed()
+              else:
+                    numfail += 1
+
 
 if (numpass + numfail != 0):
    passrate = numpass / float(numpass+numfail) * 100
