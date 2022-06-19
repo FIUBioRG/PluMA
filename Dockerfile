@@ -43,6 +43,7 @@ RUN --mount=type=cache,target=/var/cache/apt --mount=type=cache,target=/var/lib/
     scons \
     software-properties-common \
     swig \
+    sudo \
   && add-apt-repository "deb https://cloud.r-project.org/bin/linux/ubuntu $(lsb_release -cs)-cran40/" \
   && apt-get update -qq \
   && apt-get install -y --no-install-recommends r-base \
@@ -52,7 +53,12 @@ RUN --mount=type=cache,target=/var/cache/apt --mount=type=cache,target=/var/lib/
   && scons \
   && apt-get clean \
   && ldconfig \
-  && update-java-alternatives --auto
+  && update-java-alternatives --auto \
+  && useradd -d /app -M pluma \
+  && echo "pluma ALL=(ALL:ALL) ALL" > /etc/sudoers.d/pluma \
+  && chown -R pluma /app
+
+USER pluma
 
 VOLUME ["/app/plugins"]
 VOLUME ["/app/pipelines"]

@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 '''Module for downloading, updating, and checking plugins from the public PluMA plugin pool'''
 import os
-from os import path
+from os import path, listdir
+from path import isdir, isfile, join
+import subprocess
 import sys
 import argparse
 from urllib import request
@@ -139,9 +141,27 @@ def check_plugins(name = None):
         os.system("cd ..")
     normalprintout("************************************\n", YELLOW)
 
-def install_deps(name = None):
-    print("Coming Soon!")
+def install_deps(dirPath, name = None):
+    plugins = [f for f in listdir(dirPath) if isdir(path.join(dirPath, f))]
 
+    for plugin in plugins:
+        plugin = join(dirPath, plugin)
+
+        # Ubuntu requirements
+        if isfile(join(plugin, "requirements.sh")):
+            subprocess.run(["sh", join(plugin, "requirements.sh")])
+
+        # Python requirements
+        if isfile(join(plugin, "requirements.txt")):
+            subprocess.run(["pip", "install", "-r", join(plugin, "requirements.txt")])
+
+        # Build a plugin with an scons Sconstruct present
+        if isfile(join(plugin, "Sconstruct")):
+            subprocess.run(["scons", "-f", join(plugin, "Sconstruct")])
+
+        # Build a plugin with a GNU Makefile present
+        if isfile(join(plugins, "Makefile")):
+            subprocess.run(["make", "-f", join(plugin, "Makefile")])
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Perform administrative actions on the local PluMA installation, such as installing plugins, checking plugins, and installing dependencies")
@@ -161,6 +181,6 @@ if __name__ == "__main__":
     elif args.action == "download":
         download_plugins()
     elif args.action == "install-deps":
-        install_deps(args.pluginName)
+        install_deps(args.dirPath, args.pluginName)
     else:
         exit(1)
