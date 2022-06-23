@@ -148,7 +148,7 @@ def localplugin(msg):
 #turnedoff = {}
 turnedoff = {#'SparCC':'',
              #'Ensemble':'',
-             'MetaPhlAn3':'Shotgun sequences are too large, also requires database'
+             'MetaPhlAn3':'Shotgun sequences are too large, also requires database',
              'Deblur':'Qiime2 binary files not unique per input file set',
              'FASTQ2QZA':'Qiime2 binary files not unique per input file set',
              'Qiime2Viz':'Qiime2 binary files not unique per input file set',
