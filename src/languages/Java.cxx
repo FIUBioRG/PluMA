@@ -45,6 +45,56 @@ void Java::executePlugin(
     std::string outputname
 ) {
 #ifdef HAVE_JAVA
+    PluginManager::getInstance().log("Trying to run Java plugin: " + pluginname + ".");
+
+    JavaVM* jvm;
+    JNIEnv* env;
+    JavaVMInitArgs vm_args;
+    JavaVMOption* options = new JavaVMOption[1];
+    vm_args.version = JNI_VERSION_1_6;
+    vm_args.nOptions = 0;
+    vm_args.options = options;
+    vm_args.ignoreUnrecognized = true;
+    int res = JNI_CreateJavaVM(&jvm, (void**) &env, &vm_args);
+    if (res != JNI_OK) {
+        PluginManager::getInstance().log("Failed to load JNI.");
+        throw new runtime_exception("Failed to load JNI.");
+    }
+    delete options;
+
+    //
+    jclass clazz = env->FindClass(pluginname + "/" + pluginname);
+
+    if (clazz == NULL) {
+        throw new runtime_exception("Failed to load Java class " + pluginname);
+    }
+
+    jmethodID input = env->GetStaticMethodID(clazz, "input", "public static void input(java.lang.String);");
+
+    if (input == NULL) {
+        throw new runtime_exception("Failed to load input static method from Java plugin" + pluginname);
+    }
+
+    env->CallStaticVoidMethod(clazz, input, "public static void output(java.lang.String);
+");
+
+    jmethodID output = env->GetStaticMethodID(clazz, "output", outputname);
+
+    if (output == NULL) {
+        throw new runtime_exception("Failed to load output static method from Java plugin" + pluginname);
+    }
+
+    env->CallStaticVoidMethod(clazz, output, outputname);
+
+    jmethodID run = env->GetStaticMethodID(clazz, "run", "public static void run();")
+
+    if (run == NULL) {
+        throw new runtime_exception("Failed to load run static method from Java plugin" + pluginname);
+    }
+
+    env->CallStaticVoidMethod(clazz, run);
+
+    jvm->DestroyJavaVM();
 #endif
 }
 
