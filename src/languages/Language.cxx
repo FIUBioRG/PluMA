@@ -30,7 +30,7 @@
 
 \*********************************************************************************/
 
-#include "Language.h"
+#include "Language.hxx"
 
 void Language::loadPlugin(
     std::string path,

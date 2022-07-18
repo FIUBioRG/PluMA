@@ -31,7 +31,7 @@
 \*********************************************************************************/
 
 
-#include "Perl.h"
+#include "Perl.hxx"
 #include "../PluginManager.h"
 
 #ifdef HAVE_PERL

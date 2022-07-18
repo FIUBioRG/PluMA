@@ -30,32 +30,22 @@
 
 \*********************************************************************************/
 
+#ifndef PLUGINGENERATOR_H
+#define PLUGINGENERATOR_H
 
-#ifndef RR_H
-#define RR_H
-
-#include "RInside.h"
-#include "Rinterface.h"
-#include "Language.h"
-#include <vector>
 #include <string>
+#include <vector>
 
-// @TODO: Change to PluMA namespace?
-namespace MiAMi {
+class PluginGenerator {
+public:
+    PluginGenerator(std::string, bool literal);
+    void generate(std::string, std::vector<std::string>&);
+private:
+    void makeDirectory(std::string);
+    void makeHeaderFile(std::string);
+    void makeSourceFile(std::string, std::vector<std::string>&);
 
-    class R : public Language {
-    public:
-        R(std::string language, std::string ext, std::string pp, int argc, char** argv);
-        void executePlugin(std::string pluginname, std::string inputname, std::string outputname);
-        void unload();
-        void load();
-        void installDependencies(std::vector<std::string> dependencies);
-
-    private:
-        RInside* myR;
-        int argc;
-        char** argv;
-        void installDependency(std::string &dependency);
-    };
-}
+    std::string myPath;
+    bool myLiteral;
+};
 #endif

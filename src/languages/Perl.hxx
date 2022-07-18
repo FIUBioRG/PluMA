@@ -33,7 +33,7 @@
 #ifndef PERL_H
 #define PERL_H
 
-#include "Language.h"
+#include "Language.hxx"
 
 class Perl : public Language {
 public:

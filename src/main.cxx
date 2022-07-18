@@ -36,21 +36,29 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <sys/socket.h>
+#include <sys/un.h>
 
 #include <algorithm>
 #include <cctype>
 #include <ctime>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <map>
+#include <mutex>
 #include <sstream>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "PluMA.hxx"
 #include "utils.hxx"
 #include "Plugin.h"
 #include "PluginProxy.h"
+
+using namespace std;
+namespace filesystem = std::filesystem;
 
 /**
  * Actions the PluMA application can take.
@@ -130,7 +138,7 @@ static error_t parse_opt(int key, char* arg, struct argp_state *state) {
         case ARGP_KEY_ARG:
             if(state->arg_num >= 2) {
                 // Too many arguments
-                std::cerr << "Too many arguments specified." << std::endl;
+                cerr << "Too many arguments specified." << endl;
                 argp_usage(state);
             }
             if (state->arg_num == 0) {
@@ -167,31 +175,124 @@ static struct argp argp = { options, parse_opt, args_doc, doc };
 void print_banner() {
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Display opening screen.
-    std::cout << "***********************************************************************************" << std::endl;
-    std::cout << "*                                                                                 *" << std::endl;
-    std::cout << "*  PPPPPPPPPPPP    L               U           U   M           M         A        *" << std::endl;
-    std::cout << "*  P           P   L               U           U   MM         MM        A A       *" << std::endl;
-    std::cout << "*  P           P   L               U           U   M M       M M       A   A      *" << std::endl;
-    std::cout << "*  P           P   L               U           U   M  M     M  M      A     A     *" << std::endl;
-    std::cout << "*  P           P   L               U           U   M   M   M   M     A       A    *" << std::endl;
-    std::cout << "*  PPPPPPPPPPPP    L               U           U   M    M M    M    A         A   *" << std::endl;
-    std::cout << "*  P               L               U           U   M     M     M   AAAAAAAAAAAAA  *" << std::endl;
-    std::cout << "*  P               L               U           U   M           M   A           A  *" << std::endl;
-    std::cout << "*  P               L               U           U   M           M   A           A  *" << std::endl;
-    std::cout << "*  P               LLLLLLLLLLLLL    UUUUUUUUUUU    M           M   A           A  *" << std::endl;
-    std::cout << "*                                                                                 *" << std::endl;
-    std::cout << "*            [Plu]gin-based [M]icrobiome [A]nalysis (formerly MiAMi)              *" << std::endl;
-    std::cout << "*                          (C) 2016, 2018, 2019-2021                              *" << std::endl;
-    std::cout << "*          Bioinformatics Research Group, Florida International University        *" << std::endl;
-    std::cout << "*    Under MIT License From Open Source Initiative (OSI), All Rights Reserved.    *" << std::endl;
-    std::cout << "*                                                                                 *" << std::endl;
-    std::cout << "*    Any professionally published work using PluMA should cite the following:     *" << std::endl;
-    std::cout << "*                        T. Cickovski and G. Narasimhan.                          *" << std::endl;
-    std::cout << "*                Constructing Lightweight and Flexible Pipelines                  *" << std::endl;
-    std::cout << "*                 Using Plugin-Based Microbiome Analysis (PluMA)                  *" << std::endl;
-    std::cout << "*                     Bioinformatics 34(17):2881-2888, 2018                       *" << std::endl;
-    std::cout << "*                                                                                 *" << std::endl;
-    std::cout << "***********************************************************************************" << std::endl;
+    cout << "***********************************************************************************" << endl;
+    cout << "*                                                                                 *" << endl;
+    cout << "*  PPPPPPPPPPPP    L               U           U   M           M         A        *" << endl;
+    cout << "*  P           P   L               U           U   MM         MM        A A       *" << endl;
+    cout << "*  P           P   L               U           U   M M       M M       A   A      *" << endl;
+    cout << "*  P           P   L               U           U   M  M     M  M      A     A     *" << endl;
+    cout << "*  P           P   L               U           U   M   M   M   M     A       A    *" << endl;
+    cout << "*  PPPPPPPPPPPP    L               U           U   M    M M    M    A         A   *" << endl;
+    cout << "*  P               L               U           U   M     M     M   AAAAAAAAAAAAA  *" << endl;
+    cout << "*  P               L               U           U   M           M   A           A  *" << endl;
+    cout << "*  P               L               U           U   M           M   A           A  *" << endl;
+    cout << "*  P               LLLLLLLLLLLLL    UUUUUUUUUUU    M           M   A           A  *" << endl;
+    cout << "*                                                                                 *" << endl;
+    cout << "*            [Plu]gin-based [M]icrobiome [A]nalysis (formerly MiAMi)              *" << endl;
+    cout << "*                          (C) 2016, 2018, 2019-2021                              *" << endl;
+    cout << "*          Bioinformatics Research Group, Florida International University        *" << endl;
+    cout << "*    Under MIT License From Open Source Initiative (OSI), All Rights Reserved.    *" << endl;
+    cout << "*                                                                                 *" << endl;
+    cout << "*    Any professionally published work using PluMA should cite the following:     *" << endl;
+    cout << "*                        T. Cickovski and G. Narasimhan.                          *" << endl;
+    cout << "*                Constructing Lightweight and Flexible Pipelines                  *" << endl;
+    cout << "*                 Using Plugin-Based Microbiome Analysis (PluMA)                  *" << endl;
+    cout << "*                     Bioinformatics 34(17):2881-2888, 2018                       *" << endl;
+    cout << "*                                                                                 *" << endl;
+    cout << "***********************************************************************************" << endl;
+}
+
+mutex mtx;
+
+/**
+ * Parse single options.
+ *
+ * @since v2.2.0
+ */
+void healthcheck(bool &do_run)
+{
+    int data_socket;
+
+    string socket_name = "/tmp/pluma.socket";
+
+    int health_socket = socket(AF_UNIX, SOCK_STREAM, 0);
+
+    if (health_socket == -1)
+    {
+        throw runtime_error("Unable to create health socket");
+    }
+
+    struct sockaddr_un name;
+
+    memset(&name, 0, sizeof(name));
+
+    name.sun_family = AF_UNIX;
+    strncpy(name.sun_path, socket_name.c_str(), sizeof(name.sun_path) - 1);
+
+    int ret = bind(health_socket, (struct sockaddr *) &name, sizeof(name));
+
+    if (ret == -1)
+    {
+        throw runtime_error("Failed to bind health socket");
+    }
+
+    ret = listen(health_socket, 20);
+
+    if (ret == -1)
+    {
+        throw runtime_error("Failed to open listening on health socket");
+    }
+
+    for (;;)
+    {
+        mtx.lock();
+        if (do_run == false)
+        {
+            mtx.unlock();
+            break;
+        }
+        mtx.unlock();
+        char buffer[1024];
+        data_socket = accept(health_socket, NULL, NULL);
+
+        if (data_socket == -1)
+        {
+            throw runtime_error("Failed to accept connections on health socket");
+        }
+
+        while (true)
+        {
+            ret = read(data_socket, buffer, sizeof(buffer));
+
+            if (ret == -1)
+            {
+                throw runtime_error("Unable to read from health socket");
+            }
+
+            if (!strncmp(buffer, "GET", sizeof(buffer)))
+            {
+                break;
+            }
+        }
+
+        time_t now = time(0);
+
+        char *time = ctime(&now);
+
+        string res = "HTTP/1.1 200 Ok\nDate: " ;
+        res += time;
+        res += "\nContent-Length: 0\n";
+
+        ret = write(data_socket, res.c_str(), sizeof(res.c_str()));
+
+        if (ret == -1)
+        {
+            throw runtime_error("Failed to write to socket");
+        }
+    }
+
+    close(health_socket);
+    unlink(socket_name.c_str());
 }
 
 int main(int argc, char** argv) {
@@ -216,23 +317,22 @@ int main(int argc, char** argv) {
     switch(arguments.action) {
         // Print a list of installed plugins
         case PLUMA_MAIN_ACTIONS::ACTION_PRINT_PLUGINS:
-            // for(auto const& path: paths) {
             for (auto const& path: utils::split(pluma.pluginpath, ":")) {
-                std::cout << "Currently installed plugins in " << path << ":" << std::endl;
+                cout << "Currently installed plugins in " << path << ":" << endl;
 
-                std::vector<std::string> plugins;
+                vector<string> plugins;
 
-                for (auto const& plugin: std::filesystem::directory_iterator(path)) {
+                for (auto const& plugin: filesystem::directory_iterator(path)) {
                     if (plugin.is_directory()) {
-                        std::string p = plugin.path();
+                        string p = plugin.path();
                         plugins.push_back(p.substr(p.find_last_of("/") + 1, p.length()));
                     }
                 }
 
-                std::sort(plugins.begin(), plugins.end());
+                sort(plugins.begin(), plugins.end());
 
                 for (auto const &plugin : plugins) {
-                    std::cout << "    " << plugin << std::endl;
+                    cout << "    " << plugin << endl;
                 }
             }
             exit(EXIT_SUCCESS);
@@ -241,41 +341,58 @@ int main(int argc, char** argv) {
         // Follow normal execution
         case PLUMA_MAIN_ACTIONS::ACTION_PIPELINE:
         default:
-            glob_t globbuf;
-            auto paths = utils::split(pluma.pluginpath, ":");
+            try {
+                bool do_run = true;
+                glob_t globbuf;
+                auto paths = utils::split(pluma.pluginpath, ":");
 
-            for (auto const& path: paths) {
-                for (unsigned int i = 0; i < PluginManager::supported.size(); i++) {
-                    PluginManager::supported[i]->loadPlugin(path, &globbuf, &(PluginManager::getInstance().pluginLanguages));
+                thread health_thread(healthcheck, ref(do_run));
+
+                health_thread.detach();
+
+                for (auto const &path : paths)
+                {
+                    for (unsigned int i = 0; i < PluginManager::supported.size(); i++)
+                    {
+                        PluginManager::supported[i]->loadPlugin(path, &globbuf, &(PluginManager::getInstance().pluginLanguages));
+                    }
+
+                    for (auto const &itr : PluginManager::getInstance().pluginLanguages)
+                    {
+                        PluginManager::getInstance().add(itr.first.substr(0, itr.first.length() - 6));
+                    }
                 }
 
-                for (auto const& itr : PluginManager::getInstance().pluginLanguages) {
-                    PluginManager::getInstance().add(itr.first.substr(0, itr.first.length() - 6));
+                time_t t = time(0);
+                struct tm *now = localtime(&t);
+
+                string currentTime = to_string(now->tm_year + 1900) + "-" +
+                                     to_string(now->tm_mon + 1) + "-" + to_string(now->tm_mday) +
+                                     "@" + to_string(now->tm_hour) + ":" + to_string(now->tm_min) +
+                                     ":" + to_string(now->tm_sec);
+
+                string logfile = "logs/" + currentTime + ".log.txt";
+
+                PluginManager::getInstance().setLogFile(logfile);
+
+                pluma.read_config(arguments.config_file, "", arguments.do_restart, arguments.restart_point);
+
+                // Clean up
+                for (unsigned int i = 0; i < PluginManager::supported.size(); i++)
+                {
+                    PluginManager::supported[i]->unload();
                 }
+
+                mtx.lock();
+                do_run = false;
+                mtx.unlock();
+
+                // El Finito!
+                exit(EXIT_SUCCESS);
+            } catch (const exception& e) {
+                cerr << e.what() << endl;
+                unlink("/tmp/pluma.socket");
+                exit(EXIT_FAILURE);
             }
-
-            time_t t = time(0);
-            struct tm *now = localtime(&t);
-
-            std::string currentTime = std::to_string(now->tm_year + 1900) + "-" +
-                std::to_string(now->tm_mon + 1) + "-" + std::to_string(now->tm_mday) +
-                "@" + std::to_string(now->tm_hour) + ":" + std::to_string(now->tm_min) +
-                ":" + std::to_string(now->tm_sec);
-
-            std::string logfile = "logs/" + currentTime + ".log.txt";
-
-            PluginManager::getInstance().setLogFile(logfile);
-
-            pluma.read_config(arguments.config_file, "", arguments.do_restart, arguments.restart_point);
-
-            // readConfig(arguments.config_file, "", arguments.do_restart, arguments.restart_point);
-
-            // Clean up
-            for (unsigned int i = 0; i < PluginManager::supported.size(); i++) {
-                PluginManager::supported[i]->unload();
-            }
-            // El Finito!
-            exit(EXIT_SUCCESS);
-            break;
     }
 }

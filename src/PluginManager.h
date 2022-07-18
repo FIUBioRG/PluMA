@@ -43,11 +43,11 @@
 #include <string>
 #include <vector>
 
-#include "PluginMaker.h"
-#include "languages/Compiled.h"
-#include "languages/Perl.h"
-#include "languages/Py.h"
-#include "languages/R.h"
+#include "PluginMaker.hxx"
+#include "languages/Compiled.hxx"
+#include "languages/Perl.hxx"
+#include "languages/Py.hxx"
+#include "languages/R.hxx"
 
 class PluginManager {
 public:
@@ -116,8 +116,12 @@ public:
         supported.push_back(new Compiled("C", "so", pluginpath, "lib"));
 #endif
         supported.push_back(new Py("Python", "py", pluginpath));
+#ifdef HAVE_R
         supported.push_back(new MiAMi::R("R", "R", pluginpath, argc, argv));
+#endif
+#ifdef HAVE_PERL
         supported.push_back(new Perl("Perl", "pl", pluginpath));
+#endif
     }
 
     static void languageLoad(std::string lang) {

@@ -36,10 +36,10 @@
 #ifndef PLUGINPROXY_H
 #define PLUGINPROXY_H
 
-#include "PluginMaker.h"
-#include "PluginManager.h"
-
 #include <string>
+
+#include "PluginMaker.hxx"
+#include "PluginManager.h"
 
 class Proxy {};
 

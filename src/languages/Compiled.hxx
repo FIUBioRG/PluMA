@@ -30,24 +30,21 @@
 
 \*********************************************************************************/
 
-#ifndef PLUGINGENERATOR_H
-#define PLUGINGENERATOR_H
+#ifndef COMPILED_H
+#define COMPILED_H
 
+#include "Language.hxx"
 #include <string>
-#include <vector>
+#include <map>
 
-class PluginGenerator {
-   public:
-      PluginGenerator(std::string, bool literal);
-      void generate(std::string, std::vector<std::string>&);
-   private:
-      void makeDirectory(std::string);
-      void makeHeaderFile(std::string);
-      void makeSourceFile(std::string, std::vector<std::string>&);
-
-      std::string myPath;
-      bool myLiteral;
+class Compiled : public Language
+{
+public:
+    Compiled(std::string language, std::string ext, std::string pp, std::string pre);
+    //void loadPlugin(std::string path, glob_t* globbuf, std::map<std::string, std::string>* pluginLanguages);
+    virtual void executePlugin(std::string pluginname, std::string inputfile, std::string outputfile);//=0;
+    virtual void unload(){}
+    virtual void load(){}
 };
-
 
 #endif

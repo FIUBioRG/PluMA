@@ -37,7 +37,6 @@
 #endif
 
 #include "PluMA.hxx"
-#include "PluginManager.h"
 
 #include <iostream>
 #include <string>
@@ -146,7 +145,7 @@ void PluMA::read_config(char *inputfile, string prefix, bool doRestart, char *re
              */
             PluginManager::getInstance().log("ERROR IN PLUGIN: " + name + ".");
             ;
-            if (access(outputname.c_str(), F_OK) != -1) {
+            if (fs::exists(outputname)) {
                 int c;
                 PluginManager::getInstance().log("REMOVING OUTPUT FILE: " + outputname + ".");
                 c = system(("rm " + outputname).c_str());

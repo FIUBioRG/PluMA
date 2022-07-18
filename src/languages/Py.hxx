@@ -34,7 +34,7 @@
 #ifndef PY_H
 #define PY_H
 
-#include "Language.h"
+#include "Language.hxx"
 
 
 class Py : public Language {

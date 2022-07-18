@@ -41,7 +41,6 @@
 #include "PluginManager.h"
 
 using namespace std;
-namespace fs = std::filesystem;
 
 class PluMA
 {
@@ -78,6 +77,5 @@ public:
 
 private:
     string plugin_path;
-    map<string, fs::path> *buildfiles;
 };
 #endif

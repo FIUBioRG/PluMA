@@ -30,21 +30,34 @@
 
 \*********************************************************************************/
 
-#ifndef COMPILED_H
-#define COMPILED_H
 
-#include "Language.h"
+#ifndef RR_H
+#define RR_H
+
+#ifdef HAVE_R
+#include "RInside.h"
+#include "Rinterface.h"
+#include "Language.hxx"
+#include <vector>
 #include <string>
-#include <map>
 
-class Compiled : public Language
-{
-public:
-    Compiled(std::string language, std::string ext, std::string pp, std::string pre);
-    //void loadPlugin(std::string path, glob_t* globbuf, std::map<std::string, std::string>* pluginLanguages);
-    virtual void executePlugin(std::string pluginname, std::string inputfile, std::string outputfile);//=0;
-    virtual void unload(){}
-    virtual void load(){}
-};
+// @TODO: Change to PluMA namespace?
+namespace MiAMi {
 
+    class R : public Language {
+    public:
+        R(std::string language, std::string ext, std::string pp, int argc, char** argv);
+        void executePlugin(std::string pluginname, std::string inputname, std::string outputname);
+        void unload();
+        void load();
+        void installDependencies(std::vector<std::string> dependencies);
+
+    private:
+        RInside* myR;
+        int argc;
+        char** argv;
+        void installDependency(std::string &dependency);
+    };
+}
+#endif
 #endif

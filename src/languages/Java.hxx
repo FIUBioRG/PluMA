@@ -37,7 +37,7 @@
 #ifdef HAVE_JAVA
 #include <jni.h>
 #endif
-#include "Language.h"
+#include "Language.hxx"
 
 class Java : public Language {
 public:

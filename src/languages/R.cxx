@@ -30,7 +30,8 @@
 
 \*********************************************************************************/
 
-#include "R.h"
+#ifdef HAVE_R
+#include "R.hxx"
 #include "../PluginManager.h"
 #include <vector>
 #include <string>
@@ -46,15 +47,11 @@ namespace MiAMi {
     ) : Language(language, ext, pp) {
         this->argc = argc;
         this->argv = argv;
-#ifdef HAVE_R
         myR = new RInside(argc, argv);
-#endif
     }
 
     void R::load() {
-#ifdef HAVE_R
         myR = new RInside(argc, argv);
-#endif
     }
 
     void R::executePlugin(
@@ -62,7 +59,6 @@ namespace MiAMi {
         std::string inputname,
         std::string outputname)
     {
-#ifdef HAVE_R
         std::string tmppath = pluginpath;
         std::string path = tmppath.substr(0, pluginpath.find_first_of(":"));
         std::ifstream* infile = NULL;
@@ -88,33 +84,28 @@ namespace MiAMi {
         txt += "output(\"" + outputname + "\");\n";
         myR->parseEvalQ(txt);
         PluginManager::getInstance().log("R Plugin "+pluginname+" completed successfully.");
-#endif
     }
 
 
     void R::unload() {
-#ifdef HAVE_R
         delete myR;
         Rf_KillAllDevices();
         R_GlobalContext = NULL;
         Rf_endEmbeddedR(0);
-#endif
     }
 
     void R::installDependencies(std::vector<std::string> dependencies) {
-#ifdef HAVE_R
         for(auto &dependency: dependencies) {
             installDependency(dependency);
         }
-#endif
     }
 
     void R::installDependency(std::string &dependency) {
-#ifdef HAVE_R
         std::string command = "if(!(require(" + dependency;
         command += "))) install.packages(\"" + dependency + "\")";
         myR->parseEvalQ(command);
         PluginManager::getInstance().log("R dependency " + dependency + " installed");
-#endif
     }
 }
+
+#endif

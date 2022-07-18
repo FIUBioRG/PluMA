@@ -37,7 +37,7 @@
 #include <stdlib.h>
 #include <dirent.h>
 
-#include "PluginGenerator.h"
+#include "PluginGenerator.hxx"
 
 int main(int argc, char** argv) {
    // Usage will be:

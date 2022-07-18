@@ -30,10 +30,11 @@
 
 \*********************************************************************************/
 
-#include "Compiled.h"
-#include "../PluginManager.h"
 #include <dlfcn.h>
 #include <iostream>
+
+#include "Compiled.hxx"
+#include "../PluginManager.h"
 
 Compiled::Compiled(
     std::string lang,

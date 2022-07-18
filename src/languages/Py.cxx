@@ -30,7 +30,7 @@
 
 \*********************************************************************************/
 
-#include "Py.h"
+#include "Py.hxx"
 #include "../PluginManager.h"
 #ifdef HAVE_PYTHON
 #include "Python.h"
