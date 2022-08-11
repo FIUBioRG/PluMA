@@ -148,6 +148,12 @@ def localplugin(msg):
 #turnedoff = {}
 turnedoff = {#'SparCC':'',
              #'Ensemble':'',
+             'TransformerPrediction':'Outputs image',
+             'QuantileKL':'Binary output',
+             'SGD':'Randomness',
+             'Adam':'Randomness',
+             'Transformer':'Produces an image',
+             'ResNet50':'Produces an image',
              'MetaPhlAn3':'Shotgun sequences are too large, also requires database',
              'Deblur':'Qiime2 binary files not unique per input file set',
              'FASTQ2QZA':'Qiime2 binary files not unique per input file set',
