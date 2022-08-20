@@ -28,28 +28,44 @@
        For information regarding this software, please contact lead architect
                     Trevor Cickovski at tcickovs@fiu.edu
 
-               Note: This particular file adapted from BasicUtils
-               (C) 2003 Joseph Coffland under license from GNU GPL
-
 \*********************************************************************************/
 
-#ifndef PLUGINPROXY_H
-#define PLUGINPROXY_H
+#ifndef LANGUAGE_H
+#define LANGUAGE_H
 
+#include <dlfcn.h>
+#include <glob.h>
+#include <iostream>
+#include <map>
 #include <string>
 
-#include "PluginMaker.hxx"
-#include "PluginManager.h"
-
-class Proxy {};
-
-template<class T>
-class PluginProxy : public Proxy
-{
+class Language {
 public:
-    PluginProxy(std::string keyword, PluginManager& mgr) {
-        mgr.addMaker(keyword, new PluginMaker<T>());
-    };
+    Language(std::string lang, std::string ext, std::string pp, std::string pre="") {
+        language = lang;
+        extension = ext;
+        pluginpath = pp;
+        prefix = pre;
+    }
+    virtual std::string ext() {
+        return extension;
+    }
+    virtual std::string lang() {
+        return language;
+    }
+    virtual std::string pre() {
+        return prefix;
+    }
+    virtual void loadPlugin(std::string path, glob_t* globbuf, std::map<std::string, std::string>* pluginLanguages);
+    virtual void executePlugin(std::string pluginname, std::string inputfile, std::string outputfile)=0;
+    virtual void unload()=0;
+    virtual void load()=0;
+
+protected:
+    std::string language;
+    std::string extension;
+    std::string prefix;
+    std::string pluginpath;
 };
 
 #endif

@@ -30,24 +30,26 @@
 
 \*********************************************************************************/
 
-#ifndef PLUGINGENERATOR_H
-#define PLUGINGENERATOR_H
+#ifndef _PLUMA_JAVA_H
+#define _PLUMA_JAVA_H
 
 #include <string>
-#include <vector>
+#ifdef HAVE_JAVA
+#include <jni.h>
+#endif
+#include "Language.hxx"
 
-class PluginGenerator {
-   public:
-      PluginGenerator(std::string, bool literal);
-      void generate(std::string, std::vector<std::string>&);
-   private:
-      void makeDirectory(std::string);
-      void makeHeaderFile(std::string);
-      void makeSourceFile(std::string, std::vector<std::string>&);
+class Java : public Language {
+public:
+    Java(std::string language, std::string ext, std::string pp);
+    void executePlugin(std::string pluginname, std::string inputname, std::string outputname);
+    void load();
+    void unload();
 
-      std::string myPath;
-      bool myLiteral;
+private:
+    char** env;
+    int argc2;
+    char** argv2;
 };
-
 
 #endif

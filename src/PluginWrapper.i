@@ -3,8 +3,8 @@
 
 %module PluMA_Wrapper
 %{
-#include "PluginWrapper.h"
+#include "PluginWrapper.hxx"
 %}
 
-%include "PluginWrapper.h"
+%include "PluginWrapper.hxx"
 

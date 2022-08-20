@@ -30,13 +30,21 @@
 
 \*********************************************************************************/
 
-#ifndef PLUMA_H
-#define PLUMA_H
 
-void log(char* msg);
-void dependency(char* plugin);
-char* prefix();
-void languageLoad(char* lang);
-void languageUnload(char* lang);
+#ifndef PY_H
+#define PY_H
+
+#include "Language.hxx"
+
+
+class Py : public Language {
+public:
+    Py(std::string language, std::string ext, std::string pp);
+    void executePlugin(std::string pluginname, std::string inputname, std::string outputname);
+    void unload();
+    void load() {} // Empty
+};
+
+
+
 #endif
-

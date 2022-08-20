@@ -34,31 +34,30 @@
 #ifndef RR_H
 #define RR_H
 
-#include "Language.h"
-
 #ifdef HAVE_R
-class RInside;
-//#include "RInside.h"
-#endif
+#include "RInside.h"
+#include "Rinterface.h"
+#include "Language.hxx"
+#include <vector>
+#include <string>
 
 // @TODO: Change to PluMA namespace?
 namespace MiAMi {
 
-class R : public Language {
-public:
-    R(std::string language, std::string ext, std::string pp, int argc, char** argv);
-    void executePlugin(std::string pluginname, std::string inputname, std::string outputname);
-    void unload();
-    void load();
+    class R : public Language {
+    public:
+        R(std::string language, std::string ext, std::string pp, int argc, char** argv);
+        void executePlugin(std::string pluginname, std::string inputname, std::string outputname);
+        void unload();
+        void load();
+        void installDependencies(std::vector<std::string> dependencies);
 
-private:
-#ifdef HAVE_R
-      RInside* myR;
-#endif
-      int argc;
-      char ** argv;
-};
-
+    private:
+        RInside* myR;
+        int argc;
+        char** argv;
+        void installDependency(std::string &dependency);
+    };
 }
-
+#endif
 #endif

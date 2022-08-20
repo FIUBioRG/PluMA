@@ -1,8 +1,11 @@
+#!/usr/bin/env python
 ############################################################################
 # EXAMPLE OF TEXT FORMATTING OUTPUT IN PYTHON
 import sys
 import glob
 import subprocess
+import os
+import filecmp
 
 BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN, WHITE = range(8)
 EPS=1e-8
@@ -11,7 +14,7 @@ global numfail
 global numwarn
 global numlocal
 global numoff
-global numincompat 
+global numincompat
 
 #following from Python cookbook, #475186
 def has_colours(stream):
@@ -27,7 +30,6 @@ def has_colours(stream):
         # guess false in case of error
         return False
 has_colours = has_colours(sys.stdout)
-
 
 def is_number(s):
    try:
@@ -69,11 +71,9 @@ def check(file1, file2, filetype):
                   if data1[j] != data2[j]:
                      return False
                else:
-                  if (abs(float(data2[j])-float(data1[j])) > EPS): 
+                  if (abs(float(data2[j])-float(data1[j])) > EPS):
                      return False
             return True
-
-
 
 def checkAccuracy(file1, file2):
    if (file1.endswith("csv")):
@@ -105,9 +105,6 @@ def printout(text, colour=WHITE):
 #printout("[error]   ", RED)
 #print("in red")
 #############################################################################
-
-import os
-import filecmp
 
 def warn(msg):
    global numwarn
@@ -190,7 +187,7 @@ turnedoff = {#'SparCC':'',
              'WikiPathway':'Changes with every database update',
              'STRING':'Changes with every database update',
              'Caffe':'Requires BVLC database installation, and agreement to license',
-             'SIMLR':'Requires machine-dependent compilation of projsplx_R.so' 
+             'SIMLR':'Requires machine-dependent compilation of projsplx_R.so'
            }
 #turnedoff = ['SparCC', 'Ensemble','SCIMM','MaxBin','HMMER', 'MetaCluster', 'AbundanceBin', 'HIVE', 'UClust', 'MEGAN', 'DeNovoOTU', 'OTUHeatmap', 'OTUSummary', 'Infomap']#, 'CumulativeClassifier', 'CumulativeTime', 'GeneUnify', 'NeuralNet']
 local = {'CSV2PathwayTools':'Requires PathwayTools installation/license',
@@ -216,7 +213,7 @@ local = {'CSV2PathwayTools':'Requires PathwayTools installation/license',
         }
 
 inc = {'PCMCI':'Uses rpy2, Python-embedded R not yet supported'}
-        
+
 #local = ["CSV2PathwayTools","EM","FilterPathway","PathwayFilter","PhiLR","CubicSpline","PLSDA-Multiple","NeuralNet","RandomForest","CumulativeTime","CumulativeClassifier","TimeWarp","FeatureSelection","GeneUnify","ValidateMapping","DeMUX"]
 # Get installed plugins
 if (len(sys.argv) > 1):
@@ -235,7 +232,7 @@ for plugin in plugins:
  if (os.path.isdir("plugins/"+plugin)):
    # We are going to assume everything to be tested is in plugins/
    files = os.listdir("plugins/"+plugin)
-   print ('{:<50}'.format("Testing "+plugin+"..."), end='') 
+   print ('{:<50}'.format("Testing "+plugin+"..."), end='')
    sys.stdout.flush()
    if (plugin in turnedoff):
        disabled(turnedoff[plugin])
@@ -374,3 +371,8 @@ normalprintout("Incompatible: "+str(numincompat)+"\n", CYAN)
 normalprintout("--------------------\n", WHITE)
 normalprintout("Passing Rate: "+str(passrate)+"%\n", WHITE)
 normalprintout("************************************\n", WHITE)
+
+if numfail > 0:
+    exit(1)
+else
+    exit(0)

@@ -30,21 +30,52 @@
 
 \*********************************************************************************/
 
+#ifndef _PLUMA_H
+#define _PLUMA_H
 
-#ifndef PY_H
-#define PY_H
+#include <iostream>
+#include <string>
+#include <map>
+#include <vector>
+#include <filesystem>
+#include "PluginManager.h"
 
-#include "Language.h"
+using namespace std;
 
-
-class Py : public Language {
+class PluMA
+{
 public:
-    Py(std::string language, std::string ext, std::string pp);
-    void executePlugin(std::string pluginname, std::string inputname, std::string outputname);
-    void unload();
-    void load() {} // Empty
+    string pluginpath;
+
+    static void log(char *msg)
+    {
+        PluginManager::log(std::string(msg));
+    }
+
+    static void dependency(char *plugin)
+    {
+        PluginManager::dependency(std::string(plugin));
+    }
+
+    static char *prefix()
+    {
+        return PluginManager::prefix();
+    }
+
+    static void languageLoad(char *lang)
+    {
+        PluginManager::languageLoad(std::string(lang));
+    }
+
+    static void languageUnload(char *lang)
+    {
+        PluginManager::languageUnload(std::string(lang));
+    }
+
+    PluMA();
+    void read_config(char *inputfile, string prefix, bool doRestart, char *restartPoint);
+
+private:
+    string plugin_path;
 };
-
-
-
 #endif

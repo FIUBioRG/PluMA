@@ -30,29 +30,21 @@
 
 \*********************************************************************************/
 
-#ifndef LANGUAGE_H
-#define LANGUAGE_H
+#ifndef COMPILED_H
+#define COMPILED_H
 
+#include "Language.hxx"
 #include <string>
 #include <map>
-#include <glob.h>
 
-class Language {
+class Compiled : public Language
+{
 public:
-    Language(std::string lang, std::string ext, std::string pp, std::string pre="") {language = lang; extension = ext; pluginpath = pp; prefix = pre;}
-    virtual void loadPlugin(std::string path, glob_t* globbuf, std::map<std::string, std::string>* pluginLanguages, bool list);
-    virtual void executePlugin(std::string pluginname, std::string inputfile, std::string outputfile)=0;
-    virtual void unload()=0;
-    virtual std::string ext() {return extension;}
-    virtual std::string lang() {return language;}
-    virtual std::string pre() {return prefix;}
-    virtual void load()=0;
-
-protected:
-    std::string language;
-    std::string extension;
-    std::string prefix;
-    std::string pluginpath;
+    Compiled(std::string language, std::string ext, std::string pp, std::string pre);
+    //void loadPlugin(std::string path, glob_t* globbuf, std::map<std::string, std::string>* pluginLanguages);
+    virtual void executePlugin(std::string pluginname, std::string inputfile, std::string outputfile);//=0;
+    virtual void unload(){}
+    virtual void load(){}
 };
 
 #endif

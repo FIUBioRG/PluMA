@@ -30,27 +30,131 @@
 
 \*********************************************************************************/
 
-#include "PluMA.h"
-#include "PluginManager.h"
+#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__) || defined(_WIN64)
+#define PATH_SEPARATOR '\\'
+#else
+#define PATH_SEPARATOR '/'
+#endif
+
+#include "PluMA.hxx"
+
+#include <iostream>
 #include <string>
-using std::string;
+#include <map>
+#include <vector>
+#include <filesystem>
 
-void log(char* msg) {
-    PluginManager::log(std::string(msg));
+#include "PluginManager.h"
+#include "utils.hxx"
+
+using namespace std;
+namespace fs = std::filesystem;
+
+PluMA::PluMA() {
+    pluginpath = string(getenv("PWD")) + "/plugins/";
+    if (getenv("PLUMA_PLUGIN_PATH") != NULL) {
+        pluginpath += ":" + string(getenv("PLUMA_PLUGIN_PATH"));
+    }
+    pluginpath += ":";
 }
 
-void dependency(char* plugin) {
-    PluginManager::dependency(std::string(plugin));
-}
+/**
+ * Read a PluMA configuration file for use in running
+ * a Bioinformatics pipeline.
+ *
+ * @since v1.0.0
+ *
+ * @param inputfile The file input to be parsed as a configuration.
+ * @param prefix The prefix to be given to the input.
+ * @param doRestart Whether we are restarting the pipeline from a certain point.
+ * @param restartPoint The point at which we restart the pipeline.
+ * @param pluginManager The currently used PluginManager instance.
+ */
+void PluMA::read_config(char *inputfile, string prefix, bool doRestart, char *restartPoint) {
+    ifstream infile(inputfile, ios::in);
+    bool restartFlag = false;
+    string pipeline = "";
+    string oldprefix = prefix;
+    string kitty = "";
 
-char* prefix() {
-    return PluginManager::prefix();
-}
+    while (!infile.eof()) {
+        string junk, name, inputname, outputname;
 
-void languageLoad(char* lang) {
-    PluginManager::languageLoad(std::string(lang));
-}
+        infile >> junk;
 
-void languageUnload(char* lang) {
-    PluginManager::languageUnload(std::string(lang));
+        if (junk[0] == '#') {
+            getline(infile, junk);
+            continue;
+        } else if (junk == "Prefix") {
+            infile >> prefix;
+            prefix += "/";
+            PluginManager::myPrefix = prefix;
+            oldprefix = prefix;
+            continue;
+        } else if (junk == "Pipeline") {
+            infile >> pipeline;
+            read_config((char *)pipeline.c_str(), prefix, false, (char *)"");
+        } else if (junk == "Kitty") {
+            infile >> kitty;
+            if (oldprefix != "") {
+                prefix = oldprefix;
+            }
+            prefix += "/" + kitty + "/";
+            PluginManager::myPrefix = prefix;
+            continue;
+        } else {
+            infile >> name >> junk >> inputname >> junk >> outputname;
+        }
+
+        if (inputname[0] != '/') {
+            inputname = prefix + inputname;
+        }
+
+        if (outputname[0] != '/') {
+            outputname = prefix + outputname;
+        }
+
+        // If we are restarting and have not hit that point yet, skip this plugin
+        if (doRestart && !restartFlag) {
+            if (name == restartPoint) {
+                restartFlag = true;
+            } else {
+                continue;
+            }
+        }
+
+        // Try to create and run all three steps of the plugin in the appropriate language
+        PluginManager::getInstance().log("Creating plugin " + name);
+        try {
+            bool executed = false;
+            for (unsigned int i = 0; i < PluginManager::supported.size() && !executed; i++) {
+                if (PluginManager::getInstance().pluginLanguages[name + "Plugin"] == PluginManager::supported[i]->lang()) {
+                    cout << "[PluMA] Running Plugin: " << name << endl;
+                    PluginManager::supported[i]->executePlugin(name, inputname, outputname);
+                    executed = true;
+                }
+            }
+            // In this case we found the plugin, but the language is not PluginManager::supported.
+            if (!executed && name != "") {
+                PluginManager::getInstance().log("Error, no suitable language for plugin: " + name + ".");
+            }
+        } catch (...) {
+            /*
+             * This hits if the plugin errored while running it
+             * Message(s) will be output to the logfile, and output files will be removed.
+             */
+            PluginManager::getInstance().log("ERROR IN PLUGIN: " + name + ".");
+            ;
+            if (fs::exists(outputname)) {
+                int c;
+                PluginManager::getInstance().log("REMOVING OUTPUT FILE: " + outputname + ".");
+                c = system(("rm " + outputname).c_str());
+                if (c != 0) {
+                    std::cerr << "Error while removing output file..." << std::endl;
+                    PluginManager::getInstance().log("Error while removing output file");
+                }
+                exit(EXIT_FAILURE);
+            }
+        }
+    }
 }

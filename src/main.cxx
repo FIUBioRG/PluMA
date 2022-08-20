@@ -2,7 +2,7 @@
 
                    Plugin-based Microbiome Analysis (PluMA)
 
-        Copyright (C) 2016, 2018 Bioinformatics Research Group (BioRG)
+        Copyright (C) 2016, 2018, 2019-2021 Bioinformatics Research Group (BioRG)
                        Florida International University
 
 
@@ -30,326 +30,369 @@
 
 \*********************************************************************************/
 
-#include <glob.h>
+#include <argp.h>
 #include <dlfcn.h>
+#include <glob.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include "Plugin.h"
-//#include "PluginManager.h"
-#include "PluginProxy.h"
-/*#include "languages/Compiled.h"
-#include "languages/Py.h"
-#include "languages/R.h"
-#include "languages/Perl.h"*/
-#include <string>
-#include <map>
-#include <vector>
-#include <fstream>
-#include <sstream>
+#include <sys/socket.h>
+#include <sys/un.h>
+
+#include <algorithm>
+#include <cctype>
 #include <ctime>
+#include <filesystem>
+#include <fstream>
+#include <functional>
+#include <map>
+#include <mutex>
+#include <sstream>
+#include <string>
+#include <thread>
+#include <vector>
+
+#include "PluMA.hxx"
+#include "utils.hxx"
+#include "Plugin.h"
+#include "PluginProxy.h"
+
+using namespace std;
+namespace filesystem = std::filesystem;
+
+/**
+ * Actions the PluMA application can take.
+ *
+ * @since v2.1.0
+ */
+enum PLUMA_MAIN_ACTIONS {
+    ACTION_PIPELINE,
+    ACTION_PRINT_PLUGINS,
+    ACTION_INSTALL_DEPENDENCIES
+};
+
+enum PLUMA_ERROR {
+    SUCCESS = 00U,
+    ERR_INSTALL_PYTHON_DEP = 01U,
+    ERR_INSTALL_LINUX_DEP = 02U,
+    ERR_INSTALL_MACOS_DEP = 03U,
+    ERR_INSTALL_WINDOWS_DEP = 04U
+};
 
 
-//////////////////////////////////////////
-// Helper Function: Convert int to string
-std::string toString(int val) {
-   std::string retval;
-   std::stringstream ss;
-   ss << val;
-   ss >> retval;
-   return retval;
-}
-//////////////////////////////////////////
+// Auto-generated program version
+const char* argp_program_version = "PluMA v2.2.0";
+// Bug address for submitting issues. Github URL instead of email address.
+const char* argp_program_bug_address = "<https://github.com/FIUBioRG/PluMA/issues>";
+// Top-level doc block
+static char doc[] = "PluMA - Plugin-Based Microbiome Analysis";
+// Arguments documentation
+static char args_doc[] = "[CONFIGURATION FILE] [OPTIONAL: RESTART POINT]";
 
-void readConfig(char* inputfile, std::string prefix, bool doRestart, std::string restartPoint) {
-    std::ifstream infile(inputfile, std::ios::in);
-    bool restartFlag = false;
-    std::string pipeline = "";
-    std::string oldprefix = prefix;
-    std::string kitty = "";
-    while (!infile.eof()) {
-        std::string junk, name, inputname, outputname;
-        /**
-        * Read one line
-        * Plugin (Name) inputfile (input file) outputfile (output file)
-        */
-        infile >> junk;
-	//std::cout << "JUNK: " << junk << std::endl;
-        if (junk[0] == '#') {
-            // the line is a comment
-            getline(infile, junk);
-            continue;
-        } else if (junk == "Prefix") {
-            // the line is a prefix
-            infile >> prefix;
-            prefix += "/";
-            PluginManager::myPrefix=prefix;
-            oldprefix = prefix;
-            continue;
-        } else if (junk == "Pipeline") {
-            infile >> pipeline;
-            readConfig((char*) pipeline.c_str(), prefix, false, "");
-        } else if (junk == "Kitty") {
-            infile >> kitty;
-            if (oldprefix != "") {
-                prefix = oldprefix;
+/**
+ * Commandline options
+ *
+ * @since v2.1.0
+ */
+static struct argp_option options[] = {
+    {"verbose", 'v', 0, 0, "Produce verbose output"},
+    {"plugins", 'p', 0, 0, "Prints a list of currently installed plugins in PLUMA_PLUGINS_PATH"},
+    { 0 }
+};
+
+/**
+ * Commandline arguments structure
+ *
+ * @since v2.1.0
+ */
+struct arguments {
+    int verbose;
+    char* config_file;
+    char* restart_point;
+    bool do_restart;
+    PLUMA_MAIN_ACTIONS action;
+};
+
+/**
+ * Parse single options.
+ *
+ * @since v2.1.0
+ *
+ * @param key Key that is being parsed.
+ * @param arg Arguments character pointer.
+ * @param state State of the argp processing.
+ * @return An error if there is any form of error in parsing our options.
+ */
+static error_t parse_opt(int key, char* arg, struct argp_state *state) {
+    struct arguments* arguments = (struct arguments*) state->input;
+
+    switch(key) {
+        case 'v':
+            arguments->verbose = 1;
+            break;
+
+        case 'p':
+            arguments->action = PLUMA_MAIN_ACTIONS::ACTION_PRINT_PLUGINS;
+            break;
+
+        case ARGP_KEY_ARG:
+            if(state->arg_num >= 2) {
+                // Too many arguments
+                cerr << "Too many arguments specified." << endl;
+                argp_usage(state);
             }
-            prefix += "/"+kitty+"/";
-            PluginManager::myPrefix=prefix;
-            continue;
-        } else {
-            infile >> name >> junk >> inputname >> junk >> outputname;
-        }
-
-        if (inputname[0] != '/') {
-            inputname = prefix + inputname;
-        }
-
-        if (outputname[0] != '/') {
-            outputname = prefix + outputname;
-        }
-        //////////////////////////////////////////////////////
-
-        ////////////////////////////////////////////////////////////////////////////
-        // If we are restarting and have not hit that point yet, skip this plugin
-        if (doRestart && !restartFlag) {
-            if (name == restartPoint) {
-                restartFlag = true;
-            } else {
-                continue;
+            if (state->arg_num == 0) {
+                arguments->config_file = arg;
             }
-        }
-        /////////////////////////////////////////////////////////////////////
+            if (state->arg_num == 1) {
+                arguments->do_restart = true;
+                arguments->restart_point = arg;
+            }
+            break;
 
-        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-        // Try to create and run all three steps of the plugin in the appropriate language
-        PluginManager::getInstance().log("Creating plugin "+name);
-        try {
-            bool executed = false;
-            for (int i = 0; i < PluginManager::supported.size() && !executed; i++) {
-                if (PluginManager::getInstance().pluginLanguages[name+"Plugin"] == PluginManager::supported[i]->lang()) {
-                    std::cout << "[PluMA] Running Plugin: " << name << std::endl;
-                    PluginManager::supported[i]->executePlugin(name, inputname, outputname);
-                    executed = true;
-                }
+        case ARGP_KEY_END:
+            if(state->arg_num < 1 && arguments->action == ACTION_PIPELINE) {
+                // Not enough arguments
+                argp_usage(state);
             }
-            ///////////////////////////////////////////////////////////////////////////////////////////////////////
-            // In this case we found the plugin, but the language is not PluginManager::supported.
-            if (!executed && name != "") {
-                PluginManager::getInstance().log("Error, no suitable language for plugin: "+name+".");
-            }
-            ///////////////////////////////////////////////////////////////////////////////////////////////////////
-        }
-        ///////////////////////////////////////////////////////////////////////////////////////////////////////
-        // This hits if the plugin errored while running it
-        // Message(s) will be output to the logfile, and output files will be removed.
-        catch (...) {
-            PluginManager::getInstance().log("ERROR IN PLUGIN: "+name+".");;
-            if (access( outputname.c_str(), F_OK ) != -1 ) {
-                PluginManager::getInstance().log("REMOVING OUTPUT FILE: "+outputname+".");
-                system(("rm "+outputname).c_str());
-                exit(1);
-            }
-        }
-      //PluginManager::languageUnload("R");
-      //PluginManager::languageLoad("R");
-        ////////////////////////////////////////////////////////////////////////////////////////////////////////
+            break;
+
+        default:
+            return ARGP_ERR_UNKNOWN;
     }
+
+    return 0;
 }
 
+// Parse our arguments
+static struct argp argp = { options, parse_opt, args_doc, doc };
 
-int main(int argc, char** argv)
-{
+/**
+ * Print the standard PluMA banner
+ *
+ * @since v2.1.0
+ */
+void print_banner() {
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Display opening screen.
-    std::cout << "***********************************************************************************" << std::endl;
-    std::cout << "*                                                                                 *" << std::endl;
-    std::cout << "*  PPPPPPPPPPPP    L               U           U   M           M         A        *" << std::endl;
-    std::cout << "*  P           P   L               U           U   MM         MM        A A       *" << std::endl;
-    std::cout << "*  P           P   L               U           U   M M       M M       A   A      *" << std::endl;
-    std::cout << "*  P           P   L               U           U   M  M     M  M      A     A     *" << std::endl;
-    std::cout << "*  P           P   L               U           U   M   M   M   M     A       A    *" << std::endl;
-    std::cout << "*  PPPPPPPPPPPP    L               U           U   M    M M    M    A         A   *" << std::endl;
-    std::cout << "*  P               L               U           U   M     M     M   AAAAAAAAAAAAA  *" << std::endl;
-    std::cout << "*  P               L               U           U   M           M   A           A  *" << std::endl;
-    std::cout << "*  P               L               U           U   M           M   A           A  *" << std::endl;
-    std::cout << "*  P               LLLLLLLLLLLLL    UUUUUUUUUUU    M           M   A           A  *" << std::endl;
-    std::cout << "*                                                                                 *" << std::endl;
-    std::cout << "*            [Plu]gin-based [M]icrobiome [A]nalysis (formerly MiAMi)              *" << std::endl;
-    std::cout << "* (C) 2016, 2018 Bioinformatics Research Group, Florida International University  *" << std::endl;
-    std::cout << "*    Under MIT License From Open Source Initiative (OSI), All Rights Reserved.    *" << std::endl;
-    std::cout << "*                                                                                 *" << std::endl;
-    std::cout << "*    Any professionally published work using PluMA should cite the following:     *" << std::endl;
-    std::cout << "*                        T. Cickovski and G. Narasimhan.                          *" << std::endl;
-    std::cout << "*                Constructing Lightweight and Flexible Pipelines                  *" << std::endl;
-    std::cout << "*                 Using Plugin-Based Microbiome Analysis (PluMA)                  *" << std::endl;
-    std::cout << "*                     Bioinformatics 34(17):2881-2888, 2018                       *" << std::endl;
-    std::cout << "*                                                                                 *" << std::endl;
-    std::cout << "***********************************************************************************" << std::endl;
-    ///////////////////////////////////////////////////////////////////////////////////////////////
-    // Setup plugin path.
-    std::string pluginpath = "/plugins/";
-    pluginpath = getenv("PWD") + pluginpath;
-    if (getenv("PLUMA_PLUGIN_PATH") != NULL) {
-        pluginpath += ":";
-        pluginpath += getenv("PLUMA_PLUGIN_PATH");
-    }
-    pluginpath += ":";
-    //pluginpath += "/usr/local/bin/plugins/:/usr/bin/plugins/";
-    //pluginpath += ":";
-    //std::cout << "PluginPath: " << pluginpath << std::endl;
-    ///////////////////////////////////////////////////////////////////////////////////////////////
+    cout << "***********************************************************************************" << endl;
+    cout << "*                                                                                 *" << endl;
+    cout << "*  PPPPPPPPPPPP    L               U           U   M           M         A        *" << endl;
+    cout << "*  P           P   L               U           U   MM         MM        A A       *" << endl;
+    cout << "*  P           P   L               U           U   M M       M M       A   A      *" << endl;
+    cout << "*  P           P   L               U           U   M  M     M  M      A     A     *" << endl;
+    cout << "*  P           P   L               U           U   M   M   M   M     A       A    *" << endl;
+    cout << "*  PPPPPPPPPPPP    L               U           U   M    M M    M    A         A   *" << endl;
+    cout << "*  P               L               U           U   M     M     M   AAAAAAAAAAAAA  *" << endl;
+    cout << "*  P               L               U           U   M           M   A           A  *" << endl;
+    cout << "*  P               L               U           U   M           M   A           A  *" << endl;
+    cout << "*  P               LLLLLLLLLLLLL    UUUUUUUUUUU    M           M   A           A  *" << endl;
+    cout << "*                                                                                 *" << endl;
+    cout << "*            [Plu]gin-based [M]icrobiome [A]nalysis (formerly MiAMi)              *" << endl;
+    cout << "*                          (C) 2016, 2018, 2019-2021                              *" << endl;
+    cout << "*          Bioinformatics Research Group, Florida International University        *" << endl;
+    cout << "*    Under MIT License From Open Source Initiative (OSI), All Rights Reserved.    *" << endl;
+    cout << "*                                                                                 *" << endl;
+    cout << "*    Any professionally published work using PluMA should cite the following:     *" << endl;
+    cout << "*                        T. Cickovski and G. Narasimhan.                          *" << endl;
+    cout << "*                Constructing Lightweight and Flexible Pipelines                  *" << endl;
+    cout << "*                 Using Plugin-Based Microbiome Analysis (PluMA)                  *" << endl;
+    cout << "*                     Bioinformatics 34(17):2881-2888, 2018                       *" << endl;
+    cout << "*                                                                                 *" << endl;
+    cout << "***********************************************************************************" << endl;
+}
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // Set PluginManager::supported languages here.
-    /*std::vector<Language*> PluginManager::supported;
-    std::map<std::string, std::string> PluginManager::getInstance().pluginLanguages;
-    #ifdef APPLE
-    PluginManager::supported.push_back(new Compiled("C", "dylib", pluginpath, "lib"));
-    #else
-    PluginManager::supported.push_back(new Compiled("C", "so", pluginpath, "lib"));
-    #endif
-    PluginManager::supported.push_back(new Py("Python", "py", pluginpath));
-    PluginManager::supported.push_back(new MiAMi::R("R", "R", pluginpath, argc, argv));
-    PluginManager::supported.push_back(new Perl("Perl", "pl", pluginpath));*/
-    ///////////////////////////////////////////////////////////////////////////////////////////////
+mutex mtx;
 
-    ///////////////////////////////////////////////////////////////////////////////////////////////
-    // Command line arguments
-    if (argc != 2 && argc != 3 || std::string(argv[1]) == "usage") { // Usage
-        std::cout << "[PluMA] Usage: ./pluma (config file) (optional restart point)" << std::endl;
-        std::cout << "Arguments: help: display this message" << std::endl;
-        std::cout << "           version: display release information" << std::endl;
-        std::cout << "           plugins: list your installed plugins and location" << std::endl;
-        exit(0);
-    } else if (std::string(argv[1]) == "help") { // Help
-        std::cout << "[PluMA] Usage: ./pluma (config file) (optional restart point)" << std::endl;
-        exit(0);
-    } else if (std::string(argv[1]) == "version") { // Version
-        std::cout << "[PluMA] Version 2.0" << std::endl;
-        exit(0);
+/**
+ * Parse single options.
+ *
+ * @since v2.2.0
+ */
+void healthcheck(bool &do_run)
+{
+    int data_socket;
+
+    string socket_name = "/tmp/pluma.socket";
+
+    int health_socket = socket(AF_UNIX, SOCK_STREAM, 0);
+
+    if (health_socket == -1)
+    {
+        throw runtime_error("Unable to create health socket");
     }
 
-    PluginManager::supportedLanguages(pluginpath, argc, argv);
-    //////////////////////////////////////////////////////////////////////////////////////////
-    // For each PluginManager::supported language, load the appropriate plugins
-    std::string path = pluginpath.substr(0, pluginpath.find_first_of(":"));
-    bool list = false;
-    while (path.length() > 0) {
-        //std::cout << "Plugin Path: " << pluginpath << std::endl;
-        //std::cout << "Path: " << path << std::endl;
-        glob_t globbuf;
-        if (std::string(argv[1]) == "plugins") {
-            std::cout << "[PluMA] Current plugin list: " << std::endl;
-            list = true;
+    struct sockaddr_un name;
+
+    memset(&name, 0, sizeof(name));
+
+    name.sun_family = AF_UNIX;
+    strncpy(name.sun_path, socket_name.c_str(), sizeof(name.sun_path) - 1);
+
+    int ret = bind(health_socket, (struct sockaddr *) &name, sizeof(name));
+
+    if (ret == -1)
+    {
+        throw runtime_error("Failed to bind health socket");
+    }
+
+    ret = listen(health_socket, 20);
+
+    if (ret == -1)
+    {
+        throw runtime_error("Failed to open listening on health socket");
+    }
+
+    for (;;)
+    {
+        mtx.lock();
+        if (do_run == false)
+        {
+            mtx.unlock();
+            break;
+        }
+        mtx.unlock();
+        char buffer[1024];
+        data_socket = accept(health_socket, NULL, NULL);
+
+        if (data_socket == -1)
+        {
+            throw runtime_error("Failed to accept connections on health socket");
         }
 
-        for (int i = 0; i < PluginManager::supported.size(); i++)
-            PluginManager::supported[i]->loadPlugin(path, &globbuf, &(PluginManager::getInstance().pluginLanguages), list);
+        while (true)
+        {
+            ret = read(data_socket, buffer, sizeof(buffer));
 
-        std::map<std::string, std::string>::iterator itr;
-
-        for (itr = PluginManager::getInstance().pluginLanguages.begin(); itr != PluginManager::getInstance().pluginLanguages.end(); itr++)
-            PluginManager::getInstance().add(itr->first.substr(0, itr->first.length()-6));
-        //globfree(&globbuf);
-        pluginpath = pluginpath.substr(pluginpath.find_first_of(":")+1, pluginpath.length());
-        path = pluginpath.substr(0, pluginpath.find_first_of(":"));
-    }
-    if (list) exit(0);
-    //////////////////////////////////////////////////////////////////////////////////////////
-
-    ///////////////////////////////////////////////
-    // Check for a restart point
-    bool doRestart = false;
-    std::string restartPoint = "";
-    if (argc == 3) {
-        doRestart = true;
-        restartPoint = std::string(argv[2]);
-    }
-    //////////////////////////////////////////////
-
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // Get the current time, and setup the initial log file
-    time_t t = time(0);
-    struct tm* now = localtime( &t );
-    std::string currentTime = toString(now->tm_year + 1900) + "-" + toString(now->tm_mon + 1) + "-" + toString(now->tm_mday) + "@" + toString(now->tm_hour) + ":" + toString(now->tm_min) + ":" + toString(now->tm_sec);
-    std::string mylog = "logs/"+currentTime+".log.txt";
-    PluginManager::getInstance().setLogFile(mylog);
-
-    /////////////////////////////////////////////////////////////////////
-    // Read configuration file and make appropriate plugins
-    readConfig(argv[1], "", doRestart, restartPoint);
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-
-   /*std::ifstream infile(argv[1], std::ios::in);
-   bool restartFlag = false;
-   std::string prefix = "";
-   while (!infile.eof()) {
-      ///////////////////////////////////////////////////////
-      // Read one line
-      // Plugin (Name) inputfile (input file) outputfile (output file)
-      std::string junk, name, inputname, outputname;
-      infile >> junk;
-      if (junk[0] == '#') {getline(infile, junk); continue;} // comment
-      else if (junk == "Prefix") {infile >> prefix; prefix += "/"; continue;} // prefix
-      else infile >> name >> junk >> inputname >> junk >> outputname;
-      if (inputname[0] != '/')
-         inputname = prefix + inputname;
-      if (outputname[0] != '/')
-         outputname = prefix + outputname;
-      //////////////////////////////////////////////////////
-
-      ////////////////////////////////////////////////////////////////////////////
-      // If we are restarting and have not hit that point yet, skip this plugin
-      if (doRestart && !restartFlag)
-         if (name == restartPoint)
-            restartFlag = true;
-         else
-           continue;
-      /////////////////////////////////////////////////////////////////////
-
-      ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-      // Try to create and run all three steps of the plugin in the appropriate language
-      PluginManager::getInstance().log("Creating plugin "+name);
-      try {
-         bool executed = false;
-         for (int i = 0; i < PluginManager::supported.size() && !executed; i++)
-            if (PluginManager::getInstance().pluginLanguages[name+"Plugin"] == PluginManager::supported[i]->lang()) {
-               std::cout << "[PluMA] Running Plugin: " << name << std::endl;
-               PluginManager::supported[i]->executePlugin(name, inputname, outputname);
-               executed = true;
+            if (ret == -1)
+            {
+                throw runtime_error("Unable to read from health socket");
             }
-         ///////////////////////////////////////////////////////////////////////////////////////////////////////
-         // In this case we found the plugin, but the language is not PluginManager::supported.
-         if (!executed && name != "")
-             PluginManager::getInstance().log("Error, no suitable language for plugin: "+name+".");
-         ///////////////////////////////////////////////////////////////////////////////////////////////////////
-      }
-      ///////////////////////////////////////////////////////////////////////////////////////////////////////
-      // This hits if the plugin errored while running it
-      // Message(s) will be output to the logfile, and output files will be removed.
-      catch (...) {
-         PluginManager::getInstance().log("ERROR IN PLUGIN: "+name+".");;
-         if (access( outputname.c_str(), F_OK ) != -1 ) {
-            PluginManager::getInstance().log("REMOVING OUTPUT FILE: "+outputname+".");
-            system(("rm "+outputname).c_str());
-            exit(1);
-	    }
-      }
-      std::cout << "HERE" << std::endl;
-      ////////////////////////////////////////////////////////////////////////////////////////////////////////
-   }*/
-   ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    /////////////////////////////////////////////////////////////////////
-    // Cleanup.
-    for (int i = 0; i < PluginManager::supported.size(); i++)
-        PluginManager::supported[i]->unload();
-    /////////////////////////////////////////////////////////////////////
+            if (!strncmp(buffer, "GET", sizeof(buffer)))
+            {
+                break;
+            }
+        }
 
-    /////////////////////////////////////////////////////////////////////
-    // El Finito!
-    return 0;
-    /////////////////////////////////////////////////////////////////////
+        time_t now = time(0);
+
+        char *time = ctime(&now);
+
+        string res = "HTTP/1.1 200 Ok\nDate: " ;
+        res += time;
+        res += "\nContent-Length: 0\n";
+
+        ret = write(data_socket, res.c_str(), sizeof(res.c_str()));
+
+        if (ret == -1)
+        {
+            throw runtime_error("Failed to write to socket");
+        }
+    }
+
+    close(health_socket);
+    unlink(socket_name.c_str());
+}
+
+int main(int argc, char** argv) {
+    struct arguments arguments;
+    PluMA pluma;
+
+    // Default argument configuration
+    arguments.verbose = 0;
+    arguments.action = PLUMA_MAIN_ACTIONS::ACTION_PIPELINE;
+    arguments.do_restart = false;
+    arguments.restart_point = (char*) "";
+    arguments.config_file = (char*) "";
+
+    // Parse commandline arguments using argp library
+    argp_parse(&argp, argc, argv, 0, 0, &arguments);
+
+    // Print the PluMA banner if argument parsing is successful
+    print_banner();
+
+    PluginManager::supportedLanguages(pluma.pluginpath, argc, argv);
+
+    switch(arguments.action) {
+        // Print a list of installed plugins
+        case PLUMA_MAIN_ACTIONS::ACTION_PRINT_PLUGINS:
+            for (auto const& path: utils::split(pluma.pluginpath, ":")) {
+                cout << "Currently installed plugins in " << path << ":" << endl;
+
+                vector<string> plugins;
+
+                for (auto const& plugin: filesystem::directory_iterator(path)) {
+                    if (plugin.is_directory()) {
+                        string p = plugin.path();
+                        plugins.push_back(p.substr(p.find_last_of("/") + 1, p.length()));
+                    }
+                }
+
+                sort(plugins.begin(), plugins.end());
+
+                for (auto const &plugin : plugins) {
+                    cout << "    " << plugin << endl;
+                }
+            }
+            exit(EXIT_SUCCESS);
+            break;
+
+        // Follow normal execution
+        case PLUMA_MAIN_ACTIONS::ACTION_PIPELINE:
+        default:
+            try {
+                bool do_run = true;
+                glob_t globbuf;
+                auto paths = utils::split(pluma.pluginpath, ":");
+
+                thread health_thread(healthcheck, ref(do_run));
+
+                health_thread.detach();
+
+                for (auto const &path : paths)
+                {
+                    for (unsigned int i = 0; i < PluginManager::supported.size(); i++)
+                    {
+                        PluginManager::supported[i]->loadPlugin(path, &globbuf, &(PluginManager::getInstance().pluginLanguages));
+                    }
+
+                    for (auto const &itr : PluginManager::getInstance().pluginLanguages)
+                    {
+                        PluginManager::getInstance().add(itr.first.substr(0, itr.first.length() - 6));
+                    }
+                }
+
+                time_t t = time(0);
+                struct tm *now = localtime(&t);
+
+                string currentTime = to_string(now->tm_year + 1900) + "-" +
+                                     to_string(now->tm_mon + 1) + "-" + to_string(now->tm_mday) +
+                                     "@" + to_string(now->tm_hour) + ":" + to_string(now->tm_min) +
+                                     ":" + to_string(now->tm_sec);
+
+                string logfile = "logs/" + currentTime + ".log.txt";
+
+                PluginManager::getInstance().setLogFile(logfile);
+
+                pluma.read_config(arguments.config_file, "", arguments.do_restart, arguments.restart_point);
+
+                // Clean up
+                for (unsigned int i = 0; i < PluginManager::supported.size(); i++)
+                {
+                    PluginManager::supported[i]->unload();
+                }
+
+                mtx.lock();
+                do_run = false;
+                mtx.unlock();
+
+                // El Finito!
+                exit(EXIT_SUCCESS);
+            } catch (const exception& e) {
+                cerr << e.what() << endl;
+                unlink("/tmp/pluma.socket");
+                exit(EXIT_FAILURE);
+            }
+    }
 }

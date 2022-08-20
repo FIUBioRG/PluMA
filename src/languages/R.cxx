@@ -31,92 +31,81 @@
 \*********************************************************************************/
 
 #ifdef HAVE_R
-#include "R.h"
-#include "RInside.h"
-#include "Rinterface.h"
-#endif
+#include "R.hxx"
 #include "../PluginManager.h"
+#include <vector>
+#include <string>
 
 namespace MiAMi {
 
-R::R(
-    std::string language,
-    std::string ext,
-    std::string pp,
-    int argc,
-    char** argv
-) : Language(language, ext, pp) {
-    this->argc = argc;
-    this->argv = argv;
-#ifdef HAVE_R
-    myR = new RInside(argc, argv);
-#endif
-}
-
-void R::load() {
-#ifdef HAVE_R
-    myR = new RInside(argc, argv);
-#endif
-}
-
-
-void R::executePlugin(
-    std::string pluginname,
-    std::string inputname,
-    std::string outputname)
-{
-#ifdef HAVE_R
-    std::string tmppath = pluginpath;
-    std::string path = tmppath.substr(0, pluginpath.find_first_of(":"));
-    std::ifstream* infile = NULL;
-    do {
-        if (infile) delete infile;
-        infile = new std::ifstream((path+"/"+pluginname+"/"+pluginname+"Plugin.R").c_str(), std::ios::in);
-        tmppath = tmppath.substr(tmppath.find_first_of(":")+1, tmppath.length());
-        path = tmppath.substr(0, tmppath.find_first_of(":"));
-    } while (!(*infile) && path.length() > 0);// {
-
-    std::string txt;
-    std::string line;
-    while (!infile->eof()) {
-        getline(*infile, line);
-        txt += line+"\n";
+    R::R(
+        std::string language,
+        std::string ext,
+        std::string pp,
+        int argc,
+        char** argv
+    ) : Language(language, ext, pp) {
+        this->argc = argc;
+        this->argv = argv;
+        myR = new RInside(argc, argv);
     }
-    delete infile;
 
-    PluginManager::getInstance().log("Executing R Plugin "+pluginname);
-    txt += "input(\"" + inputname + "\");\n";
-    txt += "run();";
-    txt += "output(\"" + outputname + "\");\n";
-    myR->parseEvalQ(txt);
-    PluginManager::getInstance().log("R Plugin "+pluginname+" completed successfully.");
-    //unload();
+    void R::load() {
+        myR = new RInside(argc, argv);
+    }
+
+    void R::executePlugin(
+        std::string pluginname,
+        std::string inputname,
+        std::string outputname)
+    {
+        std::string tmppath = pluginpath;
+        std::string path = tmppath.substr(0, pluginpath.find_first_of(":"));
+        std::ifstream* infile = NULL;
+        do {
+            if (infile) delete infile;
+            infile = new std::ifstream((path+"/"+pluginname+"/"+pluginname+"Plugin.R").c_str(), std::ios::in);
+            tmppath = tmppath.substr(tmppath.find_first_of(":")+1, tmppath.length());
+            path = tmppath.substr(0, tmppath.find_first_of(":"));
+        } while (!(*infile) && path.length() > 0);
+
+        std::string txt;
+        std::string line;
+
+        while (!infile->eof()) {
+            getline(*infile, line);
+            txt += line+"\n";
+        }
+        delete infile;
+
+        PluginManager::getInstance().log("Executing R Plugin "+pluginname);
+        txt += "input(\"" + inputname + "\");\n";
+        txt += "run();";
+        txt += "output(\"" + outputname + "\");\n";
+        myR->parseEvalQ(txt);
+        PluginManager::getInstance().log("R Plugin "+pluginname+" completed successfully.");
+    }
+
+
+    void R::unload() {
+        delete myR;
+        Rf_KillAllDevices();
+        R_GlobalContext = NULL;
+        Rf_endEmbeddedR(0);
+    }
+
+    void R::installDependencies(std::vector<std::string> dependencies) {
+        for(auto &dependency: dependencies) {
+            installDependency(dependency);
+        }
+    }
+
+    void R::installDependency(std::string &dependency) {
+        std::string command = "if(!(require(" + dependency;
+        command += "))) install.packages(\"" + dependency + "\")";
+        myR->parseEvalQ(command);
+        PluginManager::getInstance().log("R dependency " + dependency + " installed");
+    }
+}
+
 #endif
-}
-
-
-void R::unload()
-{
-#ifdef HAVE_R
-    //delete myR->instancePtr();
-    delete myR;
-
-     //R_dot_Last();
-     //R_RunExitFinalizers();
-     //R_CleanTempDir();
-     //Rf_KillAllDevices();
-     //#ifndef WIN32
-     //fpu_setup(FALSE);
-     //#endif
-     //Rf_endEmbeddedR(0);
-     //RInside::instance_m = 0 ;
-     //delete RInside::global_env_m;
-
-
-    Rf_KillAllDevices();
-    R_GlobalContext = NULL;
-    Rf_endEmbeddedR(0);
-#endif
-}
-
-}
