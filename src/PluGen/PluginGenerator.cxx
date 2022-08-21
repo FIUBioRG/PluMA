@@ -94,8 +94,24 @@ void PluginGenerator::makeHeaderFile(std::string pluginname) {
 
 void PluginGenerator::makeSourceFile(std::string pluginname, std::vector<std::string>& command) {
    std::string sourcefile = myPath+"/"+pluginname+"/"+pluginname+"Plugin.cpp";
+   std::string readme = myPath+"/"+pluginname+"/README.md";
    std::ofstream cppfile(sourcefile.c_str(), std::ios::out);
-
+   std::ofstream readmefile(readme.c_str(), std::ios::out);
+   std::cout << "ENTER OUTPUT FORMAT: ";
+   std::string outputfmt;
+   std::cin >> outputfmt;
+   std::cout << "ENTER DEPENDENCIES: ";
+   std::string dependencies;
+   std::cin >> dependencies;
+   readmefile << "# " << pluginname << std::endl;
+   readmefile << "# Language: C++" << std::endl;
+   readmefile << "# Input: TXT" << std::endl;
+   readmefile << "# Output: " << outputfmt << std::endl;
+   readmefile << "# Tested with: PluMA 1.1, GCC 4.8.4" << std::endl;
+   readmefile << "# " << dependencies << std::endl;
+   readmefile << std::endl;
+   readmefile << "PluMA plugin that runs " << pluginname << "." << std::endl << std::endl;
+   readmefile << "The plugin expects as input a parameter file of tab-delimited keyword value pairs: " << std::endl;
    cppfile << "#include \"PluginManager.h\"" << std::endl;
    cppfile << "#include <stdio.h>" << std::endl;
    cppfile << "#include <stdlib.h>" << std::endl;
@@ -142,10 +158,12 @@ void PluginGenerator::makeSourceFile(std::string pluginname, std::vector<std::st
 	if (command[i+1] != "inputfile" && command[i+1] != "outputfile") {
          if (optionalflag) {
               cppfile << "addOptionalParameter(\"" << command[i] << "\", \"" << command[i+1] << "\");" << std::endl;
+	      readmefile << "[ " << command[i+1] << " (corresponding flag: " << command[i] << ") ]" << std::endl;
 	      i += 1;
 	 }
 	 else {
               cppfile << "addRequiredParameter(\"" << command[i] << "\", \"" << command[i+1] << "\");" << std::endl;
+	      readmefile << command[i+1] << " (corresponding flag: " << command[i] << ")" << std::endl;
 	      i += 1;
 	 }
          //cppfile << "myCommand += \"" << command[i] << "\";" << std::endl;
@@ -159,10 +177,12 @@ void PluginGenerator::makeSourceFile(std::string pluginname, std::vector<std::st
       else {
          if (optionalflag) {
               cppfile << "addOptionalParameterNoFlag(\"" << command[i] << "\");" << std::endl;
+	      readmefile << "[" << command[i] << "]" << std::endl;
 	      i += 1;
 	 }
 	 else {
               cppfile << "addRequiredParameterNoFlag(\"" << command[i] << "\");" << std::endl;
+	      readmefile << command[i] << std::endl;
 	      i += 1;
 	 }
          //cppfile << "myCommand += parameters[\"" << command[i] << "\"];" << std::endl;
@@ -170,6 +190,8 @@ void PluginGenerator::makeSourceFile(std::string pluginname, std::vector<std::st
       }
    }
 
+   readmefile << std::endl;
+   readmefile << "Plugin output format: " << outputfmt << std::endl;
    cppfile << " system(myCommand.c_str());" << std::endl;
    cppfile << "}" << std::endl;
 
