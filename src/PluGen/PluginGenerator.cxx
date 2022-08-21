@@ -69,10 +69,11 @@ void PluginGenerator::makeHeaderFile(std::string pluginname) {
    hfile << "#define " << str << "PLUGIN_H" << std::endl;
    hfile << std::endl;
    hfile << "#include \"Plugin.h\"" << std::endl;
+   hfile << "#include \"Tool.h\"" << std::endl;
    hfile << "#include \"PluginProxy.h\"" << std::endl;
    hfile << "#include <string>" << std::endl;
    hfile << std::endl;
-   hfile << "class " << pluginname << "Plugin : public Plugin" << std::endl;
+   hfile << "class " << pluginname << "Plugin : public Plugin, public Tool" << std::endl;
    hfile << "{" << std::endl;
    hfile << "public: " << std::endl;
    hfile << " std::string toString() {return \"" << pluginname << "\";}" << std::endl;
@@ -83,8 +84,8 @@ void PluginGenerator::makeHeaderFile(std::string pluginname) {
    hfile << "private: " << std::endl;
    hfile << " std::string inputfile;" << std::endl;
    hfile << " std::string outputfile;" << std::endl;
-   if (!myLiteral)
-      hfile << " std::map<std::string, std::string> parameters;" << std::endl;
+   //if (!myLiteral)
+   //   hfile << " std::map<std::string, std::string> parameters;" << std::endl;
    hfile << std::endl;
    hfile << "};" << std::endl;
    hfile << std::endl;
@@ -105,13 +106,15 @@ void PluginGenerator::makeSourceFile(std::string pluginname, std::vector<std::st
    cppfile << "void " << pluginname << "Plugin::input(std::string file) {" << std::endl;
    cppfile << " inputfile = file;" << std::endl;
    if (!myLiteral) {
-      cppfile << " std::ifstream ifile(inputfile.c_str(), std::ios::in);" << std::endl;
+      cppfile << "readParameterFile(file);" << std::endl;
+      /*cppfile << " std::ifstream ifile(inputfile.c_str(), std::ios::in);" << std::endl;
       cppfile << " while (!ifile.eof()) {" << std::endl;
       cppfile << "   std::string key, value;" << std::endl;
       cppfile << "   ifile >> key;" << std::endl;
       cppfile << "   ifile >> value;" << std::endl;
       cppfile << "   parameters[key] = value;" << std::endl;
       cppfile << " }" << std::endl;
+      */
    }
    cppfile << "}" << std::endl;
    cppfile << std::endl;
@@ -119,22 +122,51 @@ void PluginGenerator::makeSourceFile(std::string pluginname, std::vector<std::st
    cppfile << std::endl;
    cppfile << "void " << pluginname << "Plugin::output(std::string file) {" << std::endl;
    cppfile << " std::string outputfile = file;" << std::endl;
-   cppfile << " std::string myCommand = \"\";" << std::endl;
+   //cppfile << " std::string myCommand = \"\";" << std::endl;
 
    cppfile << "myCommand += \"" << command[0] << "\";" << std::endl;
    cppfile << "myCommand += \" \";" << std::endl;
+   bool optionalflag = false;
    for (int i = 1; i < command.size(); i++) {
       if (myLiteral && command[i] == "inputfile")
          cppfile << "myCommand += inputfile + \" \";" << std::endl;
       else if (command[i] == "outputfile")
          cppfile << "myCommand += outputfile + \" \";" << std::endl;
+      else if (command[i][0] == '[') {
+	      optionalflag = true;
+      }
+      else if (command[i][0] == ']') {
+              optionalflag = false;
+      }
       else if (command[i][0] == '-'){
+	if (command[i+1] != "inputfile" && command[i+1] != "outputfile") {
+         if (optionalflag) {
+              cppfile << "addOptionalParameter(\"" << command[i] << "\", \"" << command[i+1] << "\");" << std::endl;
+	      i += 1;
+	 }
+	 else {
+              cppfile << "addRequiredParameter(\"" << command[i] << "\", \"" << command[i+1] << "\");" << std::endl;
+	      i += 1;
+	 }
+         //cppfile << "myCommand += \"" << command[i] << "\";" << std::endl;
+         //cppfile << "myCommand += \" \";" << std::endl;
+	}
+	else {
          cppfile << "myCommand += \"" << command[i] << "\";" << std::endl;
          cppfile << "myCommand += \" \";" << std::endl;
+	}
       }
       else {
-         cppfile << "myCommand += parameters[\"" << command[i] << "\"];" << std::endl;
-         cppfile << "myCommand += \" \";" << std::endl;
+         if (optionalflag) {
+              cppfile << "addOptionalParameterNoFlag(\"" << command[i] << "\");" << std::endl;
+	      i += 1;
+	 }
+	 else {
+              cppfile << "addRequiredParameterNoFlag(\"" << command[i] << "\");" << std::endl;
+	      i += 1;
+	 }
+         //cppfile << "myCommand += parameters[\"" << command[i] << "\"];" << std::endl;
+         //cppfile << "myCommand += \" \";" << std::endl;
       }
    }
 
