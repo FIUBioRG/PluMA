@@ -1,4 +1,5 @@
 # Note this requires an internet connection
+# Filename: checkPool.py
 import os
 import sys
 import urllib.request
