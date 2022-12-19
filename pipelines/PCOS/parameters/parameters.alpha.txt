@@ -1,4 +1,0 @@
-otufile	asv.tab.csv
-mapping	sample_data.csv
-tree	asv.taxonomy.csv
-column	Disease
