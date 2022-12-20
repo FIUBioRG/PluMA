@@ -1,0 +1,4 @@
+otufile	output.otu.csv
+tree	output.tax.csv
+mapping	output.meta.csv
+column	Description

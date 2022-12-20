@@ -1,0 +1,4 @@
+otufile	../../PhyloSeqMixToss/otu_table.final.csv
+tree	../../PhyloSeqMixToss/tax_table.final.csv
+mapping	../../PhyloSeqMixToss/sample_data.csv
+column	Description
