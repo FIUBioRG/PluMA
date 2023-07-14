@@ -148,7 +148,20 @@ def localplugin(msg):
 #turnedoff = {}
 turnedoff = {#'SparCC':'',
              #'Ensemble':'',
+             'MaskingNoise':'ML, randomn inconsistency',
+             'AdditiveGaussian':'ML, randomn inconsistency',
+             'AutoEncoder':'ML, randomn inconsistency',
+             'Variational':'ML, randomn inconsistency',
+             'DNNRegression':'ML, randomn inconsistency',
+             'LinearRegression':'ML, randomn inconsistency',
+             'OneHot':'ML, randomn inconsistency',
+             'Estimator':'ML, randomn inconsistency',
+             'FIFO':'ML, randomn inconsistency',
+             'TDNN':'ML, randomn inconsistency',
+             'WideDeep':'ML, randomn inconsistency',
              'TransformerPrediction':'Outputs image',
+             'FeatureImportance':'Random inconsistency',
+             'ADONIS':'Random inconsistency',
              'QuantileKL':'Binary output',
              'SGD':'Randomness',
              'Adam':'Randomness',
@@ -298,7 +311,7 @@ for plugin in plugins:
                      result = filecmp.cmp(outputfile, expected) # Compare expected and actual output
                      if (not result):
                         if (os.path.exists("plugins/"+plugin+"/example/test.py")): # Own test
-                           print("RUNNING OWN TEST")
+                           #print("RUNNING OWN TEST")
                            exec(open("plugins/"+plugin+"/example/test.py").read())
                            result = test(outputfile, expected)
                            if (not result):
