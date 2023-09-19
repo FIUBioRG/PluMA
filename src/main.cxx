@@ -49,6 +49,12 @@
 #include <sstream>
 #include <ctime>
 
+#include "../extern/cxxopts/include/cxxopts.hpp"
+
+#ifdef WITH_AWS_SDK
+#include "../aws-sdk-cpp/src/aws-cpp-sdk-core/source/Aws.cpp"
+#endif
+
 
 //////////////////////////////////////////
 // Helper Function: Convert int to string
@@ -58,6 +64,17 @@ std::string toString(int val) {
    ss << val;
    ss >> retval;
    return retval;
+}
+//////////////////////////////////////////
+
+//////////////////////////////////////////
+// Helper Function: Check if String is an Int
+bool is_number(const std::string& s) {
+    return !s.empty() && std::find_if(
+        s.begin(),
+        s.end(),
+        [](unsigned char c) { return ! std::isdigit(c); }
+    ) == s.end();
 }
 //////////////////////////////////////////
 
@@ -74,7 +91,6 @@ void readConfig(char* inputfile, std::string prefix, bool doRestart, std::string
         * Plugin (Name) inputfile (input file) outputfile (output file)
         */
         infile >> junk;
-	//std::cout << "JUNK: " << junk << std::endl;
         if (junk[0] == '#') {
             // the line is a comment
             getline(infile, junk);
@@ -151,8 +167,6 @@ void readConfig(char* inputfile, std::string prefix, bool doRestart, std::string
                 exit(1);
             }
         }
-      //PluginManager::languageUnload("R");
-      //PluginManager::languageLoad("R");
         ////////////////////////////////////////////////////////////////////////////////////////////////////////
     }
 }
@@ -160,6 +174,27 @@ void readConfig(char* inputfile, std::string prefix, bool doRestart, std::string
 
 int main(int argc, char** argv)
 {
+    cxxopts::Options options("pluma", "[Plu]gin-based [M]icrobiome [A]nalysis");
+
+    options.add_options()
+        ("a,aws", "We're running on AWS.")
+        ("b,build-id", "Containerized Build Id for web-based run.", cxxopts::value<std::string>())
+        ("h,help", "Print usage.")
+        ("v,version", "Print version.")
+        ("p,plugins", "Print installed plugins.");
+
+    options.parse_positional({"input_file", "optional_restart"});
+
+    cxxopts::ParseResult result;
+
+    try {
+        result = options.parse(argc, argv);
+    } catch (const cxxopts::exceptions::parsing &ex) {
+        std::cerr << "pluma: " << ex.what() << std::endl;
+        std::cerr << "usage: pluma [options] <input_file> <optional_restart>" << std::endl;
+        return EXIT_FAILURE;
+    }
+
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Display opening screen.
     std::cout << "***********************************************************************************" << std::endl;
@@ -195,51 +230,39 @@ int main(int argc, char** argv)
         pluginpath += getenv("PLUMA_PLUGIN_PATH");
     }
     pluginpath += ":";
-    //pluginpath += "/usr/local/bin/plugins/:/usr/bin/plugins/";
-    //pluginpath += ":";
-    //std::cout << "PluginPath: " << pluginpath << std::endl;
-    ///////////////////////////////////////////////////////////////////////////////////////////////
-
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // Set PluginManager::supported languages here.
-    /*std::vector<Language*> PluginManager::supported;
-    std::map<std::string, std::string> PluginManager::getInstance().pluginLanguages;
-    #ifdef APPLE
-    PluginManager::supported.push_back(new Compiled("C", "dylib", pluginpath, "lib"));
-    #else
-    PluginManager::supported.push_back(new Compiled("C", "so", pluginpath, "lib"));
-    #endif
-    PluginManager::supported.push_back(new Py("Python", "py", pluginpath));
-    PluginManager::supported.push_back(new MiAMi::R("R", "R", pluginpath, argc, argv));
-    PluginManager::supported.push_back(new Perl("Perl", "pl", pluginpath));*/
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
     // Command line arguments
-    if (argc != 2 && argc != 3 || std::string(argv[1]) == "usage") { // Usage
-        std::cout << "[PluMA] Usage: ./pluma (config file) (optional restart point)" << std::endl;
-        std::cout << "Arguments: help: display this message" << std::endl;
-        std::cout << "           version: display release information" << std::endl;
-        std::cout << "           plugins: list your installed plugins and location" << std::endl;
-        exit(0);
-    } else if (std::string(argv[1]) == "help") { // Help
-        std::cout << "[PluMA] Usage: ./pluma (config file) (optional restart point)" << std::endl;
-        exit(0);
-    } else if (std::string(argv[1]) == "version") { // Version
+    if (result.count("help")) {
+        std::cout << options.help() << std::endl;
+        exit(EXIT_SUCCESS);
+    }
+
+    if (result.count("version")) {
         std::cout << "[PluMA] Version 2.0" << std::endl;
-        exit(0);
+        exit(EXIT_SUCCESS);
+    }
+
+    std::string uuid;
+
+    if (result.count("aws")) {
+        if (!result.count("build-id")) {
+            std::cerr << "No valid build ID was supplied." << std::endl;
+            exit(EXIT_FAILURE);
+        }
+
+        uuid = result["build-id"].as<std::string>();
     }
 
     PluginManager::supportedLanguages(pluginpath, argc, argv);
     //////////////////////////////////////////////////////////////////////////////////////////
     // For each PluginManager::supported language, load the appropriate plugins
     std::string path = pluginpath.substr(0, pluginpath.find_first_of(":"));
-    bool list = false;
+    bool list;
     while (path.length() > 0) {
-        //std::cout << "Plugin Path: " << pluginpath << std::endl;
-        //std::cout << "Path: " << path << std::endl;
         glob_t globbuf;
-        if (std::string(argv[1]) == "plugins") {
+        if (result.count("plugins")) {
             std::cout << "[PluMA] Current plugin list: " << std::endl;
             list = true;
         }
@@ -255,16 +278,19 @@ int main(int argc, char** argv)
         pluginpath = pluginpath.substr(pluginpath.find_first_of(":")+1, pluginpath.length());
         path = pluginpath.substr(0, pluginpath.find_first_of(":"));
     }
-    if (list) exit(0);
+
+    if (list) {
+        exit(EXIT_SUCCESS);
+    }
     //////////////////////////////////////////////////////////////////////////////////////////
 
     ///////////////////////////////////////////////
     // Check for a restart point
     bool doRestart = false;
     std::string restartPoint = "";
-    if (argc == 3) {
+    if (is_number(argv[argc - 1])) {
         doRestart = true;
-        restartPoint = std::string(argv[2]);
+        restartPoint = std::string(argv[argc - 1]);
     }
     //////////////////////////////////////////////
 
@@ -278,78 +304,18 @@ int main(int argc, char** argv)
 
     /////////////////////////////////////////////////////////////////////
     // Read configuration file and make appropriate plugins
-    readConfig(argv[1], "", doRestart, restartPoint);
+    readConfig(argv[argc - 2], "", doRestart, restartPoint);
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-
-   /*std::ifstream infile(argv[1], std::ios::in);
-   bool restartFlag = false;
-   std::string prefix = "";
-   while (!infile.eof()) {
-      ///////////////////////////////////////////////////////
-      // Read one line
-      // Plugin (Name) inputfile (input file) outputfile (output file)
-      std::string junk, name, inputname, outputname;
-      infile >> junk;
-      if (junk[0] == '#') {getline(infile, junk); continue;} // comment
-      else if (junk == "Prefix") {infile >> prefix; prefix += "/"; continue;} // prefix
-      else infile >> name >> junk >> inputname >> junk >> outputname;
-      if (inputname[0] != '/')
-         inputname = prefix + inputname;
-      if (outputname[0] != '/')
-         outputname = prefix + outputname;
-      //////////////////////////////////////////////////////
-
-      ////////////////////////////////////////////////////////////////////////////
-      // If we are restarting and have not hit that point yet, skip this plugin
-      if (doRestart && !restartFlag)
-         if (name == restartPoint)
-            restartFlag = true;
-         else
-           continue;
-      /////////////////////////////////////////////////////////////////////
-
-      ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-      // Try to create and run all three steps of the plugin in the appropriate language
-      PluginManager::getInstance().log("Creating plugin "+name);
-      try {
-         bool executed = false;
-         for (int i = 0; i < PluginManager::supported.size() && !executed; i++)
-            if (PluginManager::getInstance().pluginLanguages[name+"Plugin"] == PluginManager::supported[i]->lang()) {
-               std::cout << "[PluMA] Running Plugin: " << name << std::endl;
-               PluginManager::supported[i]->executePlugin(name, inputname, outputname);
-               executed = true;
-            }
-         ///////////////////////////////////////////////////////////////////////////////////////////////////////
-         // In this case we found the plugin, but the language is not PluginManager::supported.
-         if (!executed && name != "")
-             PluginManager::getInstance().log("Error, no suitable language for plugin: "+name+".");
-         ///////////////////////////////////////////////////////////////////////////////////////////////////////
-      }
-      ///////////////////////////////////////////////////////////////////////////////////////////////////////
-      // This hits if the plugin errored while running it
-      // Message(s) will be output to the logfile, and output files will be removed.
-      catch (...) {
-         PluginManager::getInstance().log("ERROR IN PLUGIN: "+name+".");;
-         if (access( outputname.c_str(), F_OK ) != -1 ) {
-            PluginManager::getInstance().log("REMOVING OUTPUT FILE: "+outputname+".");
-            system(("rm "+outputname).c_str());
-            exit(1);
-	    }
-      }
-      std::cout << "HERE" << std::endl;
-      ////////////////////////////////////////////////////////////////////////////////////////////////////////
-   }*/
-   ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     /////////////////////////////////////////////////////////////////////
     // Cleanup.
-    for (int i = 0; i < PluginManager::supported.size(); i++)
+    for (int i = 0; i < PluginManager::supported.size(); i++) {
         PluginManager::supported[i]->unload();
+    }
     /////////////////////////////////////////////////////////////////////
 
     /////////////////////////////////////////////////////////////////////
     // El Finito!
-    return 0;
+    return EXIT_SUCCESS;
     /////////////////////////////////////////////////////////////////////
 }

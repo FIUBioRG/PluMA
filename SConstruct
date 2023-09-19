@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright (C) 2017, 2019-2020 FIUBioRG
+# Copyright (C) 2017, 2019-2023 FIUBioRG
 # SPDX-License-Identifier: MIT
 #
 # Application constructor/compiler configuration
@@ -10,13 +10,11 @@
 #
 # -*-python-*-
 
-
-
 from glob import glob
+import os
 from os import environ, getenv
-from os.path import relpath, abspath
+from os.path import relpath
 import logging
-import re
 import subprocess
 import sys
 
@@ -25,11 +23,12 @@ from build_support import *
 
 if sys.version_info.major < 3:
     logging.error("Python3 is required to run this Sconstruct")
+    exit(1)
 
 # The current SConstruct does not support Windows variants
 if sys.platform.startswith("windows"):
     logging.error("Windows is currently not supported")
-    Exit(1)
+    exit(1)
 
 ###################################################################
 # Add Commndline Options to our Scons build
@@ -116,10 +115,33 @@ AddOption(
     help="Set the lib directory for the R installation on the system"
 )
 
-###################################################################
-# Gets the environment variables set by the user on the OS level or
-# defaults to 'sane' values.
-###################################################################
+AddOption(
+    "--with-aws-sdk",
+    dest="with-aws-sdk",
+    action="store_true",
+    default=False,
+    help="Compile with the Amazon SDK"
+)
+
+AddOption(
+    "--with-aws-sdk-build",
+    dest="with-aws-sdk-build",
+    action="store_true",
+    default=False,
+    help="Download, compile, and install the AWS SDK on the build system"
+)
+
+AddOption(
+    "--download-plugins-heavy",
+    dest="download-plugins-heavy",
+    action="store_true",
+    default=False,
+    help="Download all available plugins (used in creation of a 'heavy' container)"
+)
+
+subprocess.run(["git", "submodule", "update", "--init", "--recursive", "extern/cxxopts"],
+                shell=True)
+
 ###################################################################
 # Gets the environment variables set by the user on the OS level or
 # defaults to 'sane' values.
@@ -174,7 +196,6 @@ if env.GetOption("clean"):
             relpath("derep.fasta"),
             Glob("logs/*.log.txt"),
             Glob("pvals.*.txt"),
-            #relpath("pythonds"),
             Glob("*.pdf"),
             Glob("*.so"),
             relpath("tmp"),
@@ -198,13 +219,13 @@ else:
     config = Configure(env, custom_tests={"CheckPerl": CheckPerl})
 
     if not config.CheckCC():
-        Exit(1)
+        exit(1)
 
     if not config.CheckCXX():
-        Exit(1)
+        exit(1)
 
     if not config.CheckSHCXX():
-        Exit(1)
+        exit(1)
 
     libs = [
         "m",
@@ -218,7 +239,7 @@ else:
 
     for lib in libs:
         if not config.CheckLib(lib):
-            Exit(1)
+            exit(1)
 
     config.CheckProg("swig")
 
@@ -239,13 +260,13 @@ else:
 
         if not config.CheckPerl():
             logging.error("!! Could not find a valid `perl` installation`")
-            Exit(1)
+            exit(1)
         else:
             config.env.ParseConfig("perl -MExtUtils::Embed -e ccopts -e ldopts")
 
             if not config.CheckHeader("EXTERN.h"):
                 logging.error("!! Could not find `EXTERN.h`")
-                Exit(1)
+                exit(1)
 
             config.env.AppendUnique(
                 CXXFLAGS=["-fno-strict-aliasing"],
@@ -265,7 +286,7 @@ else:
     if not env.GetOption("without-r"):
         if not config.CheckProg("R") or not config.CheckProg("Rscript"):
             logging.error("!! Could not find a valid `R` installation`")
-            Exit(1)
+            exit(1)
         else:
             config.env.ParseConfig("pkg-config --cflags-only-I --libs-only-L libR")
             config.env.AppendUnique(
@@ -343,6 +364,9 @@ else:
         config.CheckProg("rustc")
         config.CheckProg("cargo")
 
+    if GetOption("with-aws-sdk"):
+        config.env.Append(CPPDEFINES=["-DWITH_AWS_SDK"])
+
     config.Finish()
 
     if GetOption("with-cuda"):
@@ -365,6 +389,8 @@ else:
         configCuda.CheckProg("nvcc")
         configCuda.CheckHeader("cuda.h")
         configCuda.Finish()
+
+
 
     # Export `envPlugin` and `envPluginCUDA`
     Export("env")
@@ -393,6 +419,31 @@ else:
             "src/PluginWrapper.i",
             "swig -r -c++ -module $TARGET -o ${TARGET}_wrap.cxx $SOURCE"
         )
+
+    ###################################################################
+    # Automatically download all plugins for the 'heavy' container.
+    ###################################################################
+    if env.GetOption("download-plugins-heavy"):
+        result = subprocess.run(["python", "getPlugins.py"],
+                                shell=True, capture_output=True, text=True)
+        print(result.stdout)
+
+    ###################################################################
+    # Automatically initialize and build the AWS C++ SDK
+    ###################################################################
+    if env.GetOption("with-aws-sdk-build"):
+        old_cwd = os.getcwd()
+        subprocess.run(["git", "submodule", "update", "--init", "--recursive", "extern/aws-sdk-cpp"],
+                       shell=True)
+        is_exist = os.path.exists("./aws-sdk-cpp/build")
+        if not is_exist:
+            os.mkdir("./aws-sdk-cpp/build")
+        os.chdir("./aws-sdk-cpp/build")
+        subprocess.run(["cmake", "..", "-DCMAKE_PREFIX_PATH=/usr/local"],
+                       shell=True)
+        subprocess.run(["cmake", "--build", "."], shell=True)
+        subprocess.run(["cmake", "--intstall", "."], shell=True)
+        os.chdur(old_cwd)
 
     ###################################################################
     # Execute compilation for our plugins.
