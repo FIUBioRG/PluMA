@@ -68,5 +68,7 @@
         "cinttypes": "cpp",
         "typeinfo": "cpp",
         "variant": "cpp"
-    }
+    },
+    "cmake.configureOnOpen": false,
+    "git.ignoreLimitWarning": true
 }

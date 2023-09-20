@@ -52,7 +52,7 @@
 #include "../extern/cxxopts/include/cxxopts.hpp"
 
 #ifdef WITH_AWS_SDK
-#include "../aws-sdk-cpp/src/aws-cpp-sdk-core/source/Aws.cpp"
+#include <aws/core/Version.h>
 #endif
 
 

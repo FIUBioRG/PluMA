@@ -139,12 +139,11 @@ AddOption(
     help="Download all available plugins (used in creation of a 'heavy' container)"
 )
 
-subprocess.run(["git", "submodule", "update", "--init", "--recursive", "extern/cxxopts"],
-                shell=True)
+subprocess.run(["git submodule update --init --recursive extern/cxxopts"], shell=True)
 
 ###################################################################
 # Gets the environment variables set by the user on the OS level or
-# defaults to 'sane' values.
+# defaults to "sane" values.
 ###################################################################
 env = Environment(
     ENV=environ,
@@ -165,7 +164,7 @@ if not sys.platform.startswith("darwin"):
     env.Append(LINKFLAGS=["-rdynamic"])
     env.Append(LIBS=["rt"])
 else:
-    env.Append(CCFLAGS=['-DAPPLE'])
+    env.Append(CCFLAGS=["-DAPPLE"])
 
 if platform_id == "alpine":
     env.Append(CPPDEFINES=["__MUSL__"])
@@ -185,8 +184,8 @@ if env.GetOption("clean"):
             relpath("config.log"),
             relpath(".perlconfig.txt"),
             relpath("pluma"),
-            Glob('PluGen/*.o'),
-            relpath('PluGen/plugen'),
+            Glob("PluGen/*.o"),
+            relpath("PluGen/plugen"),
             relpath("./obj"),
             relpath("./lib"),
             Glob("perm*.txt"),
@@ -255,6 +254,9 @@ else:
                 "!! Version of Python <= Python3.0 are now EOL. Please update to Python3"
             )
 
+        libs.append("util")
+        libs.append("python" + python_version)
+
     if not env.GetOption("without-perl"):
         config.CheckProg("perl")
 
@@ -283,6 +285,8 @@ else:
 
             config.env.Append(CPPDEFINES=["-DWITH_PERL"])
 
+            libs.append("perl")
+
     if not env.GetOption("without-r"):
         if not config.CheckProg("R") or not config.CheckProg("Rscript"):
             logging.error("!! Could not find a valid `R` installation`")
@@ -307,18 +311,18 @@ else:
                 CPPPATH=[
                     Dir("/usr/lib/R/library/Rcpp/include"),
                     Dir("/usr/lib/R/library/RInside/include"),
-                    Dir('/usr/lib/R/site-library/RInside/include'),
-                    Dir('/usr/lib/R/site-library/Rcpp/include'),
+                    Dir("/usr/lib/R/site-library/RInside/include"),
+                    Dir("/usr/lib/R/site-library/Rcpp/include"),
                     Dir("/usr/local/lib/R/library/Rcpp/include"),
                     Dir("/usr/local/lib/R/library/RInside/include"),
-                    Dir('/usr/local/lib/R/site-library/RInside/include'),
-                    Dir('/usr/local/lib/R/site-library/Rcpp/include'),
+                    Dir("/usr/local/lib/R/site-library/RInside/include"),
+                    Dir("/usr/local/lib/R/site-library/Rcpp/include"),
                 ],
                 LIBPATH=[
                     Dir("/usr/lib/R/library/RInside/lib"),
-                    Dir('/usr/lib/R/site-library/RInside/lib'),
+                    Dir("/usr/lib/R/site-library/RInside/lib"),
                     Dir("/usr/local/lib/R/library/RInside/lib"),
-                    Dir('/usr/local/lib/R/site-library/RInside/lib'),
+                    Dir("/usr/local/lib/R/site-library/RInside/lib"),
                 ],
                 LIBS=["R", "RInside"],
             )
@@ -360,12 +364,17 @@ else:
 
             config.env.Append(CPPDEFINES=["-DWITH_R"])
 
+            libs.append("R")
+            libs.append("RInside")
+
     if GetOption("with-rust"):
         config.CheckProg("rustc")
         config.CheckProg("cargo")
 
     if GetOption("with-aws-sdk"):
+        config.CheckLib("curl")
         config.env.Append(CPPDEFINES=["-DWITH_AWS_SDK"])
+        libs.append("curl")
 
     config.Finish()
 
@@ -382,15 +391,13 @@ else:
                 "-Xcompiler",
                 "-fPIC",
             ],
-            GPU_ARCH=GetOption('gpu_arch'),
+            GPU_ARCH=GetOption("gpu_arch"),
         )
 
         configCuda = Configure(envPluginCuda)
         configCuda.CheckProg("nvcc")
         configCuda.CheckHeader("cuda.h")
         configCuda.Finish()
-
-
 
     # Export `envPlugin` and `envPluginCUDA`
     Export("env")
@@ -421,7 +428,7 @@ else:
         )
 
     ###################################################################
-    # Automatically download all plugins for the 'heavy' container.
+    # Automatically download all plugins for the "heavy" container.
     ###################################################################
     if env.GetOption("download-plugins-heavy"):
         result = subprocess.run(["python", "getPlugins.py"],
@@ -431,19 +438,19 @@ else:
     ###################################################################
     # Automatically initialize and build the AWS C++ SDK
     ###################################################################
-    if env.GetOption("with-aws-sdk-build"):
+    if env.GetOption("with-aws-sdk"):
         old_cwd = os.getcwd()
-        subprocess.run(["git", "submodule", "update", "--init", "--recursive", "extern/aws-sdk-cpp"],
+        subprocess.run(["git submodule update --init --recursive extern/aws-sdk-cpp"],
                        shell=True)
-        is_exist = os.path.exists("./aws-sdk-cpp/build")
+        is_exist = os.path.exists("./extern/aws-sdk-cpp/build")
         if not is_exist:
-            os.mkdir("./aws-sdk-cpp/build")
-        os.chdir("./aws-sdk-cpp/build")
-        subprocess.run(["cmake", "..", "-DCMAKE_PREFIX_PATH=/usr/local"],
+            os.mkdir("./extern/aws-sdk-cpp/build")
+        os.chdir("./extern/aws-sdk-cpp/build")
+        subprocess.run(["cmake .. -DCMAKE_PREFIX_PATH=/usr/local -DBUILD_ONLY=s3"],
                        shell=True)
-        subprocess.run(["cmake", "--build", "."], shell=True)
-        subprocess.run(["cmake", "--intstall", "."], shell=True)
-        os.chdur(old_cwd)
+        subprocess.run(["cmake --build ."], shell=True)
+        subprocess.run(["sudo cmake --install ."], shell=True)
+        os.chdir(old_cwd)
 
     ###################################################################
     # Execute compilation for our plugins.
@@ -455,47 +462,50 @@ else:
     )
     ###################################################################
     # PYTHON PLUGINS
-    env.SharedObject(
-        source="PyPluMA_wrap.cxx",
-        target=ObjectPath("PyPluMA_wrap.os"),
-    )
+    if not env.GetOption("without-python"):
+        env.SharedObject(
+            source="PyPluMA_wrap.cxx",
+            target=ObjectPath("PyPluMA_wrap.os"),
+        )
 
-    env.SharedLibrary(
-        source=[
-            ObjectPath("PyPluMA_wrap.os"),
-            ObjectPath("PluMA.os"),
-        ],
-        target="_PyPluMA.so",
-    )
+        env.SharedLibrary(
+            source=[
+                ObjectPath("PyPluMA_wrap.os"),
+                ObjectPath("PluMA.os"),
+            ],
+            target="_PyPluMA.so",
+        )
     ###################################################################
 
     ###################################################################
     # PERL PLUGINS
-    env.SharedObject(
-        source="PerlPluMA_wrap.cxx",
-        target=ObjectPath("PerlPluMA_wrap.os"),
-    )
+    if not env.GetOption("without-perl"):
+        env.SharedObject(
+            source="PerlPluMA_wrap.cxx",
+            target=ObjectPath("PerlPluMA_wrap.os"),
+        )
 
-    env.SharedLibrary(
-        source=[
-            ObjectPath("PluMA.os"),
-            ObjectPath("PerlPluMA_wrap.os"),
-        ],
-        target="PerlPluMA.so",
-    )
+        env.SharedLibrary(
+            source=[
+                ObjectPath("PluMA.os"),
+                ObjectPath("PerlPluMA_wrap.os"),
+            ],
+            target="PerlPluMA.so",
+        )
     ###################################################################
     # R PLUGINS
-    env.SharedObject(
-        source="RPluMA_wrap.cxx",
-        target=ObjectPath("RPluMA_wrap.os"),
-    )
-    env.SharedLibrary(
-        source=[
-            ObjectPath("PluMA.os"),
-            ObjectPath("RPluMA_wrap.os"),
-        ],
-        target="RPluMA.so",
-    )
+    if not env.GetOption("without-r"):
+        env.SharedObject(
+            source="RPluMA_wrap.cxx",
+            target=ObjectPath("RPluMA_wrap.os"),
+        )
+        env.SharedLibrary(
+            source=[
+                ObjectPath("PluMA.os"),
+                ObjectPath("RPluMA_wrap.os"),
+            ],
+            target="RPluMA.so",
+        )
     ###################################################################
 
     ###################################################################
@@ -531,9 +541,9 @@ else:
     # ###################################################################
     if GetOption("with-cuda"):
         print("!! Compiling CUDA Plugins")
-        envPluginCuda.AppendUnique(NVCCFLAGS=["-I"+os.getcwd()+"/src", '-std=c++11'])
+        envPluginCuda.AppendUnique(NVCCFLAGS=["-I"+os.getcwd()+"/src", "-std=c++11"])
         for folder in pluginPath:
-            pluginListCU = Glob(folder+'/*Plugin.cu')
+            pluginListCU = Glob(folder+"/*Plugin.cu")
             for plugin in pluginListCU:
                 pluginName = plugin.get_path()
                 pluginName = pluginName.replace(str(plugin.get_dir())+"/", "")
@@ -590,17 +600,6 @@ else:
             SourcePath("PluginManager.cxx"),
             languages,
         ],
-        LIBS=[
-            "pthread",
-            "m",
-            "dl",
-            "crypt",
-            "c",
-            "python" + python_version,
-            "util",
-            "perl",
-            "R",
-            "RInside",
-        ],
+        LIBS=libs,
     )
     ###################################################################
