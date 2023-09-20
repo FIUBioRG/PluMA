@@ -4,8 +4,12 @@ import os
 from os import path
 import sys
 import argparse
+import logging
 from urllib import request
 import curses
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger('plugins')
 
 BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN, WHITE = range(8)
 EPS=1e-8
@@ -41,33 +45,68 @@ def printout(text, colour=WHITE):
     else:
         sys.stdout.write('{:>50}'.format(text))
 
-def get_plugins():
-    '''Download the list of plugins from the main BioRG website tables'''
-    pool = list()
-    urls = list()
+def get_categories():
+    '''Download the list of plugin catergories from the main BioRG website tables'''
+    pool = set()
+    urls = set()
 
     with request.urlopen('https://biorg.cis.fiu.edu/pluma/plugins.html') as response:
         page_source = str(response.read())
 
         while page_source.find('</table>') != -1:
-            plugin_table = page_source[page_source.find('<table '): page_source.find('</table>')]
-            plugins = plugin_table.split('<tr>')
+            category_table = page_source[page_source.find('<table '): page_source.find('</table>')]
+            rows = category_table.split('<tr>')
 
-            for plugin in plugins:
-                content = plugin[plugin.find('<a href='): plugin.find('</a>')]
-                content = content.replace('<a href=', '')
-                data = content.split('>')
+            for row in rows:
+                columns = row.split('<td ')
+                for column in columns:
+                    content = column[column.find('<a href='): column.find('</a>')]
+                    content = content.replace('<a href=', '')
+                    content = content.replace('<b', '')
+                    content = content.replace('</b', '')
+                    content = content.replace('"', '')
+                    data = content.split('>')
 
-                if len(data) == 2:
-                    urls.append(data[0])
-                    pool.append(data[1])
+                    if data[0] == '':
+                        continue
+                    elif len(data) == 4:
+                        urls.add(data[0])
+                        pool.add(data[2])
 
-                plugin = plugin[plugin.find('</a>') + 1:]
+                row = row[row.find('</a>') + 1:]
 
             page_source = page_source[page_source.find('</table>') + 1:]
 
-
     return pool, urls
+
+def get_plugins():
+    '''Download the list of plugin from the category website tables'''
+    pool = set()
+    plugin_urls = set()
+    categories, urls = get_categories()
+
+    for category in urls:
+        with request.urlopen('https://biorg.cis.fiu.edu/pluma/' + category) as response:
+            page_source = str(response.read())
+
+            table = page_source[page_source.find('<table '): page_source.find('</table')]
+            rows = table.split('<tr>')
+
+            for row in rows:
+                content = row[row.find('<a href='): row.find('</a>')]
+                data = content.split('>')
+                data[0] = data[0].replace('<a href=', '')
+                data[0] = data[0].replace('"', '')
+
+                logger.debug(data[0])
+
+                if data[0] == '':
+                    continue
+                elif len(data) == 2:
+                    plugin_urls.add(data[0])
+                    pool.add(data[1])
+
+    return pool, plugin_urls
 
 def download_plugins():
     '''Download plugins to a directory'''
@@ -88,7 +127,7 @@ def check_plugins():
     plugins, urls = get_plugins()
 
     normalprintout('************************************\n', GREEN)
-    normalprintout('\nTOTAL = ' + str(len(plugins)) + '\n', RED)
+    normalprintout('TOTAL = ' + str(len(plugins)) + '\n', RED)
     normalprintout('************************************\n', GREEN)
     normalprintout('************************************\n', BLUE)
     normalprintout('PLUGINS IN POOL, NOT LOCAL:\n', BLUE)
