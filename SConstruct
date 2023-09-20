@@ -299,7 +299,6 @@ else:
 
             config.env.AppendUnique(
                 CXXFLAGS=[
-                    "-fno-gnu-unique",
                     "-fpermissive",
                     "-fopenmp",
                     "--param=ssp-buffer-size=4",
@@ -447,7 +446,7 @@ else:
             os.mkdir("./extern/aws-sdk-cpp/build")
         os.chdir("./extern/aws-sdk-cpp/build")
         subprocess.run(["cmake .. -DCMAKE_PREFIX_PATH=/usr/local -DBUILD_ONLY=s3"],
-                       shell=True)
+                       shell=True) # -DBUILD_ONLY='service1;service2;service3'
         subprocess.run(["cmake --build ."], shell=True)
         subprocess.run(["sudo cmake --install ."], shell=True)
         os.chdir(old_cwd)
