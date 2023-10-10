@@ -104,6 +104,10 @@ public:
         return (char*) myPrefix.c_str();
     }
 
+    static std::string addPrefix(std::string filename) {
+        return std::string(prefix())+"/"+filename;
+    }
+
     static void supportedLanguages(
         std::string pluginpath,
         int argc,
