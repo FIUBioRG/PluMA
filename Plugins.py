@@ -149,7 +149,7 @@ def check_plugins():
             normalprintout(plugin + '\n', MAGENTA)
 
     normalprintout('************************************\n', MAGENTA)
-    normalprintout('************************************\n', YELLOW)
+    normalprintout('******5******************************\n', YELLOW)
     normalprintout('PLUGINS THAT DIFFER FROM REPOSITORY:\n', YELLOW)
 
     for plugin in local.intersection(plugins):
