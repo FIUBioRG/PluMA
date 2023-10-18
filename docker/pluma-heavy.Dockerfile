@@ -16,6 +16,8 @@ RUN apk update && apk add -t .runtime-deps \
   libffi-dev elfutils-dev libc-dev libexecinfo-dev \
   py3-pip py3-pandas py3-numpy swig pcre pcre-dev
 
+RUN git submodule update --init
+
 RUN pip install pythonds
 
 RUN mkdir -p ~/.R \
@@ -28,4 +30,4 @@ RUN python3 Plugins.py download \
 VOLUME ["/app/plugins"]
 VOLUME ["/app/pipelines"]
 
-ENTRYPOINT ["/app/pluma"]
+CMD ["/app/pluma"]

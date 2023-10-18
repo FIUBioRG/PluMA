@@ -78,7 +78,7 @@ bool is_number(const std::string& s) {
 }
 //////////////////////////////////////////
 
-void readConfig(char* inputfile, std::string prefix, bool doRestart, std::string restartPoint) {
+void readConfig(std::string inputfile, std::string prefix, bool doRestart, std::string restartPoint) {
     std::ifstream infile(inputfile, std::ios::in);
     bool restartFlag = false;
     std::string pipeline = "";
@@ -177,6 +177,8 @@ int main(int argc, char** argv)
     cxxopts::Options options("pluma", "[Plu]gin-based [M]icrobiome [A]nalysis");
 
     options.add_options()
+        ("input_file", "Input configuration file.", cxxopts::value<std::string>())
+        ("optional_restart", "Optional restart point.", cxxopts::value<std::string>())
         ("a,aws", "We're running on AWS.")
         ("b,build-id", "Containerized Build Id for web-based run.", cxxopts::value<std::string>())
         ("h,help", "Print usage.")
@@ -259,7 +261,7 @@ int main(int argc, char** argv)
     //////////////////////////////////////////////////////////////////////////////////////////
     // For each PluginManager::supported language, load the appropriate plugins
     std::string path = pluginpath.substr(0, pluginpath.find_first_of(":"));
-    bool list;
+    bool list = false;
     while (path.length() > 0) {
         glob_t globbuf;
         if (result.count("plugins")) {
@@ -288,9 +290,9 @@ int main(int argc, char** argv)
     // Check for a restart point
     bool doRestart = false;
     std::string restartPoint = "";
-    if (is_number(argv[argc - 1])) {
+    if (result.count("restart_point")) {
         doRestart = true;
-        restartPoint = std::string(argv[argc - 1]);
+        restartPoint = result["restart_point"].as<std::string>();
     }
     //////////////////////////////////////////////
 
@@ -304,7 +306,8 @@ int main(int argc, char** argv)
 
     /////////////////////////////////////////////////////////////////////
     // Read configuration file and make appropriate plugins
-    readConfig(argv[argc - 2], "", doRestart, restartPoint);
+    auto config = result["input_file"].as<std::string>();
+    readConfig(config, "", doRestart, restartPoint);
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     /////////////////////////////////////////////////////////////////////

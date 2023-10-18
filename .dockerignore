@@ -1,4 +1,4 @@
-__pycache__
+__pycache__/
 .sconf_temp/
 lib/
 obj/
@@ -9,5 +9,5 @@ pluma
 PluGen/
 .vagrant
 Vagrantfile
-plugins
-pipelines
+plugins/
+pipelines/
