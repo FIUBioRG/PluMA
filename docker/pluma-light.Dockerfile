@@ -4,30 +4,29 @@
 
 FROM alpine:latest
 
-ENV CC="clang"
-ENV CXX="clang++"
-
 WORKDIR /app
 
 COPY ./ ./
 
 RUN echo http://dl-cdn.alpinelinux.org/alpine/v3.16/main >> /etc/apk/repositories
 
-RUN apk add -t .runtime-deps \
+RUN apk update && apk add -t .runtime-deps \
   build-base scons bash blas blas-dev musl-dev musl libstdc++ \
   perl perl-dev git R R-dev R-mathlib python3-dev libffi \
   libffi-dev elfutils-dev libc-dev libexecinfo-dev \
   py3-pip py3-pandas py3-numpy swig pcre pcre-dev
 
+RUN git submodule update --init
+
 RUN pip install pythonds
 
 RUN mkdir -p ~/.R \
-&& printf 'PKG_CXXFLAGS += -D__MUSL__' > ~/.R/Makevars \
-&& Rscript -e "install.packages('RInside', repos = 'https://cloud.r-project.org')"
+    && printf 'PKG_CXXFLAGS += -D__MUSL__' > ~/.R/Makevars \
+    && Rscript -e "install.packages('RInside', repos = 'https://cloud.r-project.org')"
 
 RUN scons
 
 VOLUME ["/app/plugins"]
 VOLUME ["/app/pipelines"]
 
-ENTRYPOINT ["/app/pluma"]
+CMD ["/app/pluma"]
