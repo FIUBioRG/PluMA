@@ -1,0 +1,6 @@
+[submodule "extern/cxxopts"]
+	path = extern/cxxopts
+	url = https://github.com/jarro2783/cxxopts
+[submodule "extern/aws-sdk-cpp"]
+	path = extern/aws-sdk-cpp
+	url = https://github.com/aws/aws-sdk-cpp.git
