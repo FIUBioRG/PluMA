@@ -134,7 +134,7 @@ env = Environment(
     CCFLAGS=["-fpermissive", "-fPIC", "-I.", "-O2"],
     CXXFLAGS=["-std=c++11", "-fPIC", "-O2"],
     CPPPATH=include_search_path,
-    LIBPATH=lib_search_path,
+    #LIBPATH=lib_search_path,
     LICENSE=["MIT"],
     SHLIBPREFIX=""
 )
@@ -354,7 +354,7 @@ else:
             NVCCFLAGS=[
                 "-I" + os.getcwd(),
                 "--ptxas-options=-v",
-                "-std=c++11",
+                "-std=c++14",
                 "-Xcompiler",
                 "-fPIC",
             ],
@@ -369,7 +369,8 @@ else:
     # Export `envPlugin` and `envPluginCUDA`
     Export("env")
     Export("envPluginCuda")
-
+    env['CCFLAGS'].remove("-specs=/usr/lib/rpm/redhat/redhat-annobin-cc1")
+    print(env['CCFLAGS'])
     ###################################################################
     # Regenerate wrappers for plugin languages
     ###################################################################
@@ -480,7 +481,7 @@ else:
     # ###################################################################
     if GetOption("with-cuda"):
         print("!! Compiling CUDA Plugins")
-        envPluginCuda.AppendUnique(NVCCFLAGS=["-I"+os.getcwd()+"/src", '-std=c++11'])
+        envPluginCuda.AppendUnique(NVCCFLAGS=["-I"+os.getcwd()+"/src", '-std=c++14'])
         for folder in pluginPath:
             pluginListCU = Glob(folder+'/*Plugin.cu')
             for plugin in pluginListCU:
@@ -492,7 +493,7 @@ else:
                 envPluginCuda.Command(
                     output,
                     input,
-                    "nvcc -o $TARGET -shared $NVCCFLAGS -arch=$GPU_ARCH $SOURCES"
+                    "nvcc -o $TARGET -std=c++14 -shared $NVCCFLAGS -arch=$GPU_ARCH $SOURCES"
                 )
 
     ###################################################################
