@@ -48,7 +48,10 @@
 #include <fstream>
 #include <sstream>
 #include <ctime>
-
+#include <pthread.h>
+#include <thread>
+using std::thread;
+using std::vector;
 
 //////////////////////////////////////////
 // Helper Function: Convert int to string
@@ -60,13 +63,32 @@ std::string toString(int val) {
    return retval;
 }
 //////////////////////////////////////////
+struct args {
+   char* myFile;
+   char* myPrefix;
+   bool* myDoRestart;
+   char* myRestartPoint;
+};
 
-void readConfig(char* inputfile, std::string prefix, bool doRestart, std::string restartPoint) {
-    std::ifstream infile(inputfile, std::ios::in);
+//void readConfig(void* pars) {
+//void readConfig(void* infilep, void* pref, void* doR, void* rP) {
+void readConfig(std::string inputfile, std::string prefix, bool doRestart, std::string restartPoint) {
+    //printf("CALLED");
+    //fflush(stdout);
+    void* status;
+	//args* params = (args*) pars;
+    //char* inputfile = params->myFile;
+    std::ifstream infile(inputfile.c_str(), std::ios::in);
     bool restartFlag = false;
+    //std::string prefix = std::string(params->myPrefix);
+    //std::string restartPoint = std::string(params->myRestartPoint);
+    //bool doRestart = *(params->myDoRestart);
     std::string pipeline = "";
     std::string oldprefix = prefix;
     std::string kitty = "";
+    bool parallelflag, kittyflag;
+    vector<std::thread> threads;
+    //vector<args*> argsvec;
     while (!infile.eof()) {
         std::string junk, name, inputname, outputname;
         /**
@@ -75,6 +97,7 @@ void readConfig(char* inputfile, std::string prefix, bool doRestart, std::string
         */
         infile >> junk;
 	//std::cout << "JUNK: " << junk << std::endl;
+	//fflush(stdout);
         if (junk[0] == '#') {
             // the line is a comment
             getline(infile, junk);
@@ -88,7 +111,28 @@ void readConfig(char* inputfile, std::string prefix, bool doRestart, std::string
             continue;
         } else if (junk == "Pipeline") {
             infile >> pipeline;
-            readConfig((char*) pipeline.c_str(), prefix, false, "");
+		//args* myargs = new args();
+		//myargs->myFile = (char*) pipeline.c_str();
+		//myargs->myPrefix = (char*) prefix.c_str();
+		//myargs->myDoRestart = params->myDoRestart;
+		//myargs->myRestartPoint = params->myRestartPoint;
+	    if (parallelflag && kittyflag) { // Kitty is multithreaded
+		    //std::thread mythread = new std::thread();
+		//std::cout << "[PluMA] Launching Parallel Kitty: " << prefix << std::endl;
+                //int ret1 = pthread_create(mythread, NULL, readConfig, (void*) myargs);
+	        //threads.push_back(mythread);
+		threads.push_back(std::thread(readConfig, pipeline, prefix, false, ""));
+		  //  argsvec.push_back(myargs);
+		//if (ret1 == 0) 
+		//	std::cout << "Succeeded" << std::endl;
+		//else
+		//	std::cout << "Failed" << std::endl;
+	    }
+	    else {
+		//    readConfig(myargs);
+            readConfig(pipeline, prefix, false, "");
+	    //delete myargs;
+	    }
         } else if (junk == "Kitty") {
             infile >> kitty;
             if (oldprefix != "") {
@@ -96,7 +140,26 @@ void readConfig(char* inputfile, std::string prefix, bool doRestart, std::string
             }
             prefix += "/"+kitty+"/";
             PluginManager::myPrefix=prefix;
+	    kittyflag = true;
             continue;
+	}
+	else if (junk == "LitterLaunch") {
+            parallelflag = true;
+	}
+	else if (junk == "LitterGather") {
+	    for (int i = 0; i < threads.size(); i++){
+	       std::cout << "[PluMA] Gathering Kitty " << i << std::endl;
+               //int ret2 = pthread_join(threads[i], &status);
+	//	if (ret2 == 0) 
+	//		std::cout << "Succeeded" << std::endl;
+	//	else
+	//		std::cout << "Failed: " << status << " " << ret2 << std::endl;
+	       threads[i].join();
+               //delete threads[i];
+	       //delete argsvec[i];
+	    }
+	    parallelflag = false;
+	    kittyflag = false;
         } else {
             infile >> name >> junk >> inputname >> junk >> outputname;
         }
@@ -278,7 +341,14 @@ int main(int argc, char** argv)
 
     /////////////////////////////////////////////////////////////////////
     // Read configuration file and make appropriate plugins
-    readConfig(argv[1], "", doRestart, restartPoint);
+    //args* myArgs = new args();
+    //myArgs->myFile = argv[1];
+    //myArgs->myPrefix = (char*) "";
+    //myArgs->myDoRestart = &doRestart;
+    //myArgs->myRestartPoint = (char*) (restartPoint.c_str());
+    readConfig(std::string(argv[1]), "", doRestart, restartPoint);
+    //readConfig(myArgs);
+    //delete myArgs;
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
