@@ -134,7 +134,7 @@ env = Environment(
     CCFLAGS=["-fpermissive", "-fPIC", "-I.", "-O2"],
     CXXFLAGS=["-std=c++11", "-fPIC", "-O2"],
     CPPPATH=include_search_path,
-    LIBPATH=lib_search_path,
+    #LIBPATH=lib_search_path,
     LICENSE=["MIT"],
     SHLIBPREFIX=""
 )
@@ -226,7 +226,7 @@ else:
         config.CheckProg("python3-config")
         config.CheckProg("python3")
 
-        config.env.ParseConfig("python3-config --includes --ldflags")
+        config.env.ParseConfig("/usr/bin/python3-config --includes --ldflags")
         config.env.Append(LIBS=["util"])
 
         if sys.version_info[0] == "2":
@@ -241,11 +241,11 @@ else:
             logging.error("!! Could not find a valid `perl` installation`")
             Exit(1)
         else:
-            #config.env.ParseConfig("perl -MExtUtils::Embed -e ccopts -e ldopts")
+            config.env.ParseConfig("perl -MExtUtils::Embed -e ccopts -e ldopts")
 
-            #if not config.CheckHeader("EXTERN.h"):
-            #    logging.error("!! Could not find `EXTERN.h`")
-            #    Exit(1)
+            if not config.CheckHeader("EXTERN.h"):
+                logging.error("!! Could not find `EXTERN.h`")
+                Exit(1)
 
             config.env.AppendUnique(
                 CXXFLAGS=["-fno-strict-aliasing"],
@@ -276,7 +276,7 @@ else:
                 CXXFLAGS=[
                     "-fno-gnu-unique",
                     "-fpermissive",
-                    "-fopenmp",
+                    #"-fopenmp",
                     "--param=ssp-buffer-size=4",
                     "-Wformat",
                     "-Wformat-security",
@@ -369,7 +369,7 @@ else:
     # Export `envPlugin` and `envPluginCUDA`
     Export("env")
     Export("envPluginCuda")
-    #env['CCFLAGS'].remove("-specs=/usr/lib/rpm/redhat/redhat-annobin-cc1")
+    env['CCFLAGS'].remove("-specs=/usr/lib/rpm/redhat/redhat-annobin-cc1")
     print(env['CCFLAGS'])
     ###################################################################
     # Regenerate wrappers for plugin languages
@@ -421,33 +421,31 @@ else:
 
     ###################################################################
     # PERL PLUGINS
-    if not env.GetOption("without-perl"):
-     env.SharedObject(
+    env.SharedObject(
         source="PerlPluMA_wrap.cxx",
         target=ObjectPath("PerlPluMA_wrap.os"),
-     )
+    )
 
-     env.SharedLibrary(
+    env.SharedLibrary(
         source=[
             ObjectPath("PluMA.os"),
             ObjectPath("PerlPluMA_wrap.os"),
         ],
         target="PerlPluMA.so",
-     )
+    )
     ###################################################################
     # R PLUGINS
-    if not env.GetOption("without-r"):
-     env.SharedObject(
+    env.SharedObject(
         source="RPluMA_wrap.cxx",
         target=ObjectPath("RPluMA_wrap.os"),
-     )
-     env.SharedLibrary(
+    )
+    env.SharedLibrary(
         source=[
             ObjectPath("PluMA.os"),
             ObjectPath("RPluMA_wrap.os"),
         ],
         target="RPluMA.so",
-     )
+    )
     ###################################################################
 
     ###################################################################
@@ -508,47 +506,33 @@ else:
 
     for language in languages:
         output = language.get_path().replace("src", "obj").replace(".cxx", ".os")
-        #if "Perl" in output:
-        #    env.StaticObject(
-        #        LDFLAGS=[
-        #            [
-        #                subprocess.check_output(
-        #                    "perl -MExtUtils::Embed -e ldopts",
-        #                    universal_newlines=True,
-        #                    shell=True,
-        #                    encoding="utf8",
-        #                )
-        #            ]
-        #        ],
-        #        source=language,
-        #        target=output,
-        #    )
-        #else:
-        env.StaticObject(
-           source=language,
-           target=output
-        )
+        if "Perl" in output:
+            env.StaticObject(
+                LDFLAGS=[
+                    [
+                        subprocess.check_output(
+                            "perl -MExtUtils::Embed -e ldopts",
+                            universal_newlines=True,
+                            shell=True,
+                            encoding="utf8",
+                        )
+                    ]
+                ],
+                source=language,
+                target=output,
+            )
+        else:
+            env.StaticObject(
+                source=language,
+                target=output
+            )
 
     plugenFiles = Glob(str(SourcePath("PluGen/*.cxx")))
 
     env.Program("PluGen/plugen", Glob("src/PluGen/*.cxx"))
 
     sourceFiles = Glob("src/*.cxx")
-    mylibs=[
-            "pthread",
-            "m",
-            "dl",
-            "crypt",
-            "c",
-            "python" + python_version,
-            "util"
-           ]
 
-    if not env.GetOption("without-perl"):
-     mylibs.append("perl")
-    if not env.GetOption("without-r"):
-     mylibs.append("R")
-     mylibs.append("RInside")
     env.Program(
         target="pluma",
         source=[
@@ -556,18 +540,17 @@ else:
             SourcePath("PluginManager.cxx"),
             languages,
         ],
-        LIBS = mylibs,
-        #LIBS=[
-        #    "pthread",
-        #    "m",
-        #    "dl",
-        #    "crypt",
-        #    "c",
-        #    "python" + python_version,
-        #    "util",
-        #    "perl",
-        #    "R",
-        #    "RInside",
-        #],
+        LIBS=[
+            "pthread",
+            "m",
+            "dl",
+            "crypt",
+            "c",
+            "python" + python_version,
+            "util",
+            "perl",
+            "R",
+            "RInside",
+        ],
     )
     ###################################################################
