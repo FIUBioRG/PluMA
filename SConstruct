@@ -16,6 +16,7 @@ from glob import glob
 from os import environ, getenv
 from os.path import relpath, abspath
 import logging
+import os
 import re
 import subprocess
 import sys
@@ -90,6 +91,14 @@ AddOption(
     action="store_true",
     default=False,
     help="Disable R plugin compilation",
+)
+
+AddOption(
+    "--without-java",
+    dest="without-java",
+    action="store_true",
+    default=False,
+    help="Disable Java plugin support",
 )
 
 AddOption(
@@ -339,6 +348,64 @@ else:
 
             config.env.Append(CPPDEFINES=["-DWITH_R"])
 
+    java_enabled = False
+    if not env.GetOption("without-java"):
+        java_home = getenv("JAVA_HOME")
+        if not java_home:
+            try:
+                javac_path = subprocess.check_output(
+                    ["which", "javac"], universal_newlines=True
+                ).strip()
+                if javac_path:
+                    java_home = os.path.dirname(os.path.dirname(os.path.realpath(javac_path)))
+            except (subprocess.CalledProcessError, FileNotFoundError):
+                java_home = None
+
+        if java_home and os.path.isdir(java_home):
+            include_dir = os.path.join(java_home, "include")
+            if sys.platform.startswith("linux"):
+                platform_dir = "linux"
+            elif sys.platform.startswith("darwin"):
+                platform_dir = "darwin"
+            elif sys.platform.startswith("win"):
+                platform_dir = "win32"
+            else:
+                platform_dir = sys.platform
+
+            cpp_paths = []
+            if os.path.isdir(include_dir):
+                cpp_paths.append(include_dir)
+            platform_include = os.path.join(include_dir, platform_dir)
+            if os.path.isdir(platform_include):
+                cpp_paths.append(platform_include)
+
+            if cpp_paths:
+                config.env.AppendUnique(CPPPATH=[Dir(path) for path in cpp_paths])
+
+            lib_dir = os.path.join(java_home, "lib", "server")
+            if not os.path.isdir(lib_dir):
+                lib_dir = os.path.join(java_home, "lib")
+
+            if os.path.isdir(lib_dir):
+                config.env.AppendUnique(LIBPATH=[Dir(lib_dir)])
+                libjvm_path = os.path.join(lib_dir, "libjvm.so")
+                if os.path.isfile(libjvm_path):
+                    config.env.Append(LIBS=["jvm"])
+                    config.env.Append(CPPDEFINES=["HAVE_JAVA"])
+                    java_enabled = True
+                elif config.CheckLib("jvm"):
+                    config.env.Append(LIBS=["jvm"])
+                    config.env.Append(CPPDEFINES=["HAVE_JAVA"])
+                    java_enabled = True
+                else:
+                    logging.warning(
+                        "Java support requested but libjvm could not be linked."
+                    )
+            else:
+                logging.warning("Java support requested but libjvm was not found.")
+        else:
+            logging.warning("Java support requested but JAVA_HOME/javac could not be resolved.")
+
     if GetOption("with-rust"):
         config.CheckProg("rustc")
         config.CheckProg("cargo")
@@ -369,7 +436,8 @@ else:
     # Export `envPlugin` and `envPluginCUDA`
     Export("env")
     Export("envPluginCuda")
-    env['CCFLAGS'].remove("-specs=/usr/lib/rpm/redhat/redhat-annobin-cc1")
+    if "-specs=/usr/lib/rpm/redhat/redhat-annobin-cc1" in env['CCFLAGS']:
+        env['CCFLAGS'].remove("-specs=/usr/lib/rpm/redhat/redhat-annobin-cc1")
     print(env['CCFLAGS'])
     ###################################################################
     # Regenerate wrappers for plugin languages
@@ -533,6 +601,21 @@ else:
 
     sourceFiles = Glob("src/*.cxx")
 
+    program_libs = [
+        "pthread",
+        "m",
+        "dl",
+        "crypt",
+        "c",
+        "python" + python_version,
+        "util",
+        "perl",
+        "R",
+        "RInside",
+    ]
+    if java_enabled:
+        program_libs.append("jvm")
+
     env.Program(
         target="pluma",
         source=[
@@ -540,17 +623,6 @@ else:
             SourcePath("PluginManager.cxx"),
             languages,
         ],
-        LIBS=[
-            "pthread",
-            "m",
-            "dl",
-            "crypt",
-            "c",
-            "python" + python_version,
-            "util",
-            "perl",
-            "R",
-            "RInside",
-        ],
+        LIBS=program_libs,
     )
     ###################################################################

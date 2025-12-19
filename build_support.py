@@ -3,12 +3,23 @@
 # SPDX-License-Identifier: MIT
 
 import os
-from os import path
 import subprocess
-from subprocess import Popen, PIPE
+from os import path
+from subprocess import PIPE, Popen
 import sys
 
-python_version = ".".join(map(str, sys.version_info[0:2]))
+def _python_version():
+    override = os.environ.get("PLUMA_PYTHON_VERSION")
+    if override:
+        return override
+    try:
+        output = subprocess.check_output(["python3-config", "--ldversion"], stderr=subprocess.DEVNULL)
+        return output.decode().strip()
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return ".".join(map(str, sys.version_info[0:2]))
+
+
+python_version = _python_version()
 
 ###################################################################
 # HELPER FUNCTIONS
