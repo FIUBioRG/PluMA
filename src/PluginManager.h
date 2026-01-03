@@ -49,6 +49,9 @@
 #include "languages/Py.h"
 #include "languages/R.h"
 #include "languages/Perl.h"
+#ifdef HAVE_RUST
+#include "languages/Rust.h"
+#endif
 
 class PluginManager {
 public:
@@ -121,6 +124,10 @@ public:
         supported.push_back(new Py("Python", "py", pluginpath));
         supported.push_back(new MiAMi::R("R", "R", pluginpath, argc, argv));
         supported.push_back(new Perl("Perl", "pl", pluginpath));
+#ifdef HAVE_RUST
+        // Rust plugins are compiled to .so files (cdylib) but use different FFI
+        supported.push_back(new Rust("Rust", "rs", pluginpath));
+#endif
     }
 
     static void languageLoad(std::string lang) {

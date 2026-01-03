@@ -1,6 +1,6 @@
 [package]
 name = "pluma"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2021"
 authors = ["Bioinformatics Research Group (BioRG) <tcickovs@fiu.edu>"]
 description = "PluMA Plugin Interface for Rust - provides FFI bindings and utilities for writing PluMA plugins in Rust"
@@ -72,7 +72,7 @@ name = "pluma"
 path = "RustIO.rs"
 
 [dependencies]
-pluma-plugin-trait = "0.1"
+pluma-plugin-trait = "1.1"
 
 [dev-dependencies]
 

@@ -1,19 +1,72 @@
 ____________________________________________________________________________________
-Using the PluginGenerator
+Using the PluginGenerator (PluGen)
 
-To compile, just type 'make'.
+To compile, just type 'scons' from the PluMA root directory.
 
 Note: This will produce a plugin in one of the following locations (in order):
 1. ../plugins
 2. PLUMA_PLUGIN_PATH; using directories in order.
 
-The usage is:
-./plugen (pluginname) (command to run)
+USAGE
+-----
 
-(pluginname) is the name of the new plugin.
-(command to run) must be at least one word, and is the command to run the 
-software that you want wrapped.
-This command can use 'inputfile' and 'outputfile' as placeholders for the information
-provided in the configuration file when the plugin is actually used.
+./plugen [options] <pluginname> <command to run>
+
+OPTIONS
+-------
+
+--lang=<language>   Specify the target language: cpp (default), rust
+--help              Show help message
+
+EXAMPLES
+--------
+
+Generate a C++ plugin (default):
+  ./plugen MyPlugin mycommand -i inputfile -o outputfile
+
+Generate a Rust plugin:
+  ./plugen --lang=rust MyRustPlugin mycommand -i inputfile -o outputfile
+
+PARAMETERS
+----------
+
+<pluginname>      Name of the new plugin
+<command to run>  Command to run the software you want wrapped
+                  Use 'inputfile' and 'outputfile' as placeholders
+
+COMMAND SYNTAX
+--------------
+
+inputfile    - replaced with plugin input file path
+outputfile   - replaced with plugin output file path
+-flag param  - parameter read from input parameter file
+[ ... ]      - optional parameters (enclosed in brackets)
+
+GENERATED FILES
+---------------
+
+For C++ plugins:
+  <pluginname>/
+    <pluginname>Plugin.h    - Header file
+    <pluginname>Plugin.cpp  - Source file with implementation
+    README.md               - Documentation
+
+For Rust plugins:
+  <pluginname>/
+    Cargo.toml              - Rust package manifest
+    src/lib.rs              - Plugin implementation with FFI exports
+    README.md               - Documentation
+
+BUILDING RUST PLUGINS
+---------------------
+
+After generating a Rust plugin:
+
+  cd plugins/<pluginname>
+  cargo build --release
+
+The compiled library will be at:
+  target/release/lib<pluginname>Plugin.so
+
+Copy it to your plugins directory to use with PluMA.
 ____________________________________________________________________________________
-

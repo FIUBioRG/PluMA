@@ -101,6 +101,33 @@ AddOption(
 )
 
 AddOption(
+    "--build-rust-plugins",
+    dest="build-rust-plugins",
+    action="store_true",
+    default=False,
+    help="Build all Rust plugins in the plugins directory using cargo"
+)
+
+AddOption(
+    "--rust-release",
+    dest="rust-release",
+    action="store_true",
+    default=True,
+    help="Build Rust plugins in release mode (default: True)"
+)
+
+AddOption(
+    "--rust-features",
+    dest="rust-features",
+    type="string",
+    nargs=1,
+    action="store",
+    metavar="FEATURES",
+    default="",
+    help="Comma-separated list of features to enable for Rust plugins (e.g., 'gpu,cuda')"
+)
+
+AddOption(
     "--r-include-dir",
     dest="r-include-dir",
     action="store",
@@ -184,6 +211,20 @@ if env.GetOption("clean"):
             relpath("RPluMA.R"),
             relpath("__pycache__"),
             Glob("*.pyc"),
+            # Rust plugin build artifacts
+            Glob("plugins/*/target"),
+            Glob("plugins/*/Cargo.lock"),
+            Glob("plugins/*/*.so"),
+        ],
+    )
+    
+    # Special target to clean only Rust plugin builds
+    env.Clean(
+        "rust-plugins",
+        [
+            Glob("plugins/*/target"),
+            Glob("plugins/*/Cargo.lock"),
+            Glob("plugins/*/*.so"),
         ],
     )
 
@@ -342,6 +383,7 @@ else:
     if GetOption("with-rust"):
         config.CheckProg("rustc")
         config.CheckProg("cargo")
+        config.env.Append(CPPDEFINES=["HAVE_RUST"])
 
     config.Finish()
 
@@ -369,7 +411,11 @@ else:
     # Export `envPlugin` and `envPluginCUDA`
     Export("env")
     Export("envPluginCuda")
-    env['CCFLAGS'].remove("-specs=/usr/lib/rpm/redhat/redhat-annobin-cc1")
+    # Remove Red Hat-specific flag if present
+    try:
+        env['CCFLAGS'].remove("-specs=/usr/lib/rpm/redhat/redhat-annobin-cc1")
+    except ValueError:
+        pass  # Flag not present on this system
     print(env['CCFLAGS'])
     ###################################################################
     # Regenerate wrappers for plugin languages
@@ -497,6 +543,87 @@ else:
                 )
 
     ###################################################################
+    # RUST PLUGINS
+    # Build Rust plugins when --with-rust or --build-rust-plugins is specified
+    # ###################################################################
+    def build_rust_plugins(plugin_paths, release_mode=True, features=""):
+        """
+        Build all Rust plugins found in the given plugin paths.
+        
+        Args:
+            plugin_paths: List of plugin directory paths to search
+            release_mode: If True, build in release mode (optimized)
+            features: Comma-separated list of cargo features to enable
+        """
+        rust_plugins_found = []
+        
+        for folder in plugin_paths:
+            # Look for Cargo.toml files indicating Rust plugin projects
+            cargoFiles = Glob(folder + "/Cargo.toml")
+            for cargoFile in cargoFiles:
+                pluginDir = str(cargoFile.get_dir())
+                # Extract plugin name from directory
+                pluginName = pluginDir.split("/")[-1]
+                rust_plugins_found.append((pluginDir, pluginName, cargoFile))
+        
+        if not rust_plugins_found:
+            print("!! No Rust plugins found in plugins directory")
+            return
+        
+        print("!! Found {} Rust plugin(s) to build".format(len(rust_plugins_found)))
+        
+        # Build cargo command options
+        cargo_opts = []
+        if release_mode:
+            cargo_opts.append("--release")
+            target_dir = "release"
+        else:
+            target_dir = "debug"
+        
+        if features:
+            cargo_opts.append("--features")
+            cargo_opts.append(features)
+        
+        cargo_opts_str = " ".join(cargo_opts)
+        
+        for pluginDir, pluginName, cargoFile in rust_plugins_found:
+            print("!!   Building Rust plugin: {} in {}".format(pluginName, pluginDir))
+            
+            # Determine the library name from Cargo.toml if possible
+            # Default to lib<PluginName>Plugin.so
+            output = pluginDir + "/lib" + pluginName + "Plugin.so"
+            
+            # Build command that:
+            # 1. Changes to plugin directory
+            # 2. Runs cargo build with options
+            # 3. Copies the built .so file to the plugin directory root
+            build_cmd = (
+                "cd " + pluginDir + " && "
+                "cargo build " + cargo_opts_str + " && "
+                "find target/" + target_dir + " -maxdepth 1 -name '*.so' -exec cp {{}} . \\; 2>/dev/null; "
+                "if [ -f target/" + target_dir + "/lib" + pluginName + "Plugin.so ]; then "
+                "cp target/" + target_dir + "/lib" + pluginName + "Plugin.so .; "
+                "elif [ -f target/" + target_dir + "/lib*.so ]; then "
+                "cp target/" + target_dir + "/lib*.so lib" + pluginName + "Plugin.so; "
+                "fi"
+            )
+            
+            env.Command(
+                output,
+                [cargoFile] + Glob(pluginDir + "/src/*.rs"),
+                build_cmd
+            )
+    
+    # Build Rust plugins if either flag is set
+    if GetOption("with-rust") or GetOption("build-rust-plugins"):
+        print("!! Compiling Rust Plugins")
+        build_rust_plugins(
+            pluginPath,
+            release_mode=GetOption("rust-release"),
+            features=GetOption("rust-features") or ""
+        )
+
+    ###################################################################
     # Main Executable & PluGen
     env.Append(
         LIBPATH=[LibPath(""),]
@@ -529,7 +656,7 @@ else:
 
     plugenFiles = Glob(str(SourcePath("PluGen/*.cxx")))
 
-    env.Program("PluGen/plugen", Glob("src/PluGen/*.cxx"))
+    env.Program("PluGen/plugen", Glob("src/PluGen/*.cxx"), CPPPATH=[Dir("src")])
 
     sourceFiles = Glob("src/*.cxx")
 
