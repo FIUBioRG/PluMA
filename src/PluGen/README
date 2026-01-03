@@ -22,7 +22,7 @@ USAGE
 
 OPTIONS:
   --lang=<language>    Generate plugin in specified language
-                       Supported: cpp (default), java
+                       Supported: cpp (default), java, rust
 
   --help, -h           Show usage information
 
@@ -40,8 +40,19 @@ EXAMPLES
 2. Generate a Java plugin:
    ./plugen --lang=java MyPlugin mytool -i inputfile -o outputfile
 
-3. Plugin with optional parameters (use brackets):
+3. Generate a Rust plugin:
+   ./plugen --lang=rust MyRustPlugin mytool -i inputfile -o outputfile
+
+4. Plugin with optional parameters (use brackets):
    ./plugen MyPlugin mytool -i inputfile [ -v verbose ] -o outputfile
+
+COMMAND SYNTAX
+--------------
+
+inputfile    - replaced with plugin input file path
+outputfile   - replaced with plugin output file path
+-flag param  - parameter read from input parameter file
+[ ... ]      - optional parameters (enclosed in brackets)
 
 GENERATED FILES
 ---------------
@@ -61,6 +72,17 @@ Java Plugins (--lang=java):
     cd plugins/MyPlugin
     javac MyPluginPlugin.java
 
+Rust Plugins (--lang=rust):
+  plugins/MyPlugin/
+  ├── Cargo.toml            # Rust package manifest
+  ├── src/lib.rs            # Plugin implementation with FFI exports
+  └── README.md             # Documentation
+
+  To compile Rust plugins:
+    cd plugins/MyPlugin
+    cargo build --release
+  Output: target/release/lib<PluginName>Plugin.so
+
 PARAMETER FILE FORMAT
 ---------------------
 Plugins expect a tab-delimited parameter file:
@@ -72,5 +94,6 @@ Plugins expect a tab-delimited parameter file:
 These parameters are accessible via:
 - C++:  parameters["param1"]
 - Java: parameters.get("param1")
+- Rust: parameters.get("param1")
 
 ____________________________________________________________________________________
