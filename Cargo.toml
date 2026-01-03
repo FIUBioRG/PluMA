@@ -1,0 +1,84 @@
+[package]
+name = "pluma"
+version = "0.1.0"
+edition = "2021"
+authors = ["Bioinformatics Research Group (BioRG) <tcickovs@fiu.edu>"]
+description = "PluMA Plugin Interface for Rust - provides FFI bindings and utilities for writing PluMA plugins in Rust"
+license = "MIT"
+repository = "https://github.com/FIUBioRG/PluMA"
+keywords = ["pluma", "plugin", "bioinformatics", "microbiome"]
+categories = ["science", "api-bindings"]
+exclude = [
+    # C++ source and build
+    "src/",
+    "SConstruct",
+    "*.cxx",
+    "*.h",
+    "*.o",
+    "*.os",
+    "*.so",
+    "obj/",
+    "config.log",
+    # Other language bindings
+    "*.py",
+    "*.pm",
+    "*.R",
+    "RPluMA_wrap.cxx",
+    "PluMA.def",
+    # Python cache
+    "__pycache__/",
+    "*.pyc",
+    "*.pyo",
+    # Docker
+    "Dockerfile",
+    ".dockerignore",
+    # Plugins and pipelines
+    "plugins/",
+    "pipelines/",
+    "logs/",
+    # Build artifacts
+    "target/",
+    "Cargo.lock",
+    "pluma",
+    "PluGen/",
+    # Test files
+    "test*.py",
+    "test*.txt",
+    # Config and scripts
+    "build_*.py",
+    "get*.py",
+    "check*.py",
+    "future_plugins.txt",
+    # Editor and IDE
+    ".editorconfig",
+    ".vscode/",
+    ".idea/",
+    "*.swp",
+    "*.swo",
+    # CI/CD
+    ".github/",
+    ".gitlab-ci.yml",
+    ".travis.yml",
+    # Git
+    ".gitattributes",
+    # Misc
+    ".DS_Store",
+    "Thumbs.db",
+    "examples/",
+]
+
+[lib]
+name = "pluma"
+path = "RustIO.rs"
+
+[dependencies]
+pluma-plugin-trait = "0.1"
+
+[dev-dependencies]
+
+[features]
+default = []
+
+# Metadata for plugin developers
+[package.metadata.docs.rs]
+all-features = true
