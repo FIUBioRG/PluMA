@@ -28,12 +28,13 @@
        For information regarding this software, please contact lead architect
                     Trevor Cickovski at tcickovs@fiu.edu
 
-\*********************************************************************************/
+\********************************************************************************/
 
 #include "Compiled.h"
 #include "../PluginManager.h"
-#include <dlfcn.h>
+#include "../platform.h"
 #include <iostream>
+#include <fstream>
 
 Compiled::Compiled(
     std::string lang,
@@ -42,53 +43,31 @@ Compiled::Compiled(
     std::string pre
 ) : Language(lang, ext, pp, pre) {}
 
-//void Compiled::loadPlugin(std::string path, glob_t* globbuf, std::map<std::string, std::string>* pluginLanguages) {
-//   std::string pathGlob = path + "/" + "*/*" + "." + extension;
-//   int ext_len = extension.length()+2;
-//   if (glob(pathGlob.c_str(), 0, NULL, &(*globbuf)) == 0) {
-//      for (unsigned int i = 0; i < globbuf->gl_pathc; i++) {
-//        std::string filename = globbuf->gl_pathv[i];
-//        // Get the library name
-//        std::string name;
-//        std::string::size_type pos = filename.find_last_of("/");
-//        if (pos != std::string::npos) name = filename.substr(pos + 4, filename.length()-pos-3-ext_len);
-//        else name = filename.substr(3, filename.length()-pos-ext_len);
-        // Ignore if already opened.
-//        std::cout << "Loading plugin " << name << "..." << std::endl;
-//        void *handle = dlopen(filename.c_str(), RTLD_LAZY | RTLD_GLOBAL);
-//        if (!handle) {
-//           std::cout << "Warning: Null Handle" << std::endl;
-//           std::cout << dlerror() << std::endl;
-//        }
-//        if (handle) {
-//          (*pluginLanguages)[name] = language;
-//        }
-//      }
-//   }
-
-//}
-
 void Compiled::executePlugin(
     std::string pluginname,
     std::string inputname,
     std::string outputname)
 {
     std::string tmppath = pluginpath;
-    std::string path = tmppath.substr(0, pluginpath.find_first_of(":"));
+    std::string path = tmppath.substr(0, pluginpath.find_first_of(PLUMA_PATH_LIST_SEPARATOR));
     std::ifstream* infile = NULL;
     std::string filename;
     do {
         if (infile) delete infile;
-        filename = path+"/"+pluginname+"/lib"+pluginname+"Plugin."+ext();//so";
+        filename = path + PLUMA_PATH_SEPARATOR + pluginname + PLUMA_PATH_SEPARATOR + 
+                   PLUMA_SHARED_LIB_PREFIX + pluginname + "Plugin" + PLUMA_SHARED_LIB_EXT;
         infile = new std::ifstream(filename.c_str(), std::ios::in);
-        tmppath = tmppath.substr(tmppath.find_first_of(":")+1, tmppath.length());
-        path = tmppath.substr(0, tmppath.find_first_of(":"));
-    } while (!(*infile) && path.length() > 0);// {
+        tmppath = tmppath.substr(tmppath.find_first_of(PLUMA_PATH_LIST_SEPARATOR)+1, tmppath.length());
+        path = tmppath.substr(0, tmppath.find_first_of(PLUMA_PATH_LIST_SEPARATOR));
+    } while (!(*infile) && path.length() > 0);
+    
+    delete infile;
+    
     // Dynamic load takes place here
-    void* handle = dlopen(filename.c_str(), RTLD_LAZY | RTLD_GLOBAL);
+    pluma::platform::LibraryHandle handle = pluma::platform::loadLibrary(filename);
     if (!handle) {
         std::cout << "Warning: Null Handle" << std::endl;
-        std::cout << dlerror() << std::endl;
+        std::cout << pluma::platform::getLibraryError() << std::endl;
     }
     Plugin* plugin = PluginManager::getInstance().create(pluginname);
 

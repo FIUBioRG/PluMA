@@ -1,642 +1,617 @@
-#! /usr/bin/env python3
+#!/usr/bin/env python3
 # Copyright (C) 2017, 2019-2020 FIUBioRG
 # SPDX-License-Identifier: MIT
 #
-# Application constructor/compiler configuration
-#
-# @TODO: Test portability with Windows systems using MSVC
-# @TODO: Merge variable assignments
-# @TODO: Test portability with Mac OSX
-#
-# -*-python-*-
+# PluMA Build Configuration
+# -*- python -*-
 
+"""
+SCons build file for PluMA - a plugin-based framework for computational pipelines.
 
+This build system supports:
+  - Python, Perl, and R language bindings
+  - CUDA acceleration (optional)
+  - Rust plugins (experimental)
+  - Windows (MSVC and MinGW), macOS, and Linux
 
-from glob import glob
-from os import environ, getenv
-from os.path import relpath, abspath
+Usage:
+  scons                    # Build with default options
+  scons --without-python   # Disable Python support
+  scons --with-cuda        # Enable CUDA support
+  scons -c                 # Clean build artifacts
+"""
+
 import logging
 import os
-import re
 import subprocess
 import sys
+from glob import glob
+from os import environ, getenv
+from os.path import relpath
 
-from build_config import *
-from build_support import *
 from resolve_requirements import resolve_and_install
 
-if sys.version_info.major < 3:
-    logging.error("Python3 is required to run this Sconstruct")
+from build_config import (
+    include_search_path,
+    platform_id,
+    is_darwin,
+    is_alpine,
+    is_windows,
+    is_msvc,
+    is_mingw,
+    shared_lib_ext,
+    shared_lib_prefix,
+    executable_ext,
+)
+from build_support import (
+    CheckPerl,
+    CheckRPackages,
+    LibPath,
+    ObjectPath,
+    SourcePath,
+    python_version,
+    get_perl_ldopts,
+    get_windows_python_config,
+    get_msvc_flags,
+    get_mingw_flags,
+    detect_r_home,
+    detect_r_package_path,
+    check_r_packages,
+)
 
-# The current SConstruct does not support Windows variants
-if sys.platform.startswith("windows"):
-    logging.error("Windows is currently not supported")
+# =============================================================================
+# Constants and Configuration
+# =============================================================================
+
+MINIMUM_PYTHON_VERSION = 3
+LICENSE = "MIT"
+
+# C++ standard
+if is_msvc:
+    CXX_STANDARD = "/std:c++14"
+    CUDA_CXX_STANDARD = "/std:c++14"
+else:
+    CXX_STANDARD = "-std=c++11"
+    CUDA_CXX_STANDARD = "-std=c++14"
+
+# Required system libraries (platform-specific)
+if is_windows:
+    REQUIRED_LIBS = []  # Windows doesn't need explicit lib checks
+else:
+    REQUIRED_LIBS = ["m", "pthread", "dl", "crypt", "pcre", "rt", "c"]
+
+# Clean patterns
+CLEAN_PATTERNS_GLOB = [
+    ".scon*", "PluGen/*.o", "perm*.txt", "asp_py_*tab.py", "*.out", "*.err",
+    "logs/*.log.txt", "pvals.*.txt", "*.pdf", "*.so", "*.dll", "*.pyd",
+    "*_wrap.cxx", "*.pyc", "./**/__pycache__",
+]
+
+CLEAN_PATTERNS_PATH = [
+    "config.log", ".perlconfig.txt", "pluma", "pluma.exe", "PluGen/plugen",
+    "PluGen/plugen.exe", "./obj", "./lib", "derep.fasta", "tmp",
+    "PerlPluMA.pm", "PyPluMA.py", "RPluMA.R", "__pycache__",
+    ".venv", "requirements-plugins.txt",
+]
+
+# R library search paths (Unix)
+R_LIBRARY_PATHS = [
+    "/usr/lib/R/library", "/usr/lib/R/site-library",
+    "/usr/local/lib/R/library", "/usr/local/lib/R/site-library",
+]
+
+# Language binding configuration
+LANGUAGE_BINDINGS = [
+    ("without-python", "PyPluMA", f"_PyPluMA{shared_lib_ext}", "-python"),
+    ("without-perl", "PerlPluMA", f"PerlPluMA{shared_lib_ext}", "-perl5"),
+    ("without-r", "RPluMA", f"RPluMA{shared_lib_ext}", "-r"),
+]
+
+# =============================================================================
+# Validation
+# =============================================================================
+
+if sys.version_info.major < MINIMUM_PYTHON_VERSION:
+    logging.error("Python 3 is required to run this SConstruct")
     Exit(1)
 
-###################################################################
-# Add Commndline Options to our Scons build
-#
-# We assume with-* options to be False for common plugins UNLESS the enduser
-# specifies True. For CUDA, we assume False since CUDA availability is not
-# expected on most end-user systems.
+# =============================================================================
+# Command Line Options
+# =============================================================================
 
-AddOption(
-    "--prefix",
-    dest="prefix",
-    type="string",
-    nargs=1,
-    action="store",
-    metavar="DIR",
-    default="/usr/local",
-    help="PREFIX for local installations",
-)
+OPTIONS = [
+    ("--prefix", "prefix", "store", "/usr/local" if not is_windows else "C:/Program Files/PluMA",
+     "Installation prefix directory", {"type": "string", "nargs": 1, "metavar": "DIR"}),
+    ("--without-python", "without-python", "store_true", False, "Disable Python plugin support", {}),
+    ("--without-perl", "without-perl", "store_true", False, "Disable Perl plugin support", {}),
+    ("--without-r", "without-r", "store_true", False, "Disable R plugin support", {}),
+    ("--with-cuda", "with-cuda", "store_true", False, "Enable CUDA plugin compilation", {}),
+    ("--gpu-architecture", "gpu_arch", "store", "sm_35",
+     "NVIDIA GPU architecture for CUDA compilation", {"type": "string", "nargs": 1, "metavar": "ARCH"}),
+    ("--with-rust", "with-rust", "store_true", False, "Enable experimental Rust plugin support", {}),
+    ("--r-include-dir", "r-include-dir", "store", "/usr/local/lib/R/include", "R include directory path", {}),
+    ("--r-lib-dir", "r-lib-dir", "store", "/usr/local/lib/R/lib", "R library directory path", {}),
+]
 
-AddOption(
-    "--with-cuda",
-    dest="with-cuda",
-    action="store_true",
-    default=False,
-    help="Enable CUDA plugin compilation",
-)
 
-AddOption(
-    "--gpu-architecture",
-    dest="gpu_arch",
-    type="string",
-    nargs=1,
-    action="store",
-    metavar="ARCH",
-    default="sm_35",
-    help="Specify the name of the class of NVIDIA 'virtual' GPU architecture for which the CUDA input files must be compiled"
-)
+def setup_options():
+    """Configure all command-line build options."""
+    for flag, dest, action, default, help_text, extras in OPTIONS:
+        AddOption(flag, dest=dest, action=action, default=default, help=help_text, **extras)
 
-AddOption(
-    "--without-python",
-    dest="without-python",
-    action="store_true",
-    default=False,
-    help="Disable Python plugin compilation",
-)
 
-AddOption(
-    "--without-perl",
-    dest="without-perl",
-    action="store_true",
-    default=False,
-    help="Disable Perl plugin compilation",
-)
+setup_options()
 
-AddOption(
-    "--without-r",
-    dest="without-r",
-    action="store_true",
-    default=False,
-    help="Disable R plugin compilation",
-)
+# =============================================================================
+# Environment Setup
+# =============================================================================
 
-AddOption(
-    "--without-java",
-    dest="without-java",
-    action="store_true",
-    default=False,
-    help="Disable Java plugin support",
-)
 
-AddOption(
-    "--with-rust",
-    dest="with-rust",
-    action="store_true",
-    default=False,
-    help="Enable experimental support for Rust language plugins"
-)
+def get_platform_config():
+    """Return platform-specific configuration as a dict."""
+    if is_windows:
+        if is_msvc:
+            return get_msvc_flags()
+        else:
+            return get_mingw_flags()
+    elif is_darwin:
+        return {"CCFLAGS": ["-DAPPLE"], "CPPDEFINES": ["APPLE"]}
+    else:
+        return {"LINKFLAGS": ["-rdynamic"], "LIBS": ["rt"]}
 
-AddOption(
-    "--r-include-dir",
-    dest="r-include-dir",
-    action="store",
-    default="/usr/local/lib/R/include",
-    help="Set the include directory for the R installation on the system"
-)
 
-AddOption(
-    "--r-lib-dir",
-    dest="r-lib-dir",
-    action="store",
-    default="/usr/local/lib/R/lib",
-    help="Set the lib directory for the R installation on the system"
-)
+def create_base_environment():
+    """Create and configure the base SCons environment."""
+    if is_windows and is_msvc:
+        # Use MSVC environment
+        env = Environment(
+            ENV=environ,
+            CPPDEFINES=["HAVE_PYTHON", "WIN32", "_WINDOWS"],
+            CPPPATH=include_search_path,
+            LICENSE=[LICENSE],
+        )
+        msvc_flags = get_msvc_flags()
+        for key, value in msvc_flags.items():
+            env.Append(**{key: value})
+    elif is_windows and is_mingw:
+        # Use MinGW environment
+        env = Environment(
+            ENV=environ,
+            tools=["mingw"],
+            CC="gcc",
+            CXX="g++",
+            CPPDEFINES=["HAVE_PYTHON", "WIN32", "_WINDOWS"],
+            CCFLAGS=["-Wall", "-O2"],
+            CXXFLAGS=["-std=c++14"],
+            CPPPATH=include_search_path,
+            LICENSE=[LICENSE],
+        )
+    else:
+        # Unix environment
+        env = Environment(
+            ENV=environ,
+            CC=getenv("CC", "cc"),
+            CXX=getenv("CXX", "c++"),
+            CPPDEFINES=["HAVE_PYTHON"],
+            SHCCFLAGS=["-fpermissive", "-fPIC", "-I.", "-O2"],
+            SHCXXFLAGS=[CXX_STANDARD, "-fPIC", "-I.", "-O2"],
+            CCFLAGS=["-fpermissive", "-fPIC", "-I.", "-O2"],
+            CXXFLAGS=[CXX_STANDARD, "-fPIC", "-O2"],
+            CPPPATH=include_search_path,
+            LICENSE=[LICENSE],
+            SHLIBPREFIX="",
+        )
 
-###################################################################
-# Gets the environment variables set by the user on the OS level or
-# defaults to 'sane' values.
-###################################################################
-###################################################################
-# Gets the environment variables set by the user on the OS level or
-# defaults to 'sane' values.
-###################################################################
-env = Environment(
-    ENV=environ,
-    CC=getenv("CC", "cc"),
-    CXX=getenv("CXX", "c++"),
-    CPPDEFINES=["HAVE_PYTHON"],
-    SHCCFLAGS=["-fpermissive", "-fPIC", "-I.", "-O2"],
-    SHCXXFLAGS=["-std=c++11", "-fPIC", "-I.", "-O2"],
-    CCFLAGS=["-fpermissive", "-fPIC", "-I.", "-O2"],
-    CXXFLAGS=["-std=c++11", "-fPIC", "-O2"],
-    CPPPATH=include_search_path,
-    #LIBPATH=lib_search_path,
-    LICENSE=["MIT"],
-    SHLIBPREFIX=""
-)
+    # Apply platform-specific settings
+    platform_config = get_platform_config()
+    for key, value in platform_config.items():
+        env.Append(**{key: value})
 
-if not sys.platform.startswith("darwin"):
-    env.Append(LINKFLAGS=["-rdynamic"])
-    env.Append(LIBS=["rt"])
-else:
-    env.Append(CCFLAGS=['-DAPPLE'])
+    # Alpine Linux / musl libc support
+    if is_alpine:
+        env.Append(CPPDEFINES=["__MUSL__"])
 
-if platform_id == "alpine":
-    env.Append(CPPDEFINES=["__MUSL__"])
+    # Remove problematic flags on specific platforms
+    if not is_windows:
+        _remove_annobin_flag(env)
 
-###################################################################
+    return env
 
-###################################################################
-# Either clean folders from previous Scons runs or begin assembling
-# `PluMA` and its associated plugins
-if env.GetOption("clean"):
-    env.Clean("python", [Glob("./**/__pycache__"),])
 
-    env.Clean(
-        "default",
-        [
-            Glob(".scon*"),
-            relpath("config.log"),
-            relpath(".perlconfig.txt"),
-            relpath("pluma"),
-            Glob('PluGen/*.o'),
-            relpath('PluGen/plugen'),
-            relpath("./obj"),
-            relpath("./lib"),
-            Glob("perm*.txt"),
-            Glob("asp_py_*tab.py"),
-            Glob("*.out"),
-            Glob("*.err"),
-            relpath("derep.fasta"),
-            Glob("logs/*.log.txt"),
-            Glob("pvals.*.txt"),
-            #relpath("pythonds"),
-            Glob("*.pdf"),
-            Glob("*.so"),
-            relpath("tmp"),
-            Glob("*_wrap.cxx"),
-            relpath("PerlPluMA.pm"),
-            relpath("PyPluMA.py"),
-            relpath("RPluMA.R"),
-            relpath("__pycache__"),
-            Glob("*.pyc"),
-            relpath(".venv"),
-            relpath("requirements-plugins.txt"),
-        ],
+def _remove_annobin_flag(env):
+    """Remove Fedora/RHEL annobin flag if present."""
+    annobin_flag = "-specs=/usr/lib/rpm/redhat/redhat-annobin-cc1"
+    ccflags = env.get("CCFLAGS", [])
+    if annobin_flag in ccflags:
+        ccflags.remove(annobin_flag)
+
+
+def create_cuda_environment():
+    """Create environment for CUDA compilation."""
+    return Environment(
+        ENV=os.environ,
+        CUDA_PATH=[getenv("CUDA_PATH", "/usr/local/cuda" if not is_windows else "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v11.0")],
+        CUDA_SDK_PATH=[getenv("CUDA_SDK_PATH", "/usr/local/cuda" if not is_windows else "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v11.0")],
+        NVCCFLAGS=["-I" + os.getcwd(), "--ptxas-options=-v", CUDA_CXX_STANDARD, "-Xcompiler", "-fPIC" if not is_windows else ""],
+        GPU_ARCH=GetOption("gpu_arch"),
     )
 
+
+# =============================================================================
+# Language Configuration Functions
+# =============================================================================
+
+
+def configure_python(config):
+    """Configure Python language support."""
+    if GetOption("without-python"):
+        return False
+
+    if is_windows:
+        py_config = get_windows_python_config()
+        config.env.AppendUnique(
+            CPPPATH=[py_config["include_dir"]],
+            LIBPATH=[py_config["lib_dir"]],
+            LIBS=[py_config["lib_name"]],
+        )
+    else:
+        config.CheckProg("python3-config")
+        config.CheckProg("python3")
+        config.env.ParseConfig("/usr/bin/python3-config --includes --ldflags")
+        config.env.Append(LIBS=["util"])
+
+    return True
+
+
+def configure_perl(config):
+    """Configure Perl language support."""
+    if GetOption("without-perl"):
+        return False
+
+    config.CheckProg("perl")
+
+    if not is_windows:
+        if not config.CheckPerl():
+            logging.error("Could not find a valid Perl installation")
+            Exit(1)
+
+        config.env.ParseConfig("perl -MExtUtils::Embed -e ccopts -e ldopts")
+
+        if not config.CheckHeader("EXTERN.h"):
+            logging.error("Could not find EXTERN.h")
+            Exit(1)
+
+        config.env.AppendUnique(
+            CXXFLAGS=["-fno-strict-aliasing"],
+            CPPDEFINES=["LARGE_SOURCE", "_FILE_OFFSET_BITS=64", "HAVE_PERL", "REENTRANT", "-DWITH_PERL"],
+        )
+
+        if is_darwin:
+            config.env.Append(LIBS=["crypt", "nsl"])
+    else:
+        config.env.Append(CPPDEFINES=["HAVE_PERL", "WITH_PERL"])
+
+    return True
+
+
+def configure_r(config):
+    """Configure R language support."""
+    if GetOption("without-r"):
+        return False
+
+    if not config.CheckProg("R") or not config.CheckProg("Rscript"):
+        logging.error("Could not find a valid R installation")
+        Exit(1)
+
+    # Check R packages
+    if not config.CheckRPackages():
+        logging.error("Required R packages (Rcpp, RInside) not found")
+        logging.error("Install with: Rscript -e \"install.packages(c('Rcpp', 'RInside'))\"")
+        Exit(1)
+
+    # Auto-detect R paths
+    r_home = detect_r_home()
+    print(f">> R home detected: {r_home or 'not found'}")
+
+    rcpp_include = detect_r_package_path("Rcpp", "include")
+    rinside_include = detect_r_package_path("RInside", "include")
+    rinside_lib = detect_r_package_path("RInside", "lib")
+    
+    if not rinside_lib:
+        rinside_lib = detect_r_package_path("RInside", "libs")
+
+    print(f">> Rcpp include: {rcpp_include or 'not found'}")
+    print(f">> RInside include: {rinside_include or 'not found'}")
+    print(f">> RInside lib: {rinside_lib or 'not found'}")
+
+    # Build include/lib paths
+    r_include_paths = []
+    r_lib_paths = []
+
+    if r_home:
+        r_include_paths.append(os.path.join(r_home, "include"))
+    if rcpp_include:
+        r_include_paths.append(rcpp_include)
+    if rinside_include:
+        r_include_paths.append(rinside_include)
+    if rinside_lib:
+        r_lib_paths.append(rinside_lib)
+
+    # Add fallback paths on Unix
+    if not is_windows:
+        for base_path in R_LIBRARY_PATHS:
+            r_include_paths.append(os.path.join(base_path, "Rcpp", "include"))
+            r_include_paths.append(os.path.join(base_path, "RInside", "include"))
+            r_lib_paths.append(os.path.join(base_path, "RInside", "lib"))
+            r_lib_paths.append(os.path.join(base_path, "RInside", "libs"))
+
+    # Apply configuration
+    if not is_windows:
+        try:
+            config.env.ParseConfig("pkg-config --cflags-only-I --libs-only-L libR")
+        except:
+            pass
+
+        config.env.AppendUnique(
+            LDFLAGS=["-Bsymbolic-functions", "-z,relro"],
+            CXXFLAGS=[
+                "-fno-gnu-unique", "-fpermissive", "--param=ssp-buffer-size=4",
+                "-Wformat", "-Wformat-security", "-Werror=format-security", "-Wl,--export-dynamic",
+            ],
+        )
+
+    config.env.AppendUnique(
+        CPPDEFINES=["HAVE_R", "-DWITH_R"],
+        CPPPATH=[Dir(p) for p in r_include_paths if os.path.isdir(p)],
+        LIBPATH=[Dir(p) for p in r_lib_paths if os.path.isdir(p)],
+        LIBS=["R", "RInside"],
+    )
+
+    return True
+
+
+def configure_rust(config):
+    """Configure Rust language support."""
+    if not GetOption("with-rust"):
+        return False
+
+    config.CheckProg("rustc")
+    config.CheckProg("cargo")
+    return True
+
+
+def configure_cuda(env_cuda):
+    """Configure CUDA environment."""
+    if not GetOption("with-cuda"):
+        return False
+
+    config_cuda = Configure(env_cuda)
+    config_cuda.CheckProg("nvcc")
+    config_cuda.CheckHeader("cuda.h")
+    config_cuda.Finish()
+    return True
+
+
+# =============================================================================
+# Build Target Functions
+# =============================================================================
+
+
+def is_language_enabled(option_name):
+    """Check if a language is enabled."""
+    return not GetOption(option_name)
+
+
+def generate_swig_wrappers(env):
+    """Generate SWIG wrappers for enabled language bindings."""
+    for option, module, _, swig_flag in LANGUAGE_BINDINGS:
+        if is_language_enabled(option):
+            env.Command(
+                module,
+                "src/PluginWrapper.i",
+                f"swig {swig_flag} -c++ -module $TARGET -o ${{TARGET}}_wrap.cxx $SOURCE",
+            )
+
+
+def build_language_bindings(env):
+    """Build shared libraries for enabled language bindings."""
+    env.SharedObject(source=SourcePath("PluMA.cxx"), target=ObjectPath("PluMA.os"))
+
+    for option, name, output, _ in LANGUAGE_BINDINGS:
+        if is_language_enabled(option):
+            wrap_obj = ObjectPath(f"{name}_wrap.os")
+            env.SharedObject(source=f"{name}_wrap.cxx", target=wrap_obj)
+            env.SharedLibrary(source=[ObjectPath("PluMA.os"), wrap_obj], target=output)
+
+
+def build_cpp_plugins(env, plugin_path):
+    """Compile C++ plugins."""
+    print(">> Compiling C++ Plugins")
+
+    for folder in plugin_path:
+        for script in Glob(f"{folder}/SConscript"):
+            SConscript(script, exports=["env"])
+
+        for plugin in Glob(f"{folder}/*Plugin.cpp"):
+            plugin_dir = str(plugin.get_dir())
+            sources = Glob(f"{plugin_dir}/*.cpp")
+            target = plugin.get_path().replace(".cpp", shared_lib_ext)
+            env.SharedLibrary(target=target, source=sources)
+
+
+def build_cuda_plugins(env_cuda, plugin_path):
+    """Compile CUDA plugins."""
+    if not GetOption("with-cuda"):
+        return
+
+    print(">> Compiling CUDA Plugins")
+    env_cuda.AppendUnique(NVCCFLAGS=[f"-I{os.getcwd()}/src", CUDA_CXX_STANDARD])
+
+    for folder in plugin_path:
+        for plugin in Glob(f"{folder}/*Plugin.cu"):
+            plugin_dir = str(plugin.get_dir())
+            plugin_name = os.path.basename(plugin.get_path()).replace(".cu", shared_lib_ext)
+            output = f"{plugin_dir}/{shared_lib_prefix}{plugin_name}"
+            sources = Glob(f"{plugin_dir}/*.cu", strings=True)
+            env_cuda.Command(
+                output, sources,
+                "nvcc -o $TARGET -std=c++14 -shared $NVCCFLAGS -arch=$GPU_ARCH $SOURCES",
+            )
+
+
+def build_language_objects(env):
+    """Build language support objects."""
+    languages = Glob("src/languages/*.cxx")
+
+    for language in languages:
+        output = language.get_path().replace("src", "obj").replace(".cxx", ".os")
+        is_perl = "Perl" in output
+
+        if is_perl and not is_windows:
+            perl_ldopts = get_perl_ldopts()
+            env.StaticObject(source=language, target=output, LDFLAGS=[[perl_ldopts]])
+        else:
+            env.StaticObject(source=language, target=output)
+
+    return languages
+
+
+def build_main_executable(env, languages):
+    """Build the main PluMA executable."""
+    if is_windows:
+        program_libs = [f"python{python_version.replace('.', '')}"]
+        if not GetOption("without-perl"):
+            program_libs.append("perl")
+        if not GetOption("without-r"):
+            program_libs.extend(["R", "RInside"])
+    else:
+        program_libs = [
+            "pthread", "m", "dl", "crypt", "c",
+            f"python{python_version}", "util", "perl", "R", "RInside",
+        ]
+
+    env.Append(LIBPATH=[LibPath("")])
+    env.Program(
+        target=f"pluma{executable_ext}",
+        source=[SourcePath("main.cxx"), SourcePath("PluginManager.cxx"), languages],
+        LIBS=program_libs,
+    )
+
+
+def build_plugen(env):
+    """Build the PluGen tool."""
+    env.Program(f"PluGen/plugen{executable_ext}", Glob("src/PluGen/*.cxx"))
+
+
+# =============================================================================
+# Clean Targets
+# =============================================================================
+
+
+def setup_clean_targets(env):
+    """Configure clean targets for build artifacts."""
+    glob_items = [Glob(pattern) for pattern in CLEAN_PATTERNS_GLOB]
+    path_items = [relpath(pattern) for pattern in CLEAN_PATTERNS_PATH]
+
+    env.Clean("python", [Glob("./**/__pycache__")])
+    env.Clean("default", glob_items + path_items)
     env.Clean("all", ["python", "default"])
-else:
-    envPluginCuda = None
 
-    ###################################################################
-    # Check for headers, libraries, and build sub-environments
-    # for plugins.
-    ###################################################################
-    config = Configure(env, custom_tests={"CheckPerl": CheckPerl})
 
+# =============================================================================
+# Configuration Phase
+# =============================================================================
+
+
+def run_configuration(env):
+    """Run all configuration checks."""
+    custom_tests = {"CheckPerl": CheckPerl, "CheckRPackages": CheckRPackages}
+    config = Configure(env, custom_tests=custom_tests)
+
+    # Verify compilers
     if not config.CheckCC():
         Exit(1)
-
     if not config.CheckCXX():
         Exit(1)
-
-    if not config.CheckSHCXX():
+    if not is_windows and not config.CheckSHCXX():
         Exit(1)
 
-    libs = [
-        "m",
-        "pthread",
-        "dl",
-        "crypt",
-        "pcre",
-        "rt",
-        "c",
-    ]
-
-    for lib in libs:
+    # Check required libraries (Unix only)
+    for lib in REQUIRED_LIBS:
         if not config.CheckLib(lib):
             Exit(1)
 
     config.CheckProg("swig")
 
-    if not env.GetOption("without-python"):
-        config.CheckProg("python3-config")
-        config.CheckProg("python3")
-
-        #config.env.ParseConfig("/usr/bin/python3-config --includes --ldflags")
-        config.env.ParseConfig("/usr/share/python3.14/bin/python3-config --includes --ldflags")
-        config.env.Append(LIBS=["util"])
-
-        if sys.version_info[0] == "2":
-            logging.warning(
-                "!! Version of Python <= Python3.0 are now EOL. Please update to Python3"
-            )
-
-    if not env.GetOption("without-perl"):
-        config.CheckProg("perl")
-
-        if not config.CheckPerl():
-            logging.error("!! Could not find a valid `perl` installation`")
-            Exit(1)
-        else:
-            config.env.ParseConfig("perl -MExtUtils::Embed -e ccopts -e ldopts")
-
-            if not config.CheckHeader("EXTERN.h"):
-                logging.error("!! Could not find `EXTERN.h`")
-                Exit(1)
-
-            config.env.AppendUnique(
-                CXXFLAGS=["-fno-strict-aliasing"],
-                CPPDEFINES=[
-                    "LARGE_SOURCE",
-                    "_FILE_OFFSET_BITS=64",
-                    "HAVE_PERL",
-                    "REENTRANT",
-                ],
-            )
-
-            if sys.platform.startswith("darwin"):
-                config.env.Append(LIBS=["crypt", "nsl"])
-
-            config.env.Append(CPPDEFINES=["-DWITH_PERL"])
-
-    if not env.GetOption("without-r"):
-        if not config.CheckProg("R") or not config.CheckProg("Rscript"):
-            logging.error("!! Could not find a valid `R` installation`")
-            Exit(1)
-        else:
-            config.env.ParseConfig("pkg-config --cflags-only-I --libs-only-L libR")
-            config.env.AppendUnique(
-                LDFLAGS=["-Bsymbolic-functions", "-z,relro"], CPPDEFINES=["HAVE_R"]
-            )
-
-            config.env.AppendUnique(
-                CXXFLAGS=[
-                    "-fno-gnu-unique",
-                    "-fpermissive",
-                    #"-fopenmp",
-                    "--param=ssp-buffer-size=4",
-                    "-Wformat",
-                    "-Wformat-security",
-                    "-Werror=format-security",
-                    "-Wl,--export-dynamic",
-                ],
-                CPPPATH=[
-                    Dir("/usr/lib/R/library/Rcpp/include"),
-                    Dir("/usr/lib/R/library/RInside/include"),
-                    Dir('/usr/lib/R/site-library/RInside/include'),
-                    Dir('/usr/lib/R/site-library/Rcpp/include'),
-                    Dir("/usr/local/lib/R/library/Rcpp/include"),
-                    Dir("/usr/local/lib/R/library/RInside/include"),
-                    Dir('/usr/local/lib/R/site-library/RInside/include'),
-                    Dir('/usr/local/lib/R/site-library/Rcpp/include'),
-                ],
-                LIBPATH=[
-                    Dir("/usr/lib/R/library/RInside/lib"),
-                    Dir('/usr/lib/R/site-library/RInside/lib'),
-                    Dir("/usr/local/lib/R/library/RInside/lib"),
-                    Dir('/usr/local/lib/R/site-library/RInside/lib'),
-                ],
-                LIBS=["R", "RInside"],
-            )
-
-            if getenv("R_INCLUDE_DIR"):
-                config.env.AppendUnique(
-                    CPPATH=[
-                        Dir(getenv("R_INCLUDE_DIR"))
-                    ]
-                )
-
-            if getenv("R_LIB_DIR"):
-                config.env.AppendUnique(
-                    LIBPATH=[
-                        Dir(getenv("R_LIB_DIR"))
-                    ]
-                )
-
-            if getenv("RINSIDE_LIB_DIR"):
-                config.env.AppendUnique(
-                    LIBPATH=[
-                        Dir(getenv("RINSIDE_LIB_DIR"))
-                    ]
-                )
-
-            if getenv("RINSIDE_INCLUDE_DIR"):
-                config.env.AppendUnique(
-                    CPPPATH=[
-                        Dir(getenv("RINSIDE_INCLUDE_DIR"))
-                    ]
-                )
-
-            if getenv("RCPP_INCLUDE_DIR"):
-                config.env.AppendUnique(
-                    CPPPATH=[
-                        Dir(getenv("RCPP_INCLUDE_DIR"))
-                    ]
-                )
-
-            config.env.Append(CPPDEFINES=["-DWITH_R"])
-
-    java_enabled = False
-    if not env.GetOption("without-java"):
-        java_home = getenv("JAVA_HOME")
-        if not java_home:
-            try:
-                javac_path = subprocess.check_output(
-                    ["which", "javac"], universal_newlines=True
-                ).strip()
-                if javac_path:
-                    java_home = os.path.dirname(os.path.dirname(os.path.realpath(javac_path)))
-            except (subprocess.CalledProcessError, FileNotFoundError):
-                java_home = None
-        if java_home and os.path.isdir(java_home):
-            include_dir = os.path.join(java_home, "include")
-            if sys.platform.startswith("linux"):
-                platform_dir = "linux"
-            elif sys.platform.startswith("darwin"):
-                platform_dir = "darwin"
-            elif sys.platform.startswith("win"):
-                platform_dir = "win32"
-            else:
-                platform_dir = sys.platform
-
-            cpp_paths = []
-            if os.path.isdir(include_dir):
-                cpp_paths.append(include_dir)
-            platform_include = os.path.join(include_dir, platform_dir)
-            if os.path.isdir(platform_include):
-                cpp_paths.append(platform_include)
-
-            if cpp_paths:
-                config.env.AppendUnique(CPPPATH=[Dir(path) for path in cpp_paths])
-
-            lib_dir = os.path.join(java_home, "lib", "server")
-            if not os.path.isdir(lib_dir):
-                lib_dir = os.path.join(java_home, "lib")
-
-            if os.path.isdir(lib_dir):
-                config.env.AppendUnique(LIBPATH=[Dir(lib_dir)])
-                libjvm_path = os.path.join(lib_dir, "libjvm.so")
-                libjvm_env = getenv("LIBJVM")
-                if (libjvm_env):
-                    libjvm_path = libjvm_env
-                if os.path.isfile(libjvm_path):
-                    config.env.AppendUnique(LIBPATH=[Dir("/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.472.b08-1.el8_10.x86_64/jre/lib/amd64/server/")])
-                    config.env.Append(LIBS=["jvm"])
-                    config.env.Append(CPPDEFINES=["HAVE_JAVA"])
-                    java_enabled = True
-                elif config.CheckLib("jvm"):
-                    config.env.Append(LIBS=["jvm"])
-                    config.env.Append(CPPDEFINES=["HAVE_JAVA"])
-                    java_enabled = True
-                else:
-                    logging.warning(
-                        "Java support requested but libjvm could not be linked."
-                    )
-            else:
-                logging.warning("Java support requested but libjvm was not found.")
-        else:
-            logging.warning("Java support requested but JAVA_HOME/javac could not be resolved.")
-
-    if GetOption("with-rust"):
-        config.CheckProg("rustc")
-        config.CheckProg("cargo")
+    # Configure languages
+    configure_python(config)
+    configure_perl(config)
+    configure_r(config)
+    configure_rust(config)
 
     config.Finish()
+    return env
 
-    if GetOption("with-cuda"):
 
-        envPluginCuda = Environment(
-            ENV=os.environ,
-            CUDA_PATH=[getenv("CUDA_PATH", "/usr/local/cuda")],
-            CUDA_SDK_PATH=[getenv("CUDA_SDK_PATH", "/usr/local/cuda")],
-            NVCCFLAGS=[
-                "-I" + os.getcwd(),
-                "--ptxas-options=-v",
-                "-std=c++14",
-                "-Xcompiler",
-                "-fPIC",
-            ],
-            GPU_ARCH=GetOption('gpu_arch'),
-        )
+# =============================================================================
+# Build Phase
+# =============================================================================
 
-        configCuda = Configure(envPluginCuda)
-        configCuda.CheckProg("nvcc")
-        configCuda.CheckHeader("cuda.h")
-        configCuda.Finish()
 
-    # Export `envPlugin` and `envPluginCUDA`
-    Export("env")
-    Export("envPluginCuda")
-    if "-specs=/usr/lib/rpm/redhat/redhat-annobin-cc1" in env['CCFLAGS']:
-        env['CCFLAGS'].remove("-specs=/usr/lib/rpm/redhat/redhat-annobin-cc1")
-    print(env['CCFLAGS'])
-    ###################################################################
-    # Regenerate wrappers for plugin languages
-    ###################################################################
-    if not env.GetOption("without-python"):
-        env.Command(
-            "PyPluMA",
-            "src/PluginWrapper.i",
-            "swig -python -c++ -module $TARGET -o ${TARGET}_wrap.cxx $SOURCE"
-        )
-
-    if not env.GetOption("without-perl"):
-        env.Command(
-            "PerlPluMA",
-            "src/PluginWrapper.i",
-            "swig -perl5 -c++ -module $TARGET -o ${TARGET}_wrap.cxx $SOURCE"
-        )
-
-    if not env.GetOption("without-r"):
-        env.Command(
-            "RPluMA",
-            "src/PluginWrapper.i",
-            "swig -r -c++ -module $TARGET -o ${TARGET}_wrap.cxx $SOURCE"
-        )
-
-    ###################################################################
-    # Execute compilation for our plugins.
-    # Note: CUDA is already prepared from the initial environment setup.
-    ###################################################################
-    env.SharedObject(
-        source=SourcePath("PluMA.cxx"),
-        target=ObjectPath("PluMA.os"),
-    )
-    ###################################################################
-    # PYTHON PLUGINS
-    env.SharedObject(
-        source="PyPluMA_wrap.cxx",
-        target=ObjectPath("PyPluMA_wrap.os"),
-    )
-
-    env.SharedLibrary(
-        source=[
-            ObjectPath("PyPluMA_wrap.os"),
-            ObjectPath("PluMA.os"),
-        ],
-        target="_PyPluMA.so",
-    )
-    ###################################################################
-
-    ###################################################################
-    # PERL PLUGINS
-    env.SharedObject(
-        source="PerlPluMA_wrap.cxx",
-        target=ObjectPath("PerlPluMA_wrap.os"),
-    )
-
-    env.SharedLibrary(
-        source=[
-            ObjectPath("PluMA.os"),
-            ObjectPath("PerlPluMA_wrap.os"),
-        ],
-        target="PerlPluMA.so",
-    )
-    ###################################################################
-    # R PLUGINS
-    env.SharedObject(
-        source="RPluMA_wrap.cxx",
-        target=ObjectPath("RPluMA_wrap.os"),
-    )
-    env.SharedLibrary(
-        source=[
-            ObjectPath("PluMA.os"),
-            ObjectPath("RPluMA_wrap.os"),
-        ],
-        target="RPluMA.so",
-    )
-    ###################################################################
-
-    ###################################################################
-    # Finally, compile!
-    ###################################################################
-
-    env.Append(SHLIBPREFIX="lib")
-
-    ###################################################################
-    # Assemble plugin path
-    pluginPath = glob("./plugins/*/")
-    ###################################################################
-
-    ###################################################################
-    # Resolve Python plugin dependencies into a shared venv.
-    # Scans plugins/*/requirements.txt, checks for version conflicts,
-    # and installs the merged set into .venv/ at the project root.
-    if not env.GetOption("without-python"):
+def run_build(env, env_cuda):
+    """Execute all build steps."""
+    # Resolve each plugin's requirements.txt into a shared .venv at the project
+    # root so the embedded interpreter picks them up via site.addsitedir() at
+    # runtime — keeps users from hand-rolling pip installs per plugin.
+    if not GetOption("without-python"):
         resolve_and_install("plugins")
 
-    ###################################################################
-    # # C++ Plugins
-    print("!! Compiling C++ Plugins")
-    for folder in pluginPath:
-        sconsScripts = Glob(folder + "/SConscript")
-        pluginListCXX = Glob(folder + "/*Plugin.cpp")
-        if len(sconsScripts) != 0:
-            for sconsScript in sconsScripts:
-                SConscript(sconsScripts, exports=toExport)
-        for plugin in pluginListCXX:
-            filesInPath = Glob(str(plugin.get_dir()) + "/*.cpp")
-            pluginName = plugin.get_path()
-            pluginName = pluginName.replace(".cpp", ".so")
-            env.SharedLibrary(
-                target=pluginName, source=filesInPath
-            )
+    generate_swig_wrappers(env)
+    build_language_bindings(env)
 
-    ###################################################################
-    #
-    # ###################################################################
+    if not is_windows:
+        env.Append(SHLIBPREFIX="lib")
+
+    plugin_path = glob("./plugins/*/")
+
+    build_cpp_plugins(env, plugin_path)
+
+    if env_cuda:
+        build_cuda_plugins(env_cuda, plugin_path)
+
+    languages = build_language_objects(env)
+    build_plugen(env)
+    build_main_executable(env, languages)
+
+
+# =============================================================================
+# Main Entry Point
+# =============================================================================
+
+
+def main():
+    """Main build orchestration."""
+    print(f">> Platform: {'Windows' if is_windows else 'macOS' if is_darwin else 'Linux'}")
+    if is_windows:
+        print(f">> Compiler: {'MSVC' if is_msvc else 'MinGW' if is_mingw else 'Unknown'}")
+
+    env = create_base_environment()
+
+    if env.GetOption("clean"):
+        setup_clean_targets(env)
+        return
+
+    run_configuration(env)
+
+    env_cuda = None
     if GetOption("with-cuda"):
-        print("!! Compiling CUDA Plugins")
-        envPluginCuda.AppendUnique(NVCCFLAGS=["-I"+os.getcwd()+"/src", '-std=c++14'])
-        for folder in pluginPath:
-            pluginListCU = Glob(folder+'/*Plugin.cu')
-            for plugin in pluginListCU:
-                pluginName = plugin.get_path()
-                pluginName = pluginName.replace(str(plugin.get_dir())+"/", "")
-                pluginName = pluginName.replace(".cu", ".so")
-                output = str(plugin.get_dir()) + "/lib" + pluginName
-                input = Glob(str(plugin.get_dir()) + "/*.cu", strings=True)
-                envPluginCuda.Command(
-                    output,
-                    input,
-                    "nvcc -o $TARGET -std=c++14 -shared $NVCCFLAGS -arch=$GPU_ARCH $SOURCES"
-                )
+        env_cuda = create_cuda_environment()
+        configure_cuda(env_cuda)
 
-    ###################################################################
-    # Main Executable & PluGen
-    env.Append(
-        LIBPATH=[LibPath(""),]
-    )
+    Export("env")
+    Export("env_cuda" if env_cuda else {"envPluginCuda": None})
 
-    languages = Glob("src/languages/*.cxx")
+    run_build(env, env_cuda)
 
-    for language in languages:
-        output = language.get_path().replace("src", "obj").replace(".cxx", ".os")
-        if "Perl" in output:
-            env.StaticObject(
-                LDFLAGS=[
-                    [
-                        subprocess.check_output(
-                            "perl -MExtUtils::Embed -e ldopts",
-                            universal_newlines=True,
-                            shell=True,
-                            encoding="utf8",
-                        )
-                    ]
-                ],
-                source=language,
-                target=output,
-            )
-        else:
-            env.StaticObject(
-                source=language,
-                target=output
-            )
 
-    plugenFiles = Glob(str(SourcePath("PluGen/*.cxx")))
-
-    env.Program("PluGen/plugen", Glob("src/PluGen/*.cxx"))
-
-    sourceFiles = Glob("src/*.cxx")
-
-    program_libs = [
-        "pthread",
-        "m",
-        "dl",
-        "crypt",
-        "c",
-        "python" + python_version,
-        "util",
-        "perl",
-        "R",
-        "RInside",
-    ]
-    if java_enabled:
-        program_libs.append("jvm")
-
-    env.Program(
-        target="pluma",
-        source=[
-            SourcePath("main.cxx"),
-            SourcePath("PluginManager.cxx"),
-            languages,
-        ],
-        LIBS=program_libs,
-    )
-    ###################################################################
+main()

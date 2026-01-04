@@ -28,17 +28,22 @@
        For information regarding this software, please contact lead architect
                     Trevor Cickovski at tcickovs@fiu.edu
 
-\*********************************************************************************/
+\********************************************************************************/
 
 #include "Language.h"
+#include "../platform.h"
 #include <iostream>
-#include <dlfcn.h>
+
+#if PLUMA_PLATFORM_WINDOWS
+    using pluma::platform::glob;
+    using pluma::platform::glob_t;
+#endif
 
 void Language::loadPlugin(
     std::string path,
     glob_t* globbuf,
     std::map<std::string, std::string>* pluginLanguages,
-    bool list=false
+    bool list
 ) {
     std::string pathGlob = path + "/" + "*/*" + "Plugin." + extension;
     int ext_len = extension.length()+2;
@@ -46,20 +51,25 @@ void Language::loadPlugin(
         for (unsigned int i = 0; i < globbuf->gl_pathc; i++) {
             std::string filename = globbuf->gl_pathv[i];
             std::string name;
-            std::string::size_type pos = filename.find_last_of("/");
+            std::string::size_type pos = filename.find_last_of("/\\");
             if (pos != std::string::npos) {
                 name = filename.substr(pos + prefix.length()+1, filename.length()-pos-prefix.length()-ext_len);
             } else {
                 name = filename.substr(prefix.length(), filename.length()-pos-ext_len);
             }
             if (name == "__init__") continue;
-            //std::cout << "Plugin: " << name.substr(0, name.length()-6) << " Language: " << language << " Path: " << path << std::endl;
             if (!list) {
+#if PLUMA_PLATFORM_WINDOWS
+                // On Windows, check for .dll extension
+                if (extension == "dll") {
+#else
+                // On Unix, check for .so extension
                 if (extension == "so") {
-                    void* handle = dlopen(filename.c_str(), RTLD_LAZY | RTLD_GLOBAL);
+#endif
+                    pluma::platform::LibraryHandle handle = pluma::platform::loadLibrary(filename);
                     if (!handle) {
                         std::cout << "Warning: Null Handle" << std::endl;
-                        std::cout << dlerror() << std::endl;
+                        std::cout << pluma::platform::getLibraryError() << std::endl;
                     } else {
                         (*pluginLanguages)[name] = language;
                     }
