@@ -217,7 +217,7 @@ if env.GetOption("clean"):
             Glob("plugins/*/*.so"),
         ],
     )
-    
+
     # Special target to clean only Rust plugin builds
     env.Clean(
         "rust-plugins",
@@ -549,14 +549,14 @@ else:
     def build_rust_plugins(plugin_paths, release_mode=True, features=""):
         """
         Build all Rust plugins found in the given plugin paths.
-        
+
         Args:
             plugin_paths: List of plugin directory paths to search
             release_mode: If True, build in release mode (optimized)
             features: Comma-separated list of cargo features to enable
         """
         rust_plugins_found = []
-        
+
         for folder in plugin_paths:
             # Look for Cargo.toml files indicating Rust plugin projects
             cargoFiles = Glob(folder + "/Cargo.toml")
@@ -565,13 +565,13 @@ else:
                 # Extract plugin name from directory
                 pluginName = pluginDir.split("/")[-1]
                 rust_plugins_found.append((pluginDir, pluginName, cargoFile))
-        
+
         if not rust_plugins_found:
             print("!! No Rust plugins found in plugins directory")
             return
-        
+
         print("!! Found {} Rust plugin(s) to build".format(len(rust_plugins_found)))
-        
+
         # Build cargo command options
         cargo_opts = []
         if release_mode:
@@ -579,20 +579,20 @@ else:
             target_dir = "release"
         else:
             target_dir = "debug"
-        
+
         if features:
             cargo_opts.append("--features")
             cargo_opts.append(features)
-        
+
         cargo_opts_str = " ".join(cargo_opts)
-        
+
         for pluginDir, pluginName, cargoFile in rust_plugins_found:
             print("!!   Building Rust plugin: {} in {}".format(pluginName, pluginDir))
-            
+
             # Determine the library name from Cargo.toml if possible
             # Default to lib<PluginName>Plugin.so
             output = pluginDir + "/lib" + pluginName + "Plugin.so"
-            
+
             # Build command that:
             # 1. Changes to plugin directory
             # 2. Runs cargo build with options
@@ -607,13 +607,13 @@ else:
                 "cp target/" + target_dir + "/lib*.so lib" + pluginName + "Plugin.so; "
                 "fi"
             )
-            
+
             env.Command(
                 output,
                 [cargoFile] + Glob(pluginDir + "/src/*.rs"),
                 build_cmd
             )
-    
+
     # Build Rust plugins if either flag is set
     if GetOption("with-rust") or GetOption("build-rust-plugins"):
         print("!! Compiling Rust Plugins")
