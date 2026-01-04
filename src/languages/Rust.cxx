@@ -55,24 +55,24 @@ void Rust::loadPlugin(
     // Rust plugins are identified by the presence of Cargo.toml
     // and a compiled .so file (lib*Plugin.so)
     std::string pathGlob = path + "/*/Cargo.toml";
-    
+
     if (glob(pathGlob.c_str(), 0, NULL, globbuf) == 0) {
         for (unsigned int i = 0; i < globbuf->gl_pathc; i++) {
             std::string cargoPath = globbuf->gl_pathv[i];
-            
+
             // Extract plugin directory and name
             std::string pluginDir = cargoPath.substr(0, cargoPath.find_last_of("/"));
             std::string pluginName = pluginDir.substr(pluginDir.find_last_of("/") + 1);
-            
+
             // Check if compiled .so exists
             std::string soPath = pluginDir + "/lib" + pluginName + "Plugin.so";
             std::ifstream soFile(soPath.c_str());
-            
+
             if (soFile.good()) {
                 // Register this as a Rust plugin
                 std::string keyName = pluginName + "Plugin";
                 (*pluginLanguages)[keyName] = language;
-                
+
                 if (list) {
                     std::cout << "Plugin: " << pluginName << " Language: " << language << " Path: " << pluginDir << std::endl;
                 }
