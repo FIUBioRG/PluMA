@@ -1,19 +1,76 @@
 ____________________________________________________________________________________
-Using the PluginGenerator
-
-To compile, just type 'make'.
-
-Note: This will produce a plugin in one of the following locations (in order):
-1. ../plugins
-2. PLUMA_PLUGIN_PATH; using directories in order.
-
-The usage is:
-./plugen (pluginname) (command to run)
-
-(pluginname) is the name of the new plugin.
-(command to run) must be at least one word, and is the command to run the 
-software that you want wrapped.
-This command can use 'inputfile' and 'outputfile' as placeholders for the information
-provided in the configuration file when the plugin is actually used.
+PluGen - PluMA Plugin Generator
 ____________________________________________________________________________________
 
+PluGen generates boilerplate code for PluMA plugins in multiple languages.
+
+COMPILATION
+-----------
+To compile, run from the PluMA root directory:
+    scons
+
+Or compile just PluGen:
+    g++ -o plugen main.cxx PluginGenerator.cxx JavaPluginGenerator.cxx
+
+Note: Generated plugins will be placed in one of the following locations (in order):
+1. ../plugins (relative to plugen)
+2. PLUMA_PLUGIN_PATH directories (in order)
+
+USAGE
+-----
+./plugen [OPTIONS] <PluginName> <command to run>
+
+OPTIONS:
+  --lang=<language>    Generate plugin in specified language
+                       Supported: cpp (default), java
+
+  --help, -h           Show usage information
+
+ARGUMENTS:
+  <PluginName>         Name of the new plugin (e.g., MyTool)
+  <command to run>     Command to wrap (at least one word)
+                       Use 'inputfile' and 'outputfile' as placeholders
+
+EXAMPLES
+--------
+
+1. Generate a C++ plugin (default):
+   ./plugen MyPlugin mytool -i inputfile -o outputfile
+
+2. Generate a Java plugin:
+   ./plugen --lang=java MyPlugin mytool -i inputfile -o outputfile
+
+3. Plugin with optional parameters (use brackets):
+   ./plugen MyPlugin mytool -i inputfile [ -v verbose ] -o outputfile
+
+GENERATED FILES
+---------------
+
+C++ Plugins (--lang=cpp):
+  plugins/MyPlugin/
+  ├── MyPluginPlugin.h      # Header file
+  ├── MyPluginPlugin.cpp    # Source file with input/run/output methods
+  └── README.md             # Documentation
+
+Java Plugins (--lang=java):
+  plugins/MyPlugin/
+  ├── MyPluginPlugin.java   # Java source with input/run/output methods
+  └── README.md             # Documentation
+
+  To compile Java plugins:
+    cd plugins/MyPlugin
+    javac MyPluginPlugin.java
+
+PARAMETER FILE FORMAT
+---------------------
+Plugins expect a tab-delimited parameter file:
+
+    param1    value1
+    param2    value2
+    inputpath /path/to/input
+
+These parameters are accessible via:
+- C++:  parameters["param1"]
+- Java: parameters.get("param1")
+
+____________________________________________________________________________________
