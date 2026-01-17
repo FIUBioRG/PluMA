@@ -58,8 +58,10 @@ print F "coredir=$coredir\\n";
 close F;
 '''
 
-# Fallback R library search paths
+# Fallback R library search paths (including user library)
 _R_FALLBACK_PATHS = [
+    os.path.expanduser("~/R/library"),  # User R library (common on Linux)
+    os.path.expanduser("~/R/x86_64-pc-linux-gnu-library"),  # Arch Linux user library
     "/usr/lib/R/library",
     "/usr/lib/R/site-library",
     "/usr/local/lib/R/library",
@@ -222,10 +224,21 @@ class RConfig:
 def _run_r_command(r_code: str) -> Optional[str]:
     """Run an R command and return its output, or None on failure."""
     try:
+        # Include user R library path in environment
+        env = os.environ.copy()
+        user_lib = os.path.expanduser("~/R/library")
+        if os.path.isdir(user_lib):
+            existing = env.get("R_LIBS_USER", "")
+            if existing:
+                env["R_LIBS_USER"] = f"{user_lib}:{existing}"
+            else:
+                env["R_LIBS_USER"] = user_lib
+
         result = subprocess.check_output(
             ["Rscript", "-e", r_code],
             stderr=subprocess.DEVNULL,
             universal_newlines=True,
+            env=env,
         )
         return result.strip().replace('[1] ', '').strip('"')
     except (subprocess.CalledProcessError, FileNotFoundError):

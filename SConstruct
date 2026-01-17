@@ -268,13 +268,24 @@ def _apply_r_compiler_config(config):
     except OSError:
         logging.warning("pkg-config not available for libR, using detected paths")
 
+    # Base flags that work with both GCC and Clang
+    cxx_flags = [
+        "-fpermissive",
+        "-Wformat", "-Wformat-security", "-Werror=format-security",
+    ]
+
+    # GCC-specific flags (check compiler basename, not substring match)
+    cxx = config.env.get("CXX", "")
+    cxx_basename = os.path.basename(cxx) if cxx else ""
+    is_gcc = cxx_basename.startswith("g++") or cxx_basename.startswith("gcc")
+    if is_gcc:
+        cxx_flags.extend(["-fno-gnu-unique", "--param=ssp-buffer-size=4"])
+
     config.env.AppendUnique(
         LDFLAGS=["-Bsymbolic-functions", "-z,relro"],
+        LINKFLAGS=["-Wl,--export-dynamic"],
         CPPDEFINES=["HAVE_R", "WITH_R"],
-        CXXFLAGS=[
-            "-fno-gnu-unique", "-fpermissive", "--param=ssp-buffer-size=4",
-            "-Wformat", "-Wformat-security", "-Werror=format-security", "-Wl,--export-dynamic",
-        ],
+        CXXFLAGS=cxx_flags,
         LIBS=["R", "RInside"],
     )
 
