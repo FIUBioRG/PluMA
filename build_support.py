@@ -10,6 +10,7 @@ This module provides helper functions for:
   - Python version detection
   - Perl configuration checking
   - R library detection (Rcpp, RInside)
+  - Java JDK detection (covers AlmaLinux/RHEL, Debian/Ubuntu, Arch, macOS)
 """
 
 import logging
@@ -63,6 +64,42 @@ _R_FALLBACK_PATHS = [
     "/usr/lib/R/site-library",
     "/usr/local/lib/R/library",
     "/usr/local/lib/R/site-library",
+]
+
+# Fallback Java installation paths (covers AlmaLinux/RHEL, Debian/Ubuntu, Arch, macOS)
+_JAVA_FALLBACK_PATHS = [
+    # AlmaLinux / RHEL / CentOS / Fedora
+    "/usr/lib/jvm/java",
+    "/usr/lib/jvm/jre",
+    "/usr/lib/jvm/java-17-openjdk",
+    "/usr/lib/jvm/java-11-openjdk",
+    "/usr/lib/jvm/java-1.8.0-openjdk",
+    "/usr/lib/jvm/java-21-openjdk",
+    "/usr/lib/jvm/java-17-amazon-corretto",
+    "/usr/lib/jvm/java-11-amazon-corretto",
+    # Debian / Ubuntu
+    "/usr/lib/jvm/default-java",
+    "/usr/lib/jvm/java-17-openjdk-amd64",
+    "/usr/lib/jvm/java-11-openjdk-amd64",
+    "/usr/lib/jvm/java-8-openjdk-amd64",
+    "/usr/lib/jvm/java-21-openjdk-amd64",
+    "/usr/lib/jvm/java-17-openjdk-arm64",
+    "/usr/lib/jvm/java-11-openjdk-arm64",
+    # Arch Linux
+    "/usr/lib/jvm/default",
+    "/usr/lib/jvm/java-17-openjdk",
+    "/usr/lib/jvm/java-11-openjdk",
+    "/usr/lib/jvm/java-21-openjdk",
+    # macOS (Homebrew and system)
+    "/opt/homebrew/opt/openjdk/libexec/openjdk.jdk/Contents/Home",
+    "/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home",
+    "/opt/homebrew/opt/openjdk@11/libexec/openjdk.jdk/Contents/Home",
+    "/usr/local/opt/openjdk/libexec/openjdk.jdk/Contents/Home",
+    "/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home",
+    "/Library/Java/JavaVirtualMachines/temurin-11.jdk/Contents/Home",
+    # Generic
+    "/usr/java/latest",
+    "/usr/java/default",
 ]
 
 # =============================================================================
@@ -381,6 +418,322 @@ def check_r_packages() -> dict:
 
 
 # =============================================================================
+# Java Detection
+# =============================================================================
+
+
+@dataclass
+class JavaConfig:
+    """Configuration paths for Java JDK/JRE installation."""
+
+    java_home: Optional[str] = None
+    include_dir: Optional[str] = None
+    platform_include_dir: Optional[str] = None
+    lib_dir: Optional[str] = None
+    libjvm_path: Optional[str] = None
+
+    # Lists of all found paths
+    include_paths: List[str] = field(default_factory=list)
+    lib_paths: List[str] = field(default_factory=list)
+
+    @property
+    def is_valid(self) -> bool:
+        """Check if minimum Java configuration was detected."""
+        return self.java_home is not None and self.libjvm_path is not None
+
+    @property
+    def platform(self) -> str:
+        """Get the platform identifier for JNI headers."""
+        if sys.platform.startswith("linux"):
+            return "linux"
+        elif sys.platform.startswith("darwin"):
+            return "darwin"
+        elif sys.platform.startswith("win"):
+            return "win32"
+        return sys.platform
+
+
+def _detect_java_home_from_env() -> Optional[str]:
+    """Detect JAVA_HOME from environment variable."""
+    java_home = os.environ.get("JAVA_HOME")
+    if java_home and os.path.isdir(java_home):
+        return java_home
+    return None
+
+
+def _detect_java_home_from_javac() -> Optional[str]:
+    """Detect JAVA_HOME by finding javac and following symlinks."""
+    try:
+        # Find javac
+        javac_path = subprocess.check_output(
+            ["which", "javac"],
+            stderr=subprocess.DEVNULL,
+            universal_newlines=True,
+        ).strip()
+
+        if javac_path:
+            # Resolve symlinks to get real path
+            real_path = os.path.realpath(javac_path)
+            # javac is typically in $JAVA_HOME/bin/javac
+            bin_dir = os.path.dirname(real_path)
+            java_home = os.path.dirname(bin_dir)
+
+            if os.path.isdir(java_home):
+                return java_home
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        pass
+
+    return None
+
+
+def _detect_java_home_from_java() -> Optional[str]:
+    """Detect JAVA_HOME by finding java and following symlinks."""
+    try:
+        java_path = subprocess.check_output(
+            ["which", "java"],
+            stderr=subprocess.DEVNULL,
+            universal_newlines=True,
+        ).strip()
+
+        if java_path:
+            real_path = os.path.realpath(java_path)
+            bin_dir = os.path.dirname(real_path)
+            java_home = os.path.dirname(bin_dir)
+
+            if os.path.isdir(java_home):
+                return java_home
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        pass
+
+    return None
+
+
+def _detect_java_home_from_fallback() -> Optional[str]:
+    """Detect JAVA_HOME from common installation paths."""
+    for fallback_path in _JAVA_FALLBACK_PATHS:
+        if os.path.isdir(fallback_path):
+            # Verify it looks like a valid Java installation
+            if os.path.isdir(os.path.join(fallback_path, "include")) or \
+               os.path.isdir(os.path.join(fallback_path, "lib")):
+                return fallback_path
+    return None
+
+
+def _detect_java_home_alternatives() -> Optional[str]:
+    """Detect JAVA_HOME using update-alternatives (Debian/Ubuntu/RHEL)."""
+    try:
+        # Try update-alternatives for java
+        result = subprocess.check_output(
+            ["update-alternatives", "--display", "java"],
+            stderr=subprocess.DEVNULL,
+            universal_newlines=True,
+        )
+
+        # Parse output to find the current best version
+        for line in result.split('\n'):
+            if line.strip().startswith('/') and 'jre/bin/java' in line or 'bin/java' in line:
+                java_path = line.split()[0]
+                real_path = os.path.realpath(java_path)
+                # Go up from bin/java to JAVA_HOME
+                java_home = os.path.dirname(os.path.dirname(real_path))
+                if os.path.isdir(java_home):
+                    return java_home
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        pass
+
+    return None
+
+
+def _detect_java_home() -> Optional[str]:
+    """
+    Detect JAVA_HOME using multiple methods.
+
+    Detection priority:
+      1. JAVA_HOME environment variable
+      2. Follow javac symlink
+      3. Follow java symlink
+      4. update-alternatives (Linux)
+      5. Fallback paths
+    """
+    detectors = [
+        _detect_java_home_from_env,
+        _detect_java_home_from_javac,
+        _detect_java_home_from_java,
+        _detect_java_home_alternatives,
+        _detect_java_home_from_fallback,
+    ]
+
+    for detector in detectors:
+        java_home = detector()
+        if java_home:
+            return java_home
+
+    return None
+
+
+def _detect_java_include_dir(java_home: Optional[str]) -> Optional[str]:
+    """Detect Java JNI include directory."""
+    if not java_home:
+        return None
+
+    include_dir = os.path.join(java_home, "include")
+    if os.path.isdir(include_dir) and os.path.isfile(os.path.join(include_dir, "jni.h")):
+        return include_dir
+
+    return None
+
+
+def _detect_java_platform_include(java_home: Optional[str], platform: str) -> Optional[str]:
+    """Detect platform-specific JNI include directory."""
+    if not java_home:
+        return None
+
+    include_dir = os.path.join(java_home, "include")
+    platform_dir = os.path.join(include_dir, platform)
+
+    if os.path.isdir(platform_dir):
+        return platform_dir
+
+    return None
+
+
+def _find_libjvm(java_home: Optional[str]) -> tuple:
+    """
+    Find libjvm library path.
+
+    Returns:
+        Tuple of (lib_dir, libjvm_path) or (None, None) if not found
+    """
+    if not java_home:
+        return None, None
+
+    # Common relative paths to libjvm
+    lib_patterns = [
+        # Linux server JVM (most common for JDK)
+        "lib/server/libjvm.so",
+        "jre/lib/server/libjvm.so",
+        "lib/amd64/server/libjvm.so",
+        "jre/lib/amd64/server/libjvm.so",
+        "lib/aarch64/server/libjvm.so",
+        "jre/lib/aarch64/server/libjvm.so",
+        # Linux client JVM
+        "lib/client/libjvm.so",
+        "jre/lib/client/libjvm.so",
+        # AlmaLinux / RHEL specific paths
+        "lib/server/libjvm.so",
+        "lib/jli/libjli.so",  # Sometimes needed
+        # macOS
+        "lib/server/libjvm.dylib",
+        "jre/lib/server/libjvm.dylib",
+        "lib/libjli.dylib",
+        # Generic lib directory
+        "lib/libjvm.so",
+        "jre/lib/libjvm.so",
+    ]
+
+    for pattern in lib_patterns:
+        libjvm_path = os.path.join(java_home, pattern)
+        if os.path.isfile(libjvm_path):
+            lib_dir = os.path.dirname(libjvm_path)
+            return lib_dir, libjvm_path
+
+    return None, None
+
+
+def detect_java_config() -> JavaConfig:
+    """
+    Automatically detect Java JDK/JRE configuration.
+
+    Detection priority:
+      1. JAVA_HOME environment variable
+      2. Follow javac/java symlinks
+      3. update-alternatives (Linux)
+      4. Fallback to common installation paths
+
+    Covers:
+      - AlmaLinux / RHEL / CentOS / Fedora
+      - Debian / Ubuntu
+      - Arch Linux
+      - macOS (Homebrew and system Java)
+
+    Returns:
+        JavaConfig dataclass with detected paths
+    """
+    config = JavaConfig()
+
+    # Detect JAVA_HOME
+    config.java_home = _detect_java_home()
+
+    if not config.java_home:
+        logging.warning("Could not detect JAVA_HOME")
+        return config
+
+    # Detect include directories
+    config.include_dir = _detect_java_include_dir(config.java_home)
+    config.platform_include_dir = _detect_java_platform_include(
+        config.java_home, config.platform
+    )
+
+    # Find libjvm
+    config.lib_dir, config.libjvm_path = _find_libjvm(config.java_home)
+
+    # Collect all include paths
+    if config.include_dir:
+        config.include_paths.append(config.include_dir)
+    if config.platform_include_dir:
+        config.include_paths.append(config.platform_include_dir)
+
+    # Collect all lib paths
+    if config.lib_dir:
+        config.lib_paths.append(config.lib_dir)
+
+    _log_java_detection_results(config)
+
+    return config
+
+
+def _log_java_detection_results(config: JavaConfig) -> None:
+    """Log Java detection results for debugging."""
+    if config.java_home:
+        logging.info(f"Java home detected: {config.java_home}")
+    if config.include_dir:
+        logging.info(f"Java include detected: {config.include_dir}")
+    if config.platform_include_dir:
+        logging.info(f"Java platform include detected: {config.platform_include_dir}")
+    if config.lib_dir:
+        logging.info(f"Java lib detected: {config.lib_dir}")
+    if config.libjvm_path:
+        logging.info(f"libjvm detected: {config.libjvm_path}")
+
+
+def CheckJava(ctx) -> bool:
+    """
+    SCons custom test to verify Java JDK configuration.
+
+    Args:
+        ctx: SCons Configure context
+
+    Returns:
+        True if Java JDK is properly configured, False otherwise
+    """
+    ctx.Message("Checking Java JDK configuration... ")
+
+    config = detect_java_config()
+
+    if not config.is_valid:
+        if not config.java_home:
+            ctx.Result("JAVA_HOME not found")
+        elif not config.libjvm_path:
+            ctx.Result("libjvm not found")
+        else:
+            ctx.Result("incomplete configuration")
+        return False
+
+    ctx.Result(f"found ({config.java_home})")
+    return True
+
+
+# =============================================================================
 # SCons Custom Tests
 # =============================================================================
 
@@ -462,7 +815,10 @@ __all__ = [
     "get_perl_ldopts",
     "CheckPerl",
     "CheckRPackages",
+    "CheckJava",
     "RConfig",
     "detect_r_config",
     "check_r_packages",
+    "JavaConfig",
+    "detect_java_config",
 ]
