@@ -24,9 +24,17 @@ Bioinformatics and Biomedical Engineering (IWBBIO16), Granada, Spain, April 2016
 
 This work was partially supported by grants from the Department of
 Defense Contract W911NF-16-1-0494, NIH grant 1R15AI128714-01,
-and NIJ grant 2017-NE-BX-0001.  
+and NIJ grant 2017-NE-BX-0001.
 
 Additional support provided by the Florida Department of Health (FDOH 09KW-10),
 the Alpha-One Foundation, NVIDIA, The College of Engineering and Computer Science
 at Florida International University and the Natural Sciences Collegium at
 Eckerd College.
+
+------------------------------------------------------------------------------
+
+## Plugin Languages
+
+PluMA can execute plugins implemented in C/C++, Python, Perl, R, and Java.
+Java support requires a JDK with JNI headers and `libjvm`; the build scans `JAVA_HOME`
+or the location of `javac` to configure the JNI include path and library.

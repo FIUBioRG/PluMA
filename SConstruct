@@ -22,6 +22,7 @@ Usage:
 
 import logging
 import os
+import re
 import subprocess
 import sys
 from glob import glob
@@ -99,6 +100,7 @@ OPTIONS = [
     ("--without-python", "without-python", "store_true", False, "Disable Python plugin support", {}),
     ("--without-perl", "without-perl", "store_true", False, "Disable Perl plugin support", {}),
     ("--without-r", "without-r", "store_true", False, "Disable R plugin support", {}),
+    ("--without-java", "without-java", "store_true", False, "Disable Java plugin support", {}),
     ("--with-cuda", "with-cuda", "store_true", False, "Enable CUDA plugin compilation", {}),
     ("--gpu-architecture", "gpu_arch", "store", "sm_35",
      "NVIDIA GPU architecture for CUDA compilation", {"type": "string", "nargs": 1, "metavar": "ARCH"}),
@@ -299,6 +301,86 @@ def configure_rust(config):
     return True
 
 
+def configure_java(config):
+    """Configure Java language support. Returns True if enabled."""
+    if GetOption("without-java"):
+        return False
+
+    java_home = _detect_java_home()
+    if not java_home:
+        logging.warning("Java support requested but JAVA_HOME/javac could not be resolved.")
+        return False
+
+    if not _apply_java_paths(config, java_home):
+        return False
+
+    return True
+
+
+def _detect_java_home():
+    """Detect Java home directory from environment or javac location."""
+    java_home = getenv("JAVA_HOME")
+    if java_home and os.path.isdir(java_home):
+        return java_home
+
+    try:
+        javac_path = subprocess.check_output(
+            ["which", "javac"], universal_newlines=True
+        ).strip()
+        if javac_path:
+            return os.path.dirname(os.path.dirname(os.path.realpath(javac_path)))
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        pass
+
+    return None
+
+
+def _get_java_platform_dir():
+    """Get the platform-specific subdirectory for Java includes."""
+    if sys.platform.startswith("linux"):
+        return "linux"
+    elif sys.platform.startswith("darwin"):
+        return "darwin"
+    elif sys.platform.startswith("win"):
+        return "win32"
+    return sys.platform
+
+
+def _apply_java_paths(config, java_home):
+    """Apply Java include and library paths. Returns True if JVM found."""
+    include_dir = os.path.join(java_home, "include")
+    platform_dir = _get_java_platform_dir()
+
+    cpp_paths = []
+    if os.path.isdir(include_dir):
+        cpp_paths.append(include_dir)
+    platform_include = os.path.join(include_dir, platform_dir)
+    if os.path.isdir(platform_include):
+        cpp_paths.append(platform_include)
+
+    if cpp_paths:
+        config.env.AppendUnique(CPPPATH=[Dir(p) for p in cpp_paths])
+
+    lib_dir = os.path.join(java_home, "lib", "server")
+    if not os.path.isdir(lib_dir):
+        lib_dir = os.path.join(java_home, "lib")
+
+    if not os.path.isdir(lib_dir):
+        logging.warning("Java support requested but libjvm was not found.")
+        return False
+
+    config.env.AppendUnique(LIBPATH=[Dir(lib_dir)])
+
+    libjvm_path = os.path.join(lib_dir, "libjvm.so")
+    if os.path.isfile(libjvm_path) or config.CheckLib("jvm"):
+        config.env.Append(LIBS=["jvm"])
+        config.env.Append(CPPDEFINES=["HAVE_JAVA"])
+        return True
+
+    logging.warning("Java support requested but libjvm could not be linked.")
+    return False
+
+
 def configure_cuda(env_cuda):
     """Configure CUDA environment. Returns True if enabled."""
     if not GetOption("with-cuda"):
@@ -416,12 +498,15 @@ def _build_language_object(env, language, output):
     env.StaticObject(source=language, target=output, LDFLAGS=ldflags)
 
 
-def build_main_executable(env, languages):
+def build_main_executable(env, languages, java_enabled=False):
     """Build the main PluMA executable."""
     program_libs = [
         "pthread", "m", "dl", "crypt", "c",
         f"python{python_version}", "util", "perl", "R", "RInside",
     ]
+
+    if java_enabled:
+        program_libs.append("jvm")
 
     env.Append(LIBPATH=[LibPath("")])
     env.Program(
@@ -457,7 +542,7 @@ def setup_clean_targets(env):
 
 
 def run_configuration(env):
-    """Run all configuration checks and return the configured environment."""
+    """Run all configuration checks and return (env, java_enabled)."""
     config = Configure(env, custom_tests={
         "CheckPerl": CheckPerl,
         "CheckRPackages": CheckRPackages,
@@ -471,9 +556,10 @@ def run_configuration(env):
     configure_perl(config)
     configure_r(config)
     configure_rust(config)
+    java_enabled = configure_java(config)
 
     config.Finish()
-    return env
+    return env, java_enabled
 
 
 def _verify_compilers(config):
@@ -496,7 +582,7 @@ def _verify_required_libs(config):
 # =============================================================================
 
 
-def run_build(env, env_cuda):
+def run_build(env, env_cuda, java_enabled=False):
     """Execute all build steps."""
     generate_swig_wrappers(env)
     build_language_bindings(env)
@@ -511,7 +597,7 @@ def run_build(env, env_cuda):
 
     languages = build_language_objects(env)
     build_plugen(env)
-    build_main_executable(env, languages)
+    build_main_executable(env, languages, java_enabled)
 
 
 # =============================================================================
@@ -527,7 +613,7 @@ def main():
         setup_clean_targets(env)
         return
 
-    run_configuration(env)
+    env, java_enabled = run_configuration(env)
 
     env_cuda = None
     if GetOption("with-cuda"):
@@ -537,7 +623,7 @@ def main():
     Export("env")
     Export("env_cuda" if env_cuda else {"envPluginCuda": None})
 
-    run_build(env, env_cuda)
+    run_build(env, env_cuda, java_enabled)
 
 
 main()
