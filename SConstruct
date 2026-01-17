@@ -224,7 +224,7 @@ def _apply_perl_config(config):
     """Apply Perl-specific compiler configuration."""
     config.env.AppendUnique(
         CXXFLAGS=["-fno-strict-aliasing"],
-        CPPDEFINES=["LARGE_SOURCE", "_FILE_OFFSET_BITS=64", "HAVE_PERL", "REENTRANT", "-DWITH_PERL"],
+        CPPDEFINES=["LARGE_SOURCE", "_FILE_OFFSET_BITS=64", "HAVE_PERL", "REENTRANT", "WITH_PERL"],
     )
     if is_darwin:
         config.env.Append(LIBS=["crypt", "nsl"])
@@ -269,7 +269,7 @@ def _apply_r_compiler_config(config):
 
     config.env.AppendUnique(
         LDFLAGS=["-Bsymbolic-functions", "-z,relro"],
-        CPPDEFINES=["HAVE_R", "-DWITH_R"],
+        CPPDEFINES=["HAVE_R", "WITH_R"],
         CXXFLAGS=[
             "-fno-gnu-unique", "-fpermissive", "--param=ssp-buffer-size=4",
             "-Wformat", "-Wformat-security", "-Werror=format-security", "-Wl,--export-dynamic",
@@ -648,7 +648,8 @@ def main():
         configure_cuda(env_cuda)
 
     Export("env")
-    Export("env_cuda" if env_cuda else {"envPluginCuda": None})
+    if env_cuda:
+        Export("env_cuda")
 
     run_build(env, env_cuda, java_enabled)
 
