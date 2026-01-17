@@ -479,6 +479,30 @@ def _compile_cuda_plugins_in_folder(env_cuda, folder):
         )
 
 
+def build_java_plugins(env, plugin_path):
+    """Compile Java plugins if Java is enabled."""
+    print(">> Compiling Java Plugins")
+
+    for folder in plugin_path:
+        _compile_java_plugins_in_folder(env, folder)
+
+
+def _compile_java_plugins_in_folder(env, folder):
+    """Compile all Java plugins in a single folder."""
+    for plugin in Glob(f"{folder}/*Plugin.java"):
+        plugin_dir = str(plugin.get_dir())
+        plugin_name = os.path.basename(plugin.get_path()).replace(".java", "")
+        output_class = f"{plugin_dir}/{plugin_name}.class"
+        sources = Glob(f"{plugin_dir}/*.java", strings=True)
+
+        # Compile all Java files in the plugin directory
+        env.Command(
+            output_class,
+            sources,
+            f"javac -d {plugin_dir} $SOURCES",
+        )
+
+
 def build_language_objects(env):
     """Build language support objects and return the language file list."""
     languages = Glob("src/languages/*.cxx")
@@ -594,6 +618,9 @@ def run_build(env, env_cuda, java_enabled=False):
 
     if env_cuda:
         build_cuda_plugins(env_cuda, plugin_path)
+
+    if java_enabled:
+        build_java_plugins(env, plugin_path)
 
     languages = build_language_objects(env)
     build_plugen(env)
