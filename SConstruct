@@ -136,7 +136,7 @@ def create_base_environment():
         ENV=environ,
         CC=getenv("CC", "cc"),
         CXX=getenv("CXX", "c++"),
-        CPPDEFINES=["HAVE_PYTHON"],
+        CPPDEFINES=[],
         SHCCFLAGS=["-fpermissive", "-fPIC", "-I.", "-O2"],
         SHCXXFLAGS=[CXX_STANDARD, "-fPIC", "-I.", "-O2"],
         CCFLAGS=["-fpermissive", "-fPIC", "-I.", "-O2"],
@@ -193,6 +193,7 @@ def configure_python(config):
     config.CheckProg("python3")
     config.env.ParseConfig("/usr/bin/python3-config --includes --ldflags")
     config.env.Append(LIBS=["util"])
+    config.env.AppendUnique(CPPDEFINES=["HAVE_PYTHON"])
     return True
 
 
