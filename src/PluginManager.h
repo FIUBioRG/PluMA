@@ -50,6 +50,7 @@
 #include "languages/R.h"
 #include "languages/Perl.h"
 #include "languages/Java.h"
+#include "languages/Julia.h"
 
 class PluginManager {
 public:
@@ -124,6 +125,9 @@ public:
         supported.push_back(new Perl("Perl", "pl", pluginpath));
 #ifdef HAVE_JAVA
         supported.push_back(new Java("Java", "class", pluginpath));
+#endif
+#ifdef HAVE_JULIA
+        supported.push_back(new Julia("Julia", "jl", pluginpath));
 #endif
     }
 

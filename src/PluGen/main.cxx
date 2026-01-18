@@ -40,21 +40,24 @@
 
 #include "PluginGenerator.h"
 #include "JavaPluginGenerator.h"
+#include "JuliaPluginGenerator.h"
 
 void printUsage() {
     std::cout << "Usage: ./plugen [OPTIONS] <PluginName> <command>" << std::endl;
     std::cout << std::endl;
     std::cout << "Options:" << std::endl;
-    std::cout << "  --lang=<language>  Generate plugin in specified language (cpp, java)" << std::endl;
+    std::cout << "  --lang=<language>  Generate plugin in specified language (cpp, java, julia)" << std::endl;
     std::cout << "                     Default: cpp" << std::endl;
     std::cout << std::endl;
     std::cout << "Examples:" << std::endl;
     std::cout << "  ./plugen MyPlugin mycommand -i inputfile -o outputfile" << std::endl;
     std::cout << "  ./plugen --lang=java MyPlugin mycommand -i inputfile -o outputfile" << std::endl;
+    std::cout << "  ./plugen --lang=julia MyPlugin mycommand -i inputfile -o outputfile" << std::endl;
     std::cout << std::endl;
     std::cout << "Supported languages:" << std::endl;
     std::cout << "  cpp   - C++ plugin (default)" << std::endl;
     std::cout << "  java  - Java plugin" << std::endl;
+    std::cout << "  julia - Julia plugin" << std::endl;
 }
 
 int main(int argc, char** argv) {
@@ -123,6 +126,11 @@ int main(int argc, char** argv) {
       JavaPluginGenerator* myGenerator = new JavaPluginGenerator(pluginpath, literal);
       myGenerator->generate(pluginname, command);
       delete myGenerator;
+   } else if (language == "julia") {
+      std::cout << "Generating Julia plugin: " << pluginname << std::endl;
+      JuliaPluginGenerator* myGenerator = new JuliaPluginGenerator(pluginpath, literal);
+      myGenerator->generate(pluginname, command);
+      delete myGenerator;
    } else if (language == "cpp") {
       std::cout << "Generating C++ plugin: " << pluginname << std::endl;
       PluginGenerator* myGenerator = new PluginGenerator(pluginpath, literal);
@@ -130,7 +138,7 @@ int main(int argc, char** argv) {
       delete myGenerator;
    } else {
       std::cerr << "Error: Unknown language '" << language << "'" << std::endl;
-      std::cerr << "Supported languages: cpp, java" << std::endl;
+      std::cerr << "Supported languages: cpp, java, julia" << std::endl;
       exit(1);
    }
 

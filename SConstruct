@@ -103,6 +103,14 @@ AddOption(
 )
 
 AddOption(
+    "--without-julia",
+    dest="without-julia",
+    action="store_true",
+    default=False,
+    help="Disable Julia plugin support",
+)
+
+AddOption(
     "--with-rust",
     dest="with-rust",
     action="store_true",
@@ -413,6 +421,78 @@ else:
         else:
             logging.warning("Java support requested but JAVA_HOME/javac could not be resolved.")
 
+    julia_enabled = False
+    if not env.GetOption("without-julia"):
+        julia_home = getenv("JULIA_HOME")
+        if not julia_home:
+            # Try to find Julia from the julia executable
+            try:
+                julia_path = subprocess.check_output(
+                    ["which", "julia"], universal_newlines=True
+                ).strip()
+                if julia_path:
+                    # Get JULIA_HOME from Julia itself
+                    julia_home_output = subprocess.check_output(
+                        ["julia", "-e", "print(Sys.BINDIR)"],
+                        universal_newlines=True
+                    ).strip()
+                    # BINDIR is typically .../bin, so parent is JULIA_HOME
+                    julia_home = os.path.dirname(julia_home_output)
+            except (subprocess.CalledProcessError, FileNotFoundError):
+                julia_home = None
+
+        if julia_home and os.path.isdir(julia_home):
+            # Find Julia include directory
+            include_dir = os.path.join(julia_home, "include", "julia")
+            if not os.path.isdir(include_dir):
+                # Try alternative paths
+                for alt_path in [
+                    os.path.join(julia_home, "include"),
+                    "/usr/include/julia",
+                    "/usr/local/include/julia",
+                ]:
+                    if os.path.isdir(alt_path):
+                        include_dir = alt_path
+                        break
+
+            cpp_paths = []
+            if os.path.isdir(include_dir):
+                cpp_paths.append(include_dir)
+                # Also add parent include if needed
+                parent_include = os.path.dirname(include_dir)
+                if parent_include != include_dir and os.path.isdir(parent_include):
+                    cpp_paths.append(parent_include)
+
+            if cpp_paths:
+                config.env.AppendUnique(CPPPATH=[Dir(path) for path in cpp_paths])
+
+            # Find Julia library directory
+            lib_dir = os.path.join(julia_home, "lib")
+            if not os.path.isdir(lib_dir):
+                lib_dir = os.path.join(julia_home, "lib", "julia")
+
+            if os.path.isdir(lib_dir):
+                config.env.AppendUnique(LIBPATH=[Dir(lib_dir)])
+                libjulia_path = os.path.join(lib_dir, "libjulia.so")
+                if not os.path.isfile(libjulia_path):
+                    libjulia_path = os.path.join(lib_dir, "libjulia.dylib")
+                if os.path.isfile(libjulia_path):
+                    config.env.Append(LIBS=["julia"])
+                    config.env.Append(CPPDEFINES=["HAVE_JULIA"])
+                    julia_enabled = True
+                elif config.CheckLib("julia"):
+                    config.env.Append(LIBS=["julia"])
+                    config.env.Append(CPPDEFINES=["HAVE_JULIA"])
+                    julia_enabled = True
+                else:
+                    logging.warning(
+                        "Julia support requested but libjulia could not be linked."
+                    )
+            else:
+                logging.warning("Julia support requested but libjulia was not found.")
+        else:
+            logging.warning("Julia support requested but JULIA_HOME/julia could not be resolved.")
+
     if GetOption("with-rust"):
         config.CheckProg("rustc")
         config.CheckProg("cargo")
@@ -629,6 +709,8 @@ else:
     ]
     if java_enabled:
         program_libs.append("jvm")
+    if julia_enabled:
+        program_libs.append("julia")
 
     env.Program(
         target="pluma",

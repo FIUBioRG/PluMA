@@ -10,7 +10,7 @@ To compile, run from the PluMA root directory:
     scons
 
 Or compile just PluGen:
-    g++ -o plugen main.cxx PluginGenerator.cxx JavaPluginGenerator.cxx
+    g++ -o plugen main.cxx PluginGenerator.cxx JavaPluginGenerator.cxx JuliaPluginGenerator.cxx
 
 Note: Generated plugins will be placed in one of the following locations (in order):
 1. ../plugins (relative to plugen)
@@ -22,7 +22,7 @@ USAGE
 
 OPTIONS:
   --lang=<language>    Generate plugin in specified language
-                       Supported: cpp (default), java
+                       Supported: cpp (default), java, julia
 
   --help, -h           Show usage information
 
@@ -40,7 +40,10 @@ EXAMPLES
 2. Generate a Java plugin:
    ./plugen --lang=java MyPlugin mytool -i inputfile -o outputfile
 
-3. Plugin with optional parameters (use brackets):
+3. Generate a Julia plugin:
+   ./plugen --lang=julia MyPlugin mytool -i inputfile -o outputfile
+
+4. Plugin with optional parameters (use brackets):
    ./plugen MyPlugin mytool -i inputfile [ -v verbose ] -o outputfile
 
 GENERATED FILES
@@ -61,6 +64,13 @@ Java Plugins (--lang=java):
     cd plugins/MyPlugin
     javac MyPluginPlugin.java
 
+Julia Plugins (--lang=julia):
+  plugins/MyPlugin/
+  ├── MyPluginPlugin.jl     # Julia source with input/run/output functions
+  └── README.md             # Documentation
+
+  Julia plugins do not require compilation.
+
 PARAMETER FILE FORMAT
 ---------------------
 Plugins expect a tab-delimited parameter file:
@@ -70,7 +80,8 @@ Plugins expect a tab-delimited parameter file:
     inputpath /path/to/input
 
 These parameters are accessible via:
-- C++:  parameters["param1"]
-- Java: parameters.get("param1")
+- C++:   parameters["param1"]
+- Java:  parameters.get("param1")
+- Julia: parameters["param1"] or get_parameter("param1")
 
 ____________________________________________________________________________________
