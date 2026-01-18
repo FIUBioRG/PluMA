@@ -103,11 +103,11 @@ AddOption(
 )
 
 AddOption(
-    "--without-julia",
-    dest="without-julia",
+    "--with-julia",
+    dest="with-julia",
     action="store_true",
     default=False,
-    help="Disable Julia plugin support",
+    help="Enable Julia plugin support (requires libjulia)",
 )
 
 AddOption(
@@ -422,7 +422,7 @@ else:
             logging.warning("Java support requested but JAVA_HOME/javac could not be resolved.")
 
     julia_enabled = False
-    if not env.GetOption("without-julia"):
+    if GetOption("with-julia"):
         julia_home = getenv("JULIA_HOME")
         if not julia_home:
             # Try to find Julia from the julia executable
