@@ -360,7 +360,6 @@ else:
                     java_home = os.path.dirname(os.path.dirname(os.path.realpath(javac_path)))
             except (subprocess.CalledProcessError, FileNotFoundError):
                 java_home = None
-
         if java_home and os.path.isdir(java_home):
             include_dir = os.path.join(java_home, "include")
             if sys.platform.startswith("linux"):
@@ -389,7 +388,11 @@ else:
             if os.path.isdir(lib_dir):
                 config.env.AppendUnique(LIBPATH=[Dir(lib_dir)])
                 libjvm_path = os.path.join(lib_dir, "libjvm.so")
+                libjvm_env = getenv("LIBJVM")
+                if (libjvm_env):
+                    libjvm_path = libjvm_env
                 if os.path.isfile(libjvm_path):
+                    config.env.AppendUnique(LIBPATH=[Dir("/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.472.b08-1.el8_10.x86_64/jre/lib/amd64/server/")])
                     config.env.Append(LIBS=["jvm"])
                     config.env.Append(CPPDEFINES=["HAVE_JAVA"])
                     java_enabled = True
