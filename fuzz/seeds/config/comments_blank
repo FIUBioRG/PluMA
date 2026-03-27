@@ -1,0 +1,8 @@
+# Comment at top
+Parallel workers=8 memory=16G
+  # Inner comment
+  Plugin A inputfile in.csv outputfile out.csv
+
+  Plugin B inputfile in2.csv outputfile out2.csv
+  # Trailing comment
+EndParallel

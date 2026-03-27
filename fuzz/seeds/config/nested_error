@@ -1,0 +1,5 @@
+Parallel
+  Parallel workers=2
+    Plugin A inputfile a.csv outputfile b.csv
+  EndParallel
+EndParallel

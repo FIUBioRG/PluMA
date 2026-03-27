@@ -1,0 +1,8 @@
+Prefix pipelines/PD
+Plugin Pre inputfile a.csv outputfile b.csv
+Parallel workers=4 memory=32G gpu=2 fail=continue
+  Plugin X inputfile b.csv outputfile x.csv memory=2G
+  Plugin Y inputfile b.csv outputfile y.csv memory=8G gpu=1
+  Plugin Z inputfile b.csv outputfile z.csv
+EndParallel
+Plugin Post inputfile x.csv outputfile final.csv
