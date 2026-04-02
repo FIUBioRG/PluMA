@@ -35,12 +35,35 @@
 #ifdef HAVE_PYTHON
 #include "Python.h"
 #endif
+#include <sys/stat.h>
+
+static bool venvActivated = false;
 
 Py::Py(
     std::string language,
     std::string ext,
     std::string p
 ) : Language(language, ext, p) {}
+
+static void activateVenv(const std::string& cwd) {
+    if (venvActivated) return;
+    venvActivated = true;
+
+    std::string venvPath = cwd + "/.venv";
+    struct stat st;
+    if (stat(venvPath.c_str(), &st) != 0 || !S_ISDIR(st.st_mode))
+        return;
+
+    std::string script =
+        "import sys, os\n"
+        "venv = os.path.join('" + cwd + "', '.venv')\n"
+        "version = f'python{sys.version_info.major}.{sys.version_info.minor}'\n"
+        "site_pkgs = os.path.join(venv, 'lib', version, 'site-packages')\n"
+        "if os.path.isdir(site_pkgs):\n"
+        "    import site\n"
+        "    site.addsitedir(site_pkgs)\n";
+    PyRun_SimpleString(script.c_str());
+}
 
 void Py::executePlugin(
     std::string pluginname,
@@ -54,6 +77,8 @@ void Py::executePlugin(
 
     PyRun_SimpleString("import sys");
     PyRun_SimpleString(("sys.path.append(\""+cwd+"/\")").c_str());
+
+    activateVenv(cwd);
 
     std::string tmppath = pluginpath;
     std::string path = tmppath.substr(0, pluginpath.find_first_of(":"));
