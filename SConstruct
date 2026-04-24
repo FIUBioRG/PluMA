@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#! /usr/bin/env python3
 # Copyright (C) 2017, 2019-2020 FIUBioRG
 # SPDX-License-Identifier: MIT
 #
@@ -235,7 +235,8 @@ else:
         config.CheckProg("python3-config")
         config.CheckProg("python3")
 
-        config.env.ParseConfig("/usr/bin/python3-config --includes --ldflags")
+        #config.env.ParseConfig("/usr/bin/python3-config --includes --ldflags")
+        config.env.ParseConfig("/usr/share/python3.14/bin/python3-config --includes --ldflags")
         config.env.Append(LIBS=["util"])
 
         if sys.version_info[0] == "2":
