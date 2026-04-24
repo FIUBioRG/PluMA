@@ -23,6 +23,7 @@ import sys
 
 from build_config import *
 from build_support import *
+from resolve_requirements import resolve_and_install
 
 if sys.version_info.major < 3:
     logging.error("Python3 is required to run this Sconstruct")
@@ -193,6 +194,8 @@ if env.GetOption("clean"):
             relpath("RPluMA.R"),
             relpath("__pycache__"),
             Glob("*.pyc"),
+            relpath(".venv"),
+            relpath("requirements-plugins.txt"),
         ],
     )
 
@@ -530,6 +533,13 @@ else:
     # Assemble plugin path
     pluginPath = glob("./plugins/*/")
     ###################################################################
+
+    ###################################################################
+    # Resolve Python plugin dependencies into a shared venv.
+    # Scans plugins/*/requirements.txt, checks for version conflicts,
+    # and installs the merged set into .venv/ at the project root.
+    if not env.GetOption("without-python"):
+        resolve_and_install("plugins")
 
     ###################################################################
     # # C++ Plugins
