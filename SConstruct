@@ -33,12 +33,14 @@ from build_config import include_search_path, platform_id, is_darwin, is_alpine
 from build_support import (
     CheckPerl,
     CheckRPackages,
+    CheckJava,
     LibPath,
     ObjectPath,
     SourcePath,
     python_version,
     get_perl_ldopts,
     detect_r_config,
+    detect_java_config,
 )
 
 # =============================================================================
@@ -313,6 +315,30 @@ def configure_rust(config):
     return True
 
 
+def configure_java(config):
+    """Configure Java language support. Returns True if enabled."""
+    if GetOption("without-java"):
+        return False
+
+    java_config = detect_java_config()
+    if not java_config or not java_config.is_valid:
+        logging.warning("Java toolchain not detected; building without Java support")
+        return False
+
+    include_paths = [java_config.include_dir]
+    if java_config.platform_include_dir:
+        include_paths.append(java_config.platform_include_dir)
+
+    config.env.AppendUnique(
+        CPPPATH=include_paths,
+        LIBPATH=[java_config.lib_dir] if java_config.lib_dir else [],
+        RPATH=[java_config.lib_dir] if java_config.lib_dir else [],
+        LIBS=["jvm"],
+        CPPDEFINES=["HAVE_JAVA"],
+    )
+    return True
+
+
 def configure_cuda(env_cuda):
     """Configure CUDA environment. Returns True if enabled."""
     if not GetOption("with-cuda"):
@@ -509,8 +535,10 @@ def run_configuration(env):
     configure_perl(config)
     configure_r(config)
     configure_rust(config)
+    java_enabled = configure_java(config)
 
     config.Finish()
+    env["JAVA_ENABLED"] = java_enabled
     return env
 
 
@@ -553,7 +581,7 @@ def run_build(env, env_cuda):
     if env_cuda:
         build_cuda_plugins(env_cuda, plugin_path)
 
-    if java_enabled:
+    if env.get("JAVA_ENABLED"):
         build_java_plugins(env, plugin_path)
 
     languages = build_language_objects(env)
