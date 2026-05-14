@@ -8,6 +8,8 @@ Rplots.pdf
 ####
 # PluMA specific ignores
 ####
+.worktrees/
+fuzz/corpus/
 pluma
 PluGen/plugen
 *_wrap.cxx

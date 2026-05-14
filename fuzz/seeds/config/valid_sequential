@@ -1,0 +1,3 @@
+Prefix pipelines/PD
+Plugin A inputfile a.csv outputfile b.csv
+Plugin B inputfile b.csv outputfile c.csv
