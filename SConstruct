@@ -170,6 +170,40 @@ def _remove_annobin_flag(env):
         ccflags.remove(annobin_flag)
 
 
+AddOption(
+    "--build-rust-plugins",
+    dest="build-rust-plugins",
+    action="store_true",
+    default=False,
+    help="Build all Rust plugins in the plugins directory using cargo"
+)
+
+AddOption(
+    "--rust-release",
+    dest="rust-release",
+    action="store_true",
+    default=True,
+    help="Build Rust plugins in release mode (default: True)"
+)
+
+AddOption(
+    "--rust-features",
+    dest="rust-features",
+    type="string",
+    nargs=1,
+    action="store",
+    metavar="FEATURES",
+    default="",
+    help="Comma-separated list of features to enable for Rust plugins (e.g., 'gpu,cuda')"
+)
+
+AddOption(
+    "--r-include-dir",
+    dest="r-include-dir",
+    action="store",
+    default="/usr/local/lib/R/include",
+    help="Set the include directory for the R installation on the system"
+)
 def create_cuda_environment():
     """Create environment for CUDA compilation."""
     return Environment(
@@ -185,6 +219,69 @@ def create_cuda_environment():
 # Language Configuration Functions
 # =============================================================================
 
+if not sys.platform.startswith("darwin"):
+    env.Append(LINKFLAGS=["-rdynamic"])
+    env.Append(LIBS=["rt"])
+else:
+    env.Append(CCFLAGS=['-DAPPLE'])
+
+if platform_id == "alpine":
+    env.Append(CPPDEFINES=["__MUSL__"])
+
+###################################################################
+
+###################################################################
+# Either clean folders from previous Scons runs or begin assembling
+# `PluMA` and its associated plugins
+if env.GetOption("clean"):
+    env.Clean("python", [Glob("./**/__pycache__"),])
+
+    env.Clean(
+        "default",
+        [
+            Glob(".scon*"),
+            relpath("config.log"),
+            relpath(".perlconfig.txt"),
+            relpath("pluma"),
+            Glob('PluGen/*.o'),
+            relpath('PluGen/plugen'),
+            relpath("./obj"),
+            relpath("./lib"),
+            Glob("perm*.txt"),
+            Glob("asp_py_*tab.py"),
+            Glob("*.out"),
+            Glob("*.err"),
+            relpath("derep.fasta"),
+            Glob("logs/*.log.txt"),
+            Glob("pvals.*.txt"),
+            #relpath("pythonds"),
+            Glob("*.pdf"),
+            Glob("*.so"),
+            relpath("tmp"),
+            Glob("*_wrap.cxx"),
+            relpath("PerlPluMA.pm"),
+            relpath("PyPluMA.py"),
+            relpath("RPluMA.R"),
+            relpath("__pycache__"),
+            Glob("*.pyc"),
+            relpath(".venv"),
+            relpath("requirements-plugins.txt"),
+            # Rust plugin build artifacts
+            Glob("plugins/*/target"),
+            Glob("plugins/*/Cargo.lock"),
+            Glob("plugins/*/*.so"),
+        ],
+    )
+
+    # Special target to clean only Rust plugin builds
+    env.Clean(
+        "rust-plugins",
+        [
+            Glob("plugins/*/target"),
+            Glob("plugins/*/Cargo.lock"),
+            Glob("plugins/*/*.so"),
+        ],
+    )
 
 def configure_python(config):
     """Configure Python language support. Returns True if enabled."""
@@ -371,6 +468,108 @@ def generate_swig_wrappers(env):
                 f"swig {swig_flag} -c++ -module $TARGET -o ${{TARGET}}_wrap.cxx $SOURCE",
             )
 
+            if getenv("R_INCLUDE_DIR"):
+                config.env.AppendUnique(
+                    CPPATH=[
+                        Dir(getenv("R_INCLUDE_DIR"))
+                    ]
+                )
+
+            if getenv("R_LIB_DIR"):
+                config.env.AppendUnique(
+                    LIBPATH=[
+                        Dir(getenv("R_LIB_DIR"))
+                    ]
+                )
+
+            if getenv("RINSIDE_LIB_DIR"):
+                config.env.AppendUnique(
+                    LIBPATH=[
+                        Dir(getenv("RINSIDE_LIB_DIR"))
+                    ]
+                )
+
+            if getenv("RINSIDE_INCLUDE_DIR"):
+                config.env.AppendUnique(
+                    CPPPATH=[
+                        Dir(getenv("RINSIDE_INCLUDE_DIR"))
+                    ]
+                )
+
+            if getenv("RCPP_INCLUDE_DIR"):
+                config.env.AppendUnique(
+                    CPPPATH=[
+                        Dir(getenv("RCPP_INCLUDE_DIR"))
+                    ]
+                )
+
+            config.env.Append(CPPDEFINES=["-DWITH_R"])
+
+    java_enabled = False
+    if not env.GetOption("without-java"):
+        java_home = getenv("JAVA_HOME")
+        if not java_home:
+            try:
+                javac_path = subprocess.check_output(
+                    ["which", "javac"], universal_newlines=True
+                ).strip()
+                if javac_path:
+                    java_home = os.path.dirname(os.path.dirname(os.path.realpath(javac_path)))
+            except (subprocess.CalledProcessError, FileNotFoundError):
+                java_home = None
+        if java_home and os.path.isdir(java_home):
+            include_dir = os.path.join(java_home, "include")
+            if sys.platform.startswith("linux"):
+                platform_dir = "linux"
+            elif sys.platform.startswith("darwin"):
+                platform_dir = "darwin"
+            elif sys.platform.startswith("win"):
+                platform_dir = "win32"
+            else:
+                platform_dir = sys.platform
+
+            cpp_paths = []
+            if os.path.isdir(include_dir):
+                cpp_paths.append(include_dir)
+            platform_include = os.path.join(include_dir, platform_dir)
+            if os.path.isdir(platform_include):
+                cpp_paths.append(platform_include)
+
+            if cpp_paths:
+                config.env.AppendUnique(CPPPATH=[Dir(path) for path in cpp_paths])
+
+            lib_dir = os.path.join(java_home, "lib", "server")
+            if not os.path.isdir(lib_dir):
+                lib_dir = os.path.join(java_home, "lib")
+
+            if os.path.isdir(lib_dir):
+                config.env.AppendUnique(LIBPATH=[Dir(lib_dir)])
+                libjvm_path = os.path.join(lib_dir, "libjvm.so")
+                libjvm_env = getenv("LIBJVM")
+                if (libjvm_env):
+                    libjvm_path = libjvm_env
+                if os.path.isfile(libjvm_path):
+                    config.env.AppendUnique(LIBPATH=[Dir("/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.472.b08-1.el8_10.x86_64/jre/lib/amd64/server/")])
+                    config.env.Append(LIBS=["jvm"])
+                    config.env.Append(CPPDEFINES=["HAVE_JAVA"])
+                    java_enabled = True
+                elif config.CheckLib("jvm"):
+                    config.env.Append(LIBS=["jvm"])
+                    config.env.Append(CPPDEFINES=["HAVE_JAVA"])
+                    java_enabled = True
+                else:
+                    logging.warning(
+                        "Java support requested but libjvm could not be linked."
+                    )
+            else:
+                logging.warning("Java support requested but libjvm was not found.")
+        else:
+            logging.warning("Java support requested but JAVA_HOME/javac could not be resolved.")
+
+    if GetOption("with-rust"):
+        config.CheckProg("rustc")
+        config.CheckProg("cargo")
+        config.env.Append(CPPDEFINES=["HAVE_RUST"])
 
 def build_language_bindings(env):
     """Build shared libraries for enabled language bindings."""
@@ -424,6 +623,112 @@ def build_cuda_plugins(env_cuda, plugin_path):
         _compile_cuda_plugins_in_folder(env_cuda, folder)
 
 
+    ###################################################################
+    #
+    # ###################################################################
+    if GetOption("with-cuda"):
+        print("!! Compiling CUDA Plugins")
+        envPluginCuda.AppendUnique(NVCCFLAGS=["-I"+os.getcwd()+"/src", '-std=c++14'])
+        for folder in pluginPath:
+            pluginListCU = Glob(folder+'/*Plugin.cu')
+            for plugin in pluginListCU:
+                pluginName = plugin.get_path()
+                pluginName = pluginName.replace(str(plugin.get_dir())+"/", "")
+                pluginName = pluginName.replace(".cu", ".so")
+                output = str(plugin.get_dir()) + "/lib" + pluginName
+                input = Glob(str(plugin.get_dir()) + "/*.cu", strings=True)
+                envPluginCuda.Command(
+                    output,
+                    input,
+                    "nvcc -o $TARGET -std=c++14 -shared $NVCCFLAGS -arch=$GPU_ARCH $SOURCES"
+                )
+
+    ###################################################################
+    # RUST PLUGINS
+    # Build Rust plugins when --with-rust or --build-rust-plugins is specified
+    # ###################################################################
+    def build_rust_plugins(plugin_paths, release_mode=True, features=""):
+        """
+        Build all Rust plugins found in the given plugin paths.
+
+        Args:
+            plugin_paths: List of plugin directory paths to search
+            release_mode: If True, build in release mode (optimized)
+            features: Comma-separated list of cargo features to enable
+        """
+        rust_plugins_found = []
+
+        for folder in plugin_paths:
+            # Look for Cargo.toml files indicating Rust plugin projects
+            cargoFiles = Glob(folder + "/Cargo.toml")
+            for cargoFile in cargoFiles:
+                pluginDir = str(cargoFile.get_dir())
+                # Extract plugin name from directory
+                pluginName = pluginDir.split("/")[-1]
+                rust_plugins_found.append((pluginDir, pluginName, cargoFile))
+
+        if not rust_plugins_found:
+            print("!! No Rust plugins found in plugins directory")
+            return
+
+        print("!! Found {} Rust plugin(s) to build".format(len(rust_plugins_found)))
+
+        # Build cargo command options
+        cargo_opts = []
+        if release_mode:
+            cargo_opts.append("--release")
+            target_dir = "release"
+        else:
+            target_dir = "debug"
+
+        if features:
+            cargo_opts.append("--features")
+            cargo_opts.append(features)
+
+        cargo_opts_str = " ".join(cargo_opts)
+
+        for pluginDir, pluginName, cargoFile in rust_plugins_found:
+            print("!!   Building Rust plugin: {} in {}".format(pluginName, pluginDir))
+
+            # Determine the library name from Cargo.toml if possible
+            # Default to lib<PluginName>Plugin.so
+            output = pluginDir + "/lib" + pluginName + "Plugin.so"
+
+            # Build command that:
+            # 1. Changes to plugin directory
+            # 2. Runs cargo build with options
+            # 3. Copies the built .so file to the plugin directory root
+            build_cmd = (
+                "cd " + pluginDir + " && "
+                "cargo build " + cargo_opts_str + " && "
+                "find target/" + target_dir + " -maxdepth 1 -name '*.so' -exec cp {{}} . \\; 2>/dev/null; "
+                "if [ -f target/" + target_dir + "/lib" + pluginName + "Plugin.so ]; then "
+                "cp target/" + target_dir + "/lib" + pluginName + "Plugin.so .; "
+                "elif [ -f target/" + target_dir + "/lib*.so ]; then "
+                "cp target/" + target_dir + "/lib*.so lib" + pluginName + "Plugin.so; "
+                "fi"
+            )
+
+            env.Command(
+                output,
+                [cargoFile] + Glob(pluginDir + "/src/*.rs"),
+                build_cmd
+            )
+
+    # Build Rust plugins if either flag is set
+    if GetOption("with-rust") or GetOption("build-rust-plugins"):
+        print("!! Compiling Rust Plugins")
+        build_rust_plugins(
+            pluginPath,
+            release_mode=GetOption("rust-release"),
+            features=GetOption("rust-features") or ""
+        )
+
+    ###################################################################
+    # Main Executable & PluGen
+    env.Append(
+        LIBPATH=[LibPath(""),]
+    )
 def _compile_cuda_plugins_in_folder(env_cuda, folder):
     """Compile all CUDA plugins in a single folder."""
     for plugin in Glob(f"{folder}/*Plugin.cu"):
@@ -471,6 +776,7 @@ def build_language_objects(env):
 
     return languages
 
+    env.Program("PluGen/plugen", Glob("src/PluGen/*.cxx"), CPPPATH=[Dir("src")])
 
 def _build_language_object(env, language, output):
     """Build a single language object file."""

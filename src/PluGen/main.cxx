@@ -40,99 +40,133 @@
 
 #include "PluginGenerator.h"
 #include "JavaPluginGenerator.h"
+#include "RustPluginGenerator.h"
 
 void printUsage() {
-    std::cout << "Usage: ./plugen [OPTIONS] <PluginName> <command>" << std::endl;
+    std::cout << "PluGen - PluMA Plugin Generator" << std::endl;
+    std::cout << std::endl;
+    std::cout << "Usage: ./plugen [options] <PluginName> <command>" << std::endl;
     std::cout << std::endl;
     std::cout << "Options:" << std::endl;
-    std::cout << "  --lang=<language>  Generate plugin in specified language (cpp, java)" << std::endl;
-    std::cout << "                     Default: cpp" << std::endl;
+    std::cout << "  --lang=<language>   Specify the target language (cpp, java, rust)" << std::endl;
+    std::cout << "                      Default: cpp" << std::endl;
+    std::cout << "  --help              Show this help message" << std::endl;
     std::cout << std::endl;
     std::cout << "Examples:" << std::endl;
     std::cout << "  ./plugen MyPlugin mycommand -i inputfile -o outputfile" << std::endl;
     std::cout << "  ./plugen --lang=java MyPlugin mycommand -i inputfile -o outputfile" << std::endl;
+    std::cout << "  ./plugen --lang=rust MyRustPlugin mycommand -i inputfile -o outputfile" << std::endl;
     std::cout << std::endl;
-    std::cout << "Supported languages:" << std::endl;
-    std::cout << "  cpp   - C++ plugin (default)" << std::endl;
-    std::cout << "  java  - Java plugin" << std::endl;
+    std::cout << "Command syntax:" << std::endl;
+    std::cout << "  inputfile    - replaced with plugin input file path" << std::endl;
+    std::cout << "  outputfile   - replaced with plugin output file path" << std::endl;
+    std::cout << "  -flag param  - parameter read from input parameter file" << std::endl;
+    std::cout << "  [ ... ]      - optional parameters" << std::endl;
 }
 
 int main(int argc, char** argv) {
-   // Usage will be:
-   // ./plugen [--lang=<language>] <PluginName> <command, using 'inputfile' and 'outputfile' accordingly>
+    // Parse arguments
+    std::string language = "cpp";
+    int argOffset = 1;
 
-   if (argc < 3) {
-      printUsage();
-      exit(1);
-   }
-
-   std::string language = "cpp";  // Default language
-   int argOffset = 1;
-
-   // Check for --lang option
-   for (int i = 1; i < argc; i++) {
-       std::string arg = argv[i];
-       if (arg.find("--lang=") == 0) {
-           language = arg.substr(7);
-           argOffset = i + 1;
-           break;
-       } else if (arg == "--help" || arg == "-h") {
-           printUsage();
-           exit(0);
-       }
-   }
-
-   if (argc - argOffset < 2) {
-      printUsage();
-      exit(1);
-   }
-
-   std::string pluginname = std::string(argv[argOffset]); // Plugin name after options
-   std::string pluginpath = "../plugins/";
-
-   // If the directory already exists, be sure they want to overwrite
-   std::string directory = pluginpath + "/" + pluginname;
-   DIR* dir = opendir(directory.c_str());
-   if (dir)  {
-      std::string choice = "no";
-      do {
-         std::cout << "Directory " << directory << " exists.  Overwrite contents (yes/no)?" << std::endl;
-         std::cin >> choice;
-         if (choice == "no")
+    // Check for options
+    for (int i = 1; i < argc; i++) {
+        std::string arg = std::string(argv[i]);
+        if (arg.substr(0, 7) == "--lang=") {
+            language = arg.substr(7);
+            argOffset = i + 1;
+        } else if (arg == "--help" || arg == "-h") {
+            printUsage();
             exit(0);
-      } while (choice != "no" && choice != "yes");
-   }
+        } else if (arg.substr(0, 2) == "--") {
+            std::cerr << "Unknown option: " << arg << std::endl;
+            printUsage();
+            exit(1);
+        } else {
+            // First non-option argument
+            argOffset = i;
+            break;
+        }
+    }
 
-   std::vector<std::string> command;
-   for (int i = argOffset + 2; i <= argc; i++) {
-      command.push_back(std::string(argv[i-1]));
-   }
+    // Check minimum arguments
+    if (argc - argOffset < 2) {
+        printUsage();
+        exit(1);
+    }
 
-   bool literal = false;
-   for (size_t i = 0; i < command.size(); i++) {
-      std::cout << "Command: " << command[i] << std::endl;
-      if (command[i].find("inputfile") != std::string::npos) {
-         literal = true;
-         break;
-      }
-   }
+    std::string pluginname = std::string(argv[argOffset]); // Plugin name
+    std::string pluginpath = "../plugins/";
 
-   // Select generator based on language
-   if (language == "java") {
-      std::cout << "Generating Java plugin: " << pluginname << std::endl;
-      JavaPluginGenerator* myGenerator = new JavaPluginGenerator(pluginpath, literal);
-      myGenerator->generate(pluginname, command);
-      delete myGenerator;
-   } else if (language == "cpp") {
-      std::cout << "Generating C++ plugin: " << pluginname << std::endl;
-      PluginGenerator* myGenerator = new PluginGenerator(pluginpath, literal);
-      myGenerator->generate(pluginname, command);
-      delete myGenerator;
-   } else {
-      std::cerr << "Error: Unknown language '" << language << "'" << std::endl;
-      std::cerr << "Supported languages: cpp, java" << std::endl;
-      exit(1);
-   }
+    // Validate language
+    if (language != "cpp" && language != "java" && language != "rust") {
+        std::cerr << "Error: Unsupported language '" << language << "'" << std::endl;
+        std::cerr << "Supported languages: cpp, java, rust" << std::endl;
+        exit(1);
+    }
 
-   return 0;
+    std::cout << "Generating " << language << " plugin: " << pluginname << std::endl;
+
+    // If the directory already exists, be sure they want to overwrite
+    std::string directory = pluginpath + "/" + pluginname;
+    DIR* dir = opendir(directory.c_str());
+    if (dir) {
+        std::string choice = "no";
+        do {
+            std::cout << "Directory " << directory << " exists. Overwrite contents (yes/no)?" << std::endl;
+            std::cin >> choice;
+            if (choice == "no")
+                exit(0);
+        } while (choice != "no" && choice != "yes");
+    }
+
+    // Build command vector
+    std::vector<std::string> command;
+    for (int i = argOffset + 1; i < argc; i++) {
+        command.push_back(std::string(argv[i]));
+    }
+
+    // Check for literal mode (inputfile appears in command)
+    bool literal = false;
+    for (size_t i = 0; i < command.size(); i++) {
+        std::cout << "Command: " << command[i] << std::endl;
+        if (command[i].find("inputfile") != std::string::npos) {
+            literal = true;
+            break;
+        }
+    }
+
+    // Generate plugin based on language
+    if (language == "rust") {
+        RustPluginGenerator* myGenerator = new RustPluginGenerator(pluginpath, literal);
+        myGenerator->generate(pluginname, command);
+        delete myGenerator;
+
+        std::cout << std::endl;
+        std::cout << "Rust plugin generated successfully!" << std::endl;
+        std::cout << std::endl;
+        std::cout << "To build:" << std::endl;
+        std::cout << "  cd " << pluginpath << "/" << pluginname << std::endl;
+        std::cout << "  cargo build --release" << std::endl;
+        std::cout << std::endl;
+        std::cout << "To install:" << std::endl;
+        std::cout << "  cp target/release/lib" << pluginname << "Plugin.so $PLUMA_PLUGIN_PATH/" << pluginname << "/" << std::endl;
+    } else if (language == "java") {
+        JavaPluginGenerator* myGenerator = new JavaPluginGenerator(pluginpath, literal);
+        myGenerator->generate(pluginname, command);
+        delete myGenerator;
+
+        std::cout << std::endl;
+        std::cout << "Java plugin generated successfully!" << std::endl;
+    } else {
+        // Default: C++
+        PluginGenerator* myGenerator = new PluginGenerator(pluginpath, literal);
+        myGenerator->generate(pluginname, command);
+        delete myGenerator;
+
+        std::cout << std::endl;
+        std::cout << "C++ plugin generated successfully!" << std::endl;
+    }
+
+    return 0;
 }
