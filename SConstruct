@@ -103,6 +103,7 @@ OPTIONS = [
     ("--without-python", "without-python", "store_true", False, "Disable Python plugin support", {}),
     ("--without-perl", "without-perl", "store_true", False, "Disable Perl plugin support", {}),
     ("--without-r", "without-r", "store_true", False, "Disable R plugin support", {}),
+    ("--without-java", "without-java", "store_true", False, "Disable Java plugin support", {}),
     ("--with-cuda", "with-cuda", "store_true", False, "Enable CUDA plugin compilation", {}),
     ("--gpu-architecture", "gpu_arch", "store", "sm_35",
      "NVIDIA GPU architecture for CUDA compilation", {"type": "string", "nargs": 1, "metavar": "ARCH"}),
@@ -162,6 +163,20 @@ def create_base_environment():
     return env
 
 
+def _strip_lto_flags(env):
+    """Strip -flto flags injected by perl ExtUtils::Embed ldopts.
+
+    Why: perl's ldopts on RHEL/Fedora ship `-flto=auto`, which makes clang emit
+    LTO bytecode that the default bfd linker cannot read, breaking the link of
+    objects that don't use perl (e.g. PluGen).
+    """
+    for key in ("CCFLAGS", "CXXFLAGS", "SHCCFLAGS", "SHCXXFLAGS", "LINKFLAGS", "SHLINKFLAGS"):
+        flags = env.get(key)
+        if not flags:
+            continue
+        env[key] = [f for f in flags if not (isinstance(f, str) and f.startswith("-flto"))]
+
+
 def _remove_annobin_flag(env):
     """Remove Fedora/RHEL annobin flag if present."""
     annobin_flag = "-specs=/usr/lib/rpm/redhat/redhat-annobin-cc1"
@@ -197,13 +212,6 @@ AddOption(
     help="Comma-separated list of features to enable for Rust plugins (e.g., 'gpu,cuda')"
 )
 
-AddOption(
-    "--r-include-dir",
-    dest="r-include-dir",
-    action="store",
-    default="/usr/local/lib/R/include",
-    help="Set the include directory for the R installation on the system"
-)
 def create_cuda_environment():
     """Create environment for CUDA compilation."""
     return Environment(
@@ -218,70 +226,6 @@ def create_cuda_environment():
 # =============================================================================
 # Language Configuration Functions
 # =============================================================================
-
-if not sys.platform.startswith("darwin"):
-    env.Append(LINKFLAGS=["-rdynamic"])
-    env.Append(LIBS=["rt"])
-else:
-    env.Append(CCFLAGS=['-DAPPLE'])
-
-if platform_id == "alpine":
-    env.Append(CPPDEFINES=["__MUSL__"])
-
-###################################################################
-
-###################################################################
-# Either clean folders from previous Scons runs or begin assembling
-# `PluMA` and its associated plugins
-if env.GetOption("clean"):
-    env.Clean("python", [Glob("./**/__pycache__"),])
-
-    env.Clean(
-        "default",
-        [
-            Glob(".scon*"),
-            relpath("config.log"),
-            relpath(".perlconfig.txt"),
-            relpath("pluma"),
-            Glob('PluGen/*.o'),
-            relpath('PluGen/plugen'),
-            relpath("./obj"),
-            relpath("./lib"),
-            Glob("perm*.txt"),
-            Glob("asp_py_*tab.py"),
-            Glob("*.out"),
-            Glob("*.err"),
-            relpath("derep.fasta"),
-            Glob("logs/*.log.txt"),
-            Glob("pvals.*.txt"),
-            #relpath("pythonds"),
-            Glob("*.pdf"),
-            Glob("*.so"),
-            relpath("tmp"),
-            Glob("*_wrap.cxx"),
-            relpath("PerlPluMA.pm"),
-            relpath("PyPluMA.py"),
-            relpath("RPluMA.R"),
-            relpath("__pycache__"),
-            Glob("*.pyc"),
-            relpath(".venv"),
-            relpath("requirements-plugins.txt"),
-            # Rust plugin build artifacts
-            Glob("plugins/*/target"),
-            Glob("plugins/*/Cargo.lock"),
-            Glob("plugins/*/*.so"),
-        ],
-    )
-
-    # Special target to clean only Rust plugin builds
-    env.Clean(
-        "rust-plugins",
-        [
-            Glob("plugins/*/target"),
-            Glob("plugins/*/Cargo.lock"),
-            Glob("plugins/*/*.so"),
-        ],
-    )
 
 def configure_python(config):
     """Configure Python language support. Returns True if enabled."""
@@ -314,6 +258,8 @@ def _verify_perl_installation(config):
         Exit(1)
 
     config.env.ParseConfig("perl -MExtUtils::Embed -e ccopts -e ldopts")
+
+    _strip_lto_flags(config.env)
 
     if not config.CheckHeader("EXTERN.h"):
         logging.error("Could not find EXTERN.h")
@@ -383,7 +329,10 @@ def _apply_r_compiler_config(config):
     config.env.AppendUnique(
         LDFLAGS=["-Bsymbolic-functions", "-z,relro"],
         LINKFLAGS=["-Wl,--export-dynamic"],
-        CPPDEFINES=["HAVE_R", "WITH_R"],
+        # ENABLE_LEGACY_NONAPI re-exposes SET_S4_OBJECT and other legacy R API
+        # symbols that R 4.5+ moved behind a feature flag; SWIG's R bindings
+        # still emit calls to them, so the wrapper won't compile without it.
+        CPPDEFINES=["HAVE_R", "WITH_R", "ENABLE_LEGACY_NONAPI"],
         CXXFLAGS=cxx_flags,
         LIBS=["R", "RInside"],
     )
@@ -468,108 +417,6 @@ def generate_swig_wrappers(env):
                 f"swig {swig_flag} -c++ -module $TARGET -o ${{TARGET}}_wrap.cxx $SOURCE",
             )
 
-            if getenv("R_INCLUDE_DIR"):
-                config.env.AppendUnique(
-                    CPPATH=[
-                        Dir(getenv("R_INCLUDE_DIR"))
-                    ]
-                )
-
-            if getenv("R_LIB_DIR"):
-                config.env.AppendUnique(
-                    LIBPATH=[
-                        Dir(getenv("R_LIB_DIR"))
-                    ]
-                )
-
-            if getenv("RINSIDE_LIB_DIR"):
-                config.env.AppendUnique(
-                    LIBPATH=[
-                        Dir(getenv("RINSIDE_LIB_DIR"))
-                    ]
-                )
-
-            if getenv("RINSIDE_INCLUDE_DIR"):
-                config.env.AppendUnique(
-                    CPPPATH=[
-                        Dir(getenv("RINSIDE_INCLUDE_DIR"))
-                    ]
-                )
-
-            if getenv("RCPP_INCLUDE_DIR"):
-                config.env.AppendUnique(
-                    CPPPATH=[
-                        Dir(getenv("RCPP_INCLUDE_DIR"))
-                    ]
-                )
-
-            config.env.Append(CPPDEFINES=["-DWITH_R"])
-
-    java_enabled = False
-    if not env.GetOption("without-java"):
-        java_home = getenv("JAVA_HOME")
-        if not java_home:
-            try:
-                javac_path = subprocess.check_output(
-                    ["which", "javac"], universal_newlines=True
-                ).strip()
-                if javac_path:
-                    java_home = os.path.dirname(os.path.dirname(os.path.realpath(javac_path)))
-            except (subprocess.CalledProcessError, FileNotFoundError):
-                java_home = None
-        if java_home and os.path.isdir(java_home):
-            include_dir = os.path.join(java_home, "include")
-            if sys.platform.startswith("linux"):
-                platform_dir = "linux"
-            elif sys.platform.startswith("darwin"):
-                platform_dir = "darwin"
-            elif sys.platform.startswith("win"):
-                platform_dir = "win32"
-            else:
-                platform_dir = sys.platform
-
-            cpp_paths = []
-            if os.path.isdir(include_dir):
-                cpp_paths.append(include_dir)
-            platform_include = os.path.join(include_dir, platform_dir)
-            if os.path.isdir(platform_include):
-                cpp_paths.append(platform_include)
-
-            if cpp_paths:
-                config.env.AppendUnique(CPPPATH=[Dir(path) for path in cpp_paths])
-
-            lib_dir = os.path.join(java_home, "lib", "server")
-            if not os.path.isdir(lib_dir):
-                lib_dir = os.path.join(java_home, "lib")
-
-            if os.path.isdir(lib_dir):
-                config.env.AppendUnique(LIBPATH=[Dir(lib_dir)])
-                libjvm_path = os.path.join(lib_dir, "libjvm.so")
-                libjvm_env = getenv("LIBJVM")
-                if (libjvm_env):
-                    libjvm_path = libjvm_env
-                if os.path.isfile(libjvm_path):
-                    config.env.AppendUnique(LIBPATH=[Dir("/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.472.b08-1.el8_10.x86_64/jre/lib/amd64/server/")])
-                    config.env.Append(LIBS=["jvm"])
-                    config.env.Append(CPPDEFINES=["HAVE_JAVA"])
-                    java_enabled = True
-                elif config.CheckLib("jvm"):
-                    config.env.Append(LIBS=["jvm"])
-                    config.env.Append(CPPDEFINES=["HAVE_JAVA"])
-                    java_enabled = True
-                else:
-                    logging.warning(
-                        "Java support requested but libjvm could not be linked."
-                    )
-            else:
-                logging.warning("Java support requested but libjvm was not found.")
-        else:
-            logging.warning("Java support requested but JAVA_HOME/javac could not be resolved.")
-
-    if GetOption("with-rust"):
-        config.CheckProg("rustc")
-        config.CheckProg("cargo")
-        config.env.Append(CPPDEFINES=["HAVE_RUST"])
 
 def build_language_bindings(env):
     """Build shared libraries for enabled language bindings."""
@@ -792,6 +639,8 @@ def build_main_executable(env, languages):
         "pthread", "m", "dl", "crypt", "c",
         f"python{python_version}", "util", "perl", "R", "RInside",
     ]
+    if env.get("JAVA_ENABLED"):
+        program_libs.append("jvm")
 
     env.Append(LIBPATH=[LibPath("")])
     env.Program(
