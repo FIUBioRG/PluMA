@@ -28,6 +28,7 @@ from glob import glob
 from os import environ, getenv
 from os.path import relpath
 
+from resolve_requirements import resolve_and_install
 from build_config import include_search_path, platform_id, is_darwin, is_alpine
 from build_support import (
     CheckPerl,
@@ -60,6 +61,7 @@ CLEAN_PATTERNS_GLOB = [
 CLEAN_PATTERNS_PATH = [
     "config.log", ".perlconfig.txt", "pluma", "PluGen/plugen", "./obj", "./lib",
     "derep.fasta", "tmp", "PerlPluMA.pm", "PyPluMA.py", "RPluMA.R", "__pycache__",
+    ".venv", "requirements-plugins.txt",
 ]
 
 # Language binding configuration: (option_name, module_name, output_file, swig_flag)
@@ -534,6 +536,12 @@ def _verify_required_libs(config):
 
 def run_build(env, env_cuda):
     """Execute all build steps."""
+    # Merge each plugin's requirements.txt into a shared .venv at the project
+    # root so the embedded interpreter picks them up via site.addsitedir() at
+    # runtime — keeps users from hand-rolling pip installs per plugin.
+    if not GetOption("without-python"):
+        resolve_and_install("plugins")
+
     generate_swig_wrappers(env)
     build_language_bindings(env)
 
