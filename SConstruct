@@ -766,17 +766,28 @@ def _compile_java_plugins_in_folder(env, folder):
         )
 
 
+_LANGUAGE_SOURCE_BY_OPTION = {
+    "without-python": "Py.cxx",
+    "without-perl": "Perl.cxx",
+    "without-r": "R.cxx",
+}
+
+
 def build_language_objects(env):
-    """Build language support objects and return the language file list."""
-    languages = Glob("src/languages/*.cxx")
+    """Build language support objects, skipping any disabled languages."""
+    disabled = {
+        src for opt, src in _LANGUAGE_SOURCE_BY_OPTION.items() if GetOption(opt)
+    }
+    languages = [
+        node for node in Glob("src/languages/*.cxx")
+        if os.path.basename(node.get_path()) not in disabled
+    ]
 
     for language in languages:
         output = language.get_path().replace("src", "obj").replace(".cxx", ".os")
         _build_language_object(env, language, output)
 
     return languages
-
-    env.Program("PluGen/plugen", Glob("src/PluGen/*.cxx"), CPPPATH=[Dir("src")])
 
 def _build_language_object(env, language, output):
     """Build a single language object file."""
@@ -787,11 +798,14 @@ def _build_language_object(env, language, output):
 
 
 def build_main_executable(env, languages):
-    """Build the main PluMA executable."""
-    program_libs = [
-        "pthread", "m", "dl", "crypt", "c",
-        f"python{python_version}", "util", "perl", "R", "RInside",
-    ]
+    """Build the main PluMA executable, linking only enabled language runtimes."""
+    program_libs = ["pthread", "m", "dl", "crypt", "c"]
+    if not GetOption("without-python"):
+        program_libs.extend([f"python{python_version}", "util"])
+    if not GetOption("without-perl"):
+        program_libs.append("perl")
+    if not GetOption("without-r"):
+        program_libs.extend(["R", "RInside"])
 
     env.Append(LIBPATH=[LibPath("")])
     env.Program(

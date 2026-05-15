@@ -46,10 +46,18 @@
 #include <fstream>
 
 #include "languages/Compiled.h"
+#ifdef HAVE_PYTHON
 #include "languages/Py.h"
+#endif
+#ifdef HAVE_R
 #include "languages/R.h"
+#endif
+#ifdef HAVE_PERL
 #include "languages/Perl.h"
+#endif
+#ifdef HAVE_JAVA
 #include "languages/Java.h"
+#endif
 #ifdef HAVE_RUST
 #include "languages/Rust.h"
 #endif
@@ -122,9 +130,15 @@ public:
 #else
         supported.push_back(new Compiled("C", "so", pluginpath, "lib"));
 #endif
+#ifdef HAVE_PYTHON
         supported.push_back(new Py("Python", "py", pluginpath));
+#endif
+#ifdef HAVE_R
         supported.push_back(new MiAMi::R("R", "R", pluginpath, argc, argv));
+#endif
+#ifdef HAVE_PERL
         supported.push_back(new Perl("Perl", "pl", pluginpath));
+#endif
 #ifdef HAVE_JAVA
         supported.push_back(new Java("Java", "class", pluginpath));
 #endif
