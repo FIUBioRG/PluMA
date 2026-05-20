@@ -358,6 +358,7 @@ def configure_rust(config):
 
     config.CheckProg("rustc")
     config.CheckProg("cargo")
+    config.env.AppendUnique(CPPDEFINES=["HAVE_RUST"])
     return True
 
 
