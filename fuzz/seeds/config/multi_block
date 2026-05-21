@@ -1,0 +1,10 @@
+Parallel workers=3
+  Plugin A inputfile a.csv outputfile a2.csv
+  Plugin B inputfile b.csv outputfile b2.csv
+  Plugin C inputfile c.csv outputfile c2.csv
+EndParallel
+Plugin Mid inputfile a2.csv outputfile mid.csv
+Parallel workers=2 memory=8G fail=fast
+  Plugin D inputfile mid.csv outputfile d.csv memory=4G
+  Plugin E inputfile mid.csv outputfile e.csv memory=4G
+EndParallel
