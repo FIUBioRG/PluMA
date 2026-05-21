@@ -10,7 +10,7 @@ To compile, run from the PluMA root directory:
     scons
 
 Or compile just PluGen:
-    g++ -o plugen main.cxx PluginGenerator.cxx JavaPluginGenerator.cxx JuliaPluginGenerator.cxx
+    g++ -o plugen main.cxx PluginGenerator.cxx JavaPluginGenerator.cxx
 
 Note: Generated plugins will be placed in one of the following locations (in order):
 1. ../plugins (relative to plugen)
@@ -22,7 +22,7 @@ USAGE
 
 OPTIONS:
   --lang=<language>    Generate plugin in specified language
-                       Supported: cpp (default), java, julia
+                       Supported: cpp (default), java, rust
 
   --help, -h           Show usage information
 
@@ -40,11 +40,19 @@ EXAMPLES
 2. Generate a Java plugin:
    ./plugen --lang=java MyPlugin mytool -i inputfile -o outputfile
 
-3. Generate a Julia plugin:
-   ./plugen --lang=julia MyPlugin mytool -i inputfile -o outputfile
+3. Generate a Rust plugin:
+   ./plugen --lang=rust MyRustPlugin mytool -i inputfile -o outputfile
 
 4. Plugin with optional parameters (use brackets):
    ./plugen MyPlugin mytool -i inputfile [ -v verbose ] -o outputfile
+
+COMMAND SYNTAX
+--------------
+
+inputfile    - replaced with plugin input file path
+outputfile   - replaced with plugin output file path
+-flag param  - parameter read from input parameter file
+[ ... ]      - optional parameters (enclosed in brackets)
 
 GENERATED FILES
 ---------------
@@ -64,12 +72,16 @@ Java Plugins (--lang=java):
     cd plugins/MyPlugin
     javac MyPluginPlugin.java
 
-Julia Plugins (--lang=julia):
+Rust Plugins (--lang=rust):
   plugins/MyPlugin/
-  ├── MyPluginPlugin.jl     # Julia source with input/run/output functions
+  ├── Cargo.toml            # Rust package manifest
+  ├── src/lib.rs            # Plugin implementation with FFI exports
   └── README.md             # Documentation
 
-  Julia plugins do not require compilation.
+  To compile Rust plugins:
+    cd plugins/MyPlugin
+    cargo build --release
+  Output: target/release/lib<PluginName>Plugin.so
 
 PARAMETER FILE FORMAT
 ---------------------
@@ -80,8 +92,8 @@ Plugins expect a tab-delimited parameter file:
     inputpath /path/to/input
 
 These parameters are accessible via:
-- C++:   parameters["param1"]
-- Java:  parameters.get("param1")
-- Julia: parameters["param1"] or get_parameter("param1")
+- C++:  parameters["param1"]
+- Java: parameters.get("param1")
+- Rust: parameters.get("param1")
 
 ____________________________________________________________________________________
