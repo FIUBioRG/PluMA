@@ -207,6 +207,7 @@ class RConfig:
 
     r_home: Optional[str] = None
     r_include_dir: Optional[str] = None
+    r_lib_dir: Optional[str] = None
     rcpp_include_dir: Optional[str] = None
     rinside_include_dir: Optional[str] = None
     rinside_lib_dir: Optional[str] = None
@@ -329,6 +330,24 @@ def _detect_rinside_lib() -> Optional[str]:
     return None
 
 
+def _detect_r_lib_dir(r_home: Optional[str]) -> Optional[str]:
+    """Detect R library directory (where libR lives).
+
+    Honors the R_LIB_DIR override before falling back to R_HOME/lib.
+    """
+    env_path = os.environ.get("R_LIB_DIR")
+    if env_path and os.path.isdir(env_path):
+        return env_path
+
+    if r_home:
+        for sub in ("lib", "lib64"):
+            candidate = os.path.join(r_home, sub)
+            if os.path.isdir(candidate):
+                return candidate
+
+    return None
+
+
 def _collect_fallback_paths() -> tuple:
     """Collect include and lib paths from fallback locations."""
     include_paths = []
@@ -369,6 +388,7 @@ def detect_r_config() -> RConfig:
     # Detect R home and include
     config.r_home = _detect_r_home()
     config.r_include_dir = _detect_r_include_dir(config.r_home)
+    config.r_lib_dir = _detect_r_lib_dir(config.r_home)
 
     # Detect package paths
     config.rcpp_include_dir = _detect_rcpp_include()
@@ -381,6 +401,8 @@ def detect_r_config() -> RConfig:
             config.include_paths.append(p)
 
     # Collect all found lib paths
+    if config.r_lib_dir:
+        config.lib_paths.append(config.r_lib_dir)
     if config.rinside_lib_dir:
         config.lib_paths.append(config.rinside_lib_dir)
 
@@ -617,6 +639,11 @@ def _find_libjvm(java_home: Optional[str]) -> tuple:
     Returns:
         Tuple of (lib_dir, libjvm_path) or (None, None) if not found
     """
+    # Honor explicit LIBJVM override before any detection logic.
+    libjvm_override = os.environ.get("LIBJVM")
+    if libjvm_override and os.path.isfile(libjvm_override):
+        return os.path.dirname(libjvm_override), libjvm_override
+
     if not java_home:
         return None, None
 
