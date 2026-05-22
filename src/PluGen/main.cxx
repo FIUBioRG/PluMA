@@ -42,6 +42,7 @@
 #include "JavaPluginGenerator.h"
 #include "RustPluginGenerator.h"
 #include "JuliaPluginGenerator.h"
+#include "PythonPluginGenerator.h"
 
 void printUsage() {
     std::cout << "PluGen - PluMA Plugin Generator" << std::endl;
@@ -49,7 +50,7 @@ void printUsage() {
     std::cout << "Usage: ./plugen [options] <PluginName> <command>" << std::endl;
     std::cout << std::endl;
     std::cout << "Options:" << std::endl;
-    std::cout << "  --lang=<language>   Specify the target language (cpp, java, rust, julia)" << std::endl;
+    std::cout << "  --lang=<language>   Specify the target language (cpp, java, rust, julia, python)" << std::endl;
     std::cout << "                      Default: cpp" << std::endl;
     std::cout << "  --help              Show this help message" << std::endl;
     std::cout << std::endl;
@@ -58,6 +59,7 @@ void printUsage() {
     std::cout << "  ./plugen --lang=java MyPlugin mycommand -i inputfile -o outputfile" << std::endl;
     std::cout << "  ./plugen --lang=rust MyRustPlugin mycommand -i inputfile -o outputfile" << std::endl;
     std::cout << "  ./plugen --lang=julia MyJuliaPlugin mycommand -i inputfile -o outputfile" << std::endl;
+    std::cout << "  ./plugen --lang=python MyPyPlugin mycommand -i inputfile -o outputfile" << std::endl;
     std::cout << std::endl;
     std::cout << "Command syntax:" << std::endl;
     std::cout << "  inputfile    - replaced with plugin input file path" << std::endl;
@@ -101,9 +103,9 @@ int main(int argc, char** argv) {
     std::string pluginpath = "../plugins/";
 
     // Validate language
-    if (language != "cpp" && language != "java" && language != "rust" && language != "julia") {
+    if (language != "cpp" && language != "java" && language != "rust" && language != "julia" && language != "python") {
         std::cerr << "Error: Unsupported language '" << language << "'" << std::endl;
-        std::cerr << "Supported languages: cpp, java, rust, julia" << std::endl;
+        std::cerr << "Supported languages: cpp, java, rust, julia, python" << std::endl;
         exit(1);
     }
 
@@ -170,6 +172,16 @@ int main(int argc, char** argv) {
         std::cout << std::endl;
         std::cout << "To run (requires PluMA built with --with-julia):" << std::endl;
         std::cout << "  pluma <config-with-this-plugin>.txt" << std::endl;
+    } else if (language == "python") {
+        PythonPluginGenerator* myGenerator = new PythonPluginGenerator(pluginpath, literal);
+        myGenerator->generate(pluginname, command);
+        delete myGenerator;
+
+        std::cout << std::endl;
+        std::cout << "Python plugin generated successfully!" << std::endl;
+        std::cout << std::endl;
+        std::cout << "PluMA's embedded Python loader will discover <Name>Plugin.py and" << std::endl;
+        std::cout << "instantiate <Name>Plugin. Pin third-party deps in requirements.txt." << std::endl;
     } else {
         // Default: C++
         PluginGenerator* myGenerator = new PluginGenerator(pluginpath, literal);
