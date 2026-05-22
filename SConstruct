@@ -29,7 +29,18 @@ from os import environ, getenv
 from os.path import relpath
 
 from resolve_requirements import resolve_and_install
-from build_config import include_search_path, platform_id, is_darwin, is_alpine
+from build_config import (
+    include_search_path,
+    platform_id,
+    is_darwin,
+    is_alpine,
+    is_windows,
+    is_msvc,
+    is_mingw,
+    shared_lib_ext,
+    shared_lib_prefix,
+    executable_ext,
+)
 from build_support import (
     CheckPerl,
     CheckRPackages,
@@ -130,24 +141,70 @@ def get_platform_config():
     """Return platform-specific configuration as a dict."""
     if is_darwin:
         return {"CCFLAGS": ["-DAPPLE"]}
+    if is_windows:
+        # Windows linkers don't accept --rdynamic; the executable's symbols
+        # are exported via the .lib/.exp import library instead. Define
+        # PLUMA_PLATFORM_WINDOWS so src/platform.h selects the LoadLibrary /
+        # GetProcAddress code path over dlopen / dlsym.
+        if is_msvc:
+            return {
+                "CPPDEFINES": ["PLUMA_PLATFORM_WINDOWS", "WIN32_LEAN_AND_MEAN", "NOMINMAX"],
+            }
+        # MinGW: keep gcc-style flags but add Win32 LoadLibrary linkage.
+        return {
+            "CPPDEFINES": ["PLUMA_PLATFORM_WINDOWS", "WIN32_LEAN_AND_MEAN", "NOMINMAX"],
+            "LINKFLAGS": ["-Wl,--export-all-symbols"],
+            "LIBS": ["psapi"],
+        }
     return {"LINKFLAGS": ["-rdynamic"], "LIBS": ["rt"]}
+
+
+def _msvc_compile_flags():
+    """Compile flags appropriate for MSVC's cl.exe."""
+    return ["/EHsc", "/utf-8", "/O2", "/I."]
+
+
+def _gcc_compile_flags(shared):
+    """gcc/clang-style flags, with -fPIC only meaningful for shared objects."""
+    base = ["-fpermissive", "-I.", "-O2"]
+    if shared:
+        return base + ["-fPIC"]
+    return base if is_windows else base + ["-fPIC"]
 
 
 def create_base_environment():
     """Create and configure the base SCons environment."""
-    env = Environment(
-        ENV=environ,
-        CC=getenv("CC", "cc"),
-        CXX=getenv("CXX", "c++"),
-        CPPDEFINES=[],
-        SHCCFLAGS=["-fpermissive", "-fPIC", "-I.", "-O2"],
-        SHCXXFLAGS=[CXX_STANDARD, "-fPIC", "-I.", "-O2"],
-        CCFLAGS=["-fpermissive", "-fPIC", "-I.", "-O2"],
-        CXXFLAGS=[CXX_STANDARD, "-fPIC", "-O2"],
-        CPPPATH=include_search_path,
-        LICENSE=[LICENSE],
-        SHLIBPREFIX="",
-    )
+    if is_msvc:
+        env_kwargs = dict(
+            CC=getenv("CC", "cl"),
+            CXX=getenv("CXX", "cl"),
+            CPPDEFINES=[],
+            CCFLAGS=_msvc_compile_flags(),
+            CXXFLAGS=[CXX_STANDARD] + _msvc_compile_flags(),
+            SHCCFLAGS=_msvc_compile_flags(),
+            SHCXXFLAGS=[CXX_STANDARD] + _msvc_compile_flags(),
+            CPPPATH=include_search_path,
+            LICENSE=[LICENSE],
+            SHLIBPREFIX=shared_lib_prefix,
+            SHLIBSUFFIX=shared_lib_ext,
+            PROGSUFFIX=executable_ext,
+        )
+    else:
+        env_kwargs = dict(
+            CC=getenv("CC", "cc"),
+            CXX=getenv("CXX", "c++"),
+            CPPDEFINES=[],
+            SHCCFLAGS=_gcc_compile_flags(shared=True),
+            SHCXXFLAGS=[CXX_STANDARD] + _gcc_compile_flags(shared=True),
+            CCFLAGS=_gcc_compile_flags(shared=False),
+            CXXFLAGS=[CXX_STANDARD] + _gcc_compile_flags(shared=False),
+            CPPPATH=include_search_path,
+            LICENSE=[LICENSE],
+            SHLIBPREFIX=shared_lib_prefix,
+            SHLIBSUFFIX=shared_lib_ext,
+            PROGSUFFIX=executable_ext,
+        )
+    env = Environment(ENV=environ, **env_kwargs)
 
     # Apply platform-specific settings
     for key, value in get_platform_config().items():

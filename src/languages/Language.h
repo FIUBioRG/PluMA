@@ -28,14 +28,21 @@
        For information regarding this software, please contact lead architect
                     Trevor Cickovski at tcickovs@fiu.edu
 
-\*********************************************************************************/
+\********************************************************************************/
 
 #ifndef LANGUAGE_H
 #define LANGUAGE_H
 
 #include <string>
 #include <map>
-#include <glob.h>
+#include "../platform.h"
+
+#if PLUMA_PLATFORM_WINDOWS
+    // Use platform.h glob_t emulation
+    using pluma::platform::glob_t;
+#else
+    #include <glob.h>
+#endif
 
 class Language {
 public:
