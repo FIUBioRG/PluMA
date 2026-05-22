@@ -53,6 +53,9 @@
 #ifdef HAVE_RUST
 #include "languages/Rust.h"
 #endif
+#ifdef HAVE_JULIA
+#include "languages/Julia.h"
+#endif
 
 class PluginManager {
 public:
@@ -131,6 +134,9 @@ public:
 #ifdef HAVE_RUST
         // Rust plugins are compiled to .so files (cdylib) but use different FFI
         supported.push_back(new Rust("Rust", "rs", pluginpath));
+#endif
+#ifdef HAVE_JULIA
+        supported.push_back(new Julia("Julia", "jl", pluginpath));
 #endif
     }
 

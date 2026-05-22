@@ -45,6 +45,7 @@ from build_support import (
     CheckPerl,
     CheckRPackages,
     CheckJava,
+    CheckJulia,
     LibPath,
     ObjectPath,
     SourcePath,
@@ -52,6 +53,7 @@ from build_support import (
     get_perl_ldopts,
     detect_r_config,
     detect_java_config,
+    detect_julia_config,
 )
 
 # =============================================================================
@@ -119,6 +121,7 @@ OPTIONS = [
     ("--gpu-architecture", "gpu_arch", "store", "sm_35",
      "NVIDIA GPU architecture for CUDA compilation", {"type": "string", "nargs": 1, "metavar": "ARCH"}),
     ("--with-rust", "with-rust", "store_true", False, "Enable experimental Rust plugin support", {}),
+    ("--with-julia", "with-julia", "store_true", False, "Enable experimental Julia plugin support (requires libjulia; off by default)", {}),
     ("--r-include-dir", "r-include-dir", "store", "/usr/local/lib/R/include", "R include directory path", {}),
     ("--r-lib-dir", "r-lib-dir", "store", "/usr/local/lib/R/lib", "R library directory path", {}),
 ]
@@ -419,6 +422,33 @@ def configure_rust(config):
     return True
 
 
+def configure_julia(config):
+    """Configure Julia language support. Off by default, opt-in via --with-julia.
+
+    Returns True only when the feature flag is set AND a usable libjulia
+    is found on the system. A missing-libjulia case downgrades to a
+    warning rather than an error so the rest of the build still succeeds.
+    """
+    if not GetOption("with-julia"):
+        return False
+
+    julia_config = detect_julia_config()
+    if not julia_config or not julia_config.is_valid:
+        logging.warning(
+            "Julia support requested via --with-julia but libjulia was not "
+            "found. Set $JULIA_HOME or ensure 'julia' is on PATH and points "
+            "at a development install. Building without Julia support."
+        )
+        return False
+
+    config.env.AppendUnique(CPPPATH=[Dir(p) for p in julia_config.include_paths])
+    config.env.AppendUnique(LIBPATH=[Dir(p) for p in julia_config.lib_paths])
+    config.env.Append(LIBS=["julia"])
+    config.env.AppendUnique(CPPDEFINES=["HAVE_JULIA"])
+    logging.info(f"Julia support enabled (JULIA_HOME: {julia_config.julia_home})")
+    return True
+
+
 def configure_java(config):
     """Configure Java language support. Returns True if enabled."""
     if GetOption("without-java"):
@@ -699,6 +729,8 @@ def build_main_executable(env, languages):
     ]
     if env.get("JAVA_ENABLED"):
         program_libs.append("jvm")
+    if env.get("JULIA_ENABLED"):
+        program_libs.append("julia")
 
     env.Append(LIBPATH=[LibPath("")])
     env.Program(
@@ -748,10 +780,12 @@ def run_configuration(env):
     configure_perl(config)
     configure_r(config)
     configure_rust(config)
+    julia_enabled = configure_julia(config)
     java_enabled = configure_java(config)
 
     config.Finish()
     env["JAVA_ENABLED"] = java_enabled
+    env["JULIA_ENABLED"] = julia_enabled
     return env
 
 

@@ -861,4 +861,164 @@ __all__ = [
     "check_r_packages",
     "JavaConfig",
     "detect_java_config",
+    "JuliaConfig",
+    "detect_julia_config",
+    "CheckJulia",
 ]
+
+
+# =============================================================================
+# Julia Detection
+# =============================================================================
+
+# Common library directories where libjulia.so / libjulia.dylib can live.
+_JULIA_FALLBACK_PATHS = [
+    "/usr/lib/julia",
+    "/usr/local/lib/julia",
+    "/usr/lib",           # Arch Linux pkg
+    "/opt/julia/lib",     # official binary release
+    "/opt/homebrew/lib/julia",
+    "/usr/local/opt/julia/lib",
+    "/usr/local/julia/lib",
+    os.path.expanduser("~/julia/lib"),
+]
+
+_JULIA_INCLUDE_FALLBACK_PATHS = [
+    "/usr/include/julia",
+    "/usr/local/include/julia",
+    "/opt/julia/include/julia",
+    "/opt/homebrew/include/julia",
+    os.path.expanduser("~/julia/include/julia"),
+]
+
+
+@dataclass
+class JuliaConfig:
+    """Resolved paths for an installed Julia runtime.
+
+    Populated by :func:`detect_julia_config`; consumers gate on
+    :attr:`is_valid` before appending to the SCons env.
+    """
+
+    julia_home: Optional[str] = None
+    include_dir: Optional[str] = None
+    lib_dir: Optional[str] = None
+    libjulia_path: Optional[str] = None
+    include_paths: List[str] = field(default_factory=list)
+    lib_paths: List[str] = field(default_factory=list)
+
+    @property
+    def is_valid(self) -> bool:
+        return bool(self.include_dir and self.libjulia_path)
+
+
+def _detect_julia_home_from_env() -> Optional[str]:
+    julia_home = os.environ.get("JULIA_HOME")
+    if julia_home and os.path.isdir(julia_home):
+        return julia_home
+    return None
+
+
+def _detect_julia_home_from_julia() -> Optional[str]:
+    """Run Julia and ask it for ``Sys.BINDIR``; derive ``JULIA_HOME`` from that."""
+    try:
+        bindir = subprocess.check_output(
+            ["julia", "-e", "print(Sys.BINDIR)"],
+            stderr=subprocess.DEVNULL,
+            universal_newlines=True,
+        ).strip()
+        if bindir:
+            julia_home = os.path.dirname(bindir)
+            if os.path.isdir(julia_home):
+                return julia_home
+    except (subprocess.CalledProcessError, FileNotFoundError, OSError):
+        pass
+    return None
+
+
+def _detect_julia_home_from_fallback() -> Optional[str]:
+    for lib_path in _JULIA_FALLBACK_PATHS:
+        if not os.path.isdir(lib_path):
+            continue
+        for lib_name in ("libjulia.so", "libjulia.dylib"):
+            if os.path.isfile(os.path.join(lib_path, lib_name)):
+                return os.path.dirname(lib_path)
+    return None
+
+
+def _detect_julia_home() -> Optional[str]:
+    return (
+        _detect_julia_home_from_env()
+        or _detect_julia_home_from_julia()
+        or _detect_julia_home_from_fallback()
+    )
+
+
+def _detect_julia_include_dir(julia_home: Optional[str]) -> Optional[str]:
+    if julia_home:
+        for candidate in (os.path.join(julia_home, "include", "julia"),
+                          os.path.join(julia_home, "include")):
+            if os.path.isdir(candidate) and os.path.isfile(
+                os.path.join(candidate, "julia.h")
+            ):
+                return candidate
+    for candidate in _JULIA_INCLUDE_FALLBACK_PATHS:
+        if os.path.isdir(candidate) and os.path.isfile(
+            os.path.join(candidate, "julia.h")
+        ):
+            return candidate
+    return None
+
+
+def _find_libjulia(julia_home: Optional[str]) -> Optional[str]:
+    lib_names = ("libjulia.so", "libjulia.dylib")
+    search_dirs: List[str] = []
+    if julia_home:
+        search_dirs.extend([
+            os.path.join(julia_home, "lib"),
+            os.path.join(julia_home, "lib", "julia"),
+            julia_home,
+        ])
+    search_dirs.extend(_JULIA_FALLBACK_PATHS)
+    for d in search_dirs:
+        if not os.path.isdir(d):
+            continue
+        for name in lib_names:
+            lib_path = os.path.join(d, name)
+            if os.path.isfile(lib_path):
+                return lib_path
+    return None
+
+
+def detect_julia_config() -> JuliaConfig:
+    """Detect a Julia installation.
+
+    Resolution order: ``JULIA_HOME`` env var, then ``julia -e
+    'print(Sys.BINDIR)'``, then a small list of distro/Homebrew fallback
+    paths. Returns an empty :class:`JuliaConfig` when nothing is found;
+    the caller should gate on :attr:`JuliaConfig.is_valid`.
+    """
+    cfg = JuliaConfig()
+    cfg.julia_home = _detect_julia_home()
+    cfg.include_dir = _detect_julia_include_dir(cfg.julia_home)
+    cfg.libjulia_path = _find_libjulia(cfg.julia_home)
+    if cfg.include_dir:
+        cfg.include_paths.append(cfg.include_dir)
+        parent = os.path.dirname(cfg.include_dir)
+        if parent != cfg.include_dir and os.path.isdir(parent):
+            cfg.include_paths.append(parent)
+    if cfg.libjulia_path:
+        cfg.lib_dir = os.path.dirname(cfg.libjulia_path)
+        cfg.lib_paths.append(cfg.lib_dir)
+    return cfg
+
+
+def CheckJulia(ctx) -> bool:
+    """SCons :func:`Configure` test for Julia."""
+    ctx.Message("Checking for Julia (libjulia)... ")
+    cfg = detect_julia_config()
+    if cfg.is_valid:
+        ctx.Result(f"yes ({cfg.julia_home})")
+        return True
+    ctx.Result("no")
+    return False
