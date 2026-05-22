@@ -43,6 +43,7 @@
 #include "RustPluginGenerator.h"
 #include "JuliaPluginGenerator.h"
 #include "PythonPluginGenerator.h"
+#include "RPluginGenerator.h"
 
 void printUsage() {
     std::cout << "PluGen - PluMA Plugin Generator" << std::endl;
@@ -50,7 +51,7 @@ void printUsage() {
     std::cout << "Usage: ./plugen [options] <PluginName> <command>" << std::endl;
     std::cout << std::endl;
     std::cout << "Options:" << std::endl;
-    std::cout << "  --lang=<language>   Specify the target language (cpp, java, rust, julia, python)" << std::endl;
+    std::cout << "  --lang=<language>   Specify the target language (cpp, java, rust, julia, python, r)" << std::endl;
     std::cout << "                      Default: cpp" << std::endl;
     std::cout << "  --help              Show this help message" << std::endl;
     std::cout << std::endl;
@@ -60,6 +61,7 @@ void printUsage() {
     std::cout << "  ./plugen --lang=rust MyRustPlugin mycommand -i inputfile -o outputfile" << std::endl;
     std::cout << "  ./plugen --lang=julia MyJuliaPlugin mycommand -i inputfile -o outputfile" << std::endl;
     std::cout << "  ./plugen --lang=python MyPyPlugin mycommand -i inputfile -o outputfile" << std::endl;
+    std::cout << "  ./plugen --lang=r MyRPlugin mycommand -i inputfile -o outputfile" << std::endl;
     std::cout << std::endl;
     std::cout << "Command syntax:" << std::endl;
     std::cout << "  inputfile    - replaced with plugin input file path" << std::endl;
@@ -103,9 +105,12 @@ int main(int argc, char** argv) {
     std::string pluginpath = "../plugins/";
 
     // Validate language
-    if (language != "cpp" && language != "java" && language != "rust" && language != "julia" && language != "python") {
+    // Normalize the language flag (accept "R" as well as "r").
+    if (language == "R") language = "r";
+
+    if (language != "cpp" && language != "java" && language != "rust" && language != "julia" && language != "python" && language != "r") {
         std::cerr << "Error: Unsupported language '" << language << "'" << std::endl;
-        std::cerr << "Supported languages: cpp, java, rust, julia, python" << std::endl;
+        std::cerr << "Supported languages: cpp, java, rust, julia, python, r" << std::endl;
         exit(1);
     }
 
@@ -182,6 +187,17 @@ int main(int argc, char** argv) {
         std::cout << std::endl;
         std::cout << "PluMA's embedded Python loader will discover <Name>Plugin.py and" << std::endl;
         std::cout << "instantiate <Name>Plugin. Pin third-party deps in requirements.txt." << std::endl;
+    } else if (language == "r") {
+        RPluginGenerator* myGenerator = new RPluginGenerator(pluginpath, literal);
+        myGenerator->generate(pluginname, command);
+        delete myGenerator;
+
+        std::cout << std::endl;
+        std::cout << "R plugin generated successfully!" << std::endl;
+        std::cout << std::endl;
+        std::cout << "PluMA's embedded R loader sources <Name>Plugin.R and calls" << std::endl;
+        std::cout << "input(inputfile) / run() / output(outputfile). State persists" << std::endl;
+        std::cout << "between calls via R's <<- super-assignment operator." << std::endl;
     } else {
         // Default: C++
         PluginGenerator* myGenerator = new PluginGenerator(pluginpath, literal);
