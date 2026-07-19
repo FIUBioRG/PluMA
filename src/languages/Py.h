@@ -35,6 +35,8 @@
 #define PY_H
 
 #include "Language.h"
+#include <set>
+#include <mutex>
 
 
 class Py : public Language {
@@ -43,6 +45,10 @@ public:
     void executePlugin(std::string pluginname, std::string inputname, std::string outputname);
     void unload();
     void load() {} // Empty
+
+private:
+    std::set<std::string> pathsAdded;
+    std::mutex pathsAddedMutex;
 };
 
 

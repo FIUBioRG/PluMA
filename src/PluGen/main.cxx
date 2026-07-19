@@ -139,7 +139,7 @@ int main(int argc, char** argv) {
     bool literal = false;
     for (size_t i = 0; i < command.size(); i++) {
         std::cout << "Command: " << command[i] << std::endl;
-        if (command[i].find("inputfile") != std::string::npos) {
+        if (command[i] == "inputfile") {
             literal = true;
             break;
         }

@@ -35,6 +35,7 @@
 #include "RInside.h"
 #include "Rinterface.h"
 #endif
+#include <sstream>
 #include "../PluginManager.h"
 
 namespace MiAMi {
@@ -55,6 +56,7 @@ R::R(
 
 void R::load() {
 #ifdef HAVE_R
+    if (myR) return;
     myR = new RInside(argc, argv);
 #endif
 }
@@ -76,12 +78,13 @@ void R::executePlugin(
         path = tmppath.substr(0, tmppath.find_first_of(":"));
     } while (!(*infile) && path.length() > 0);// {
 
-    std::string txt;
     std::string line;
+    std::ostringstream oss;
     while (!infile->eof()) {
         getline(*infile, line);
-        txt += line+"\n";
+        oss << line << "\n";
     }
+    std::string txt = oss.str();
     delete infile;
 
     PluginManager::getInstance().log("Executing R Plugin "+pluginname);
@@ -100,6 +103,7 @@ void R::unload()
 #ifdef HAVE_R
     //delete myR->instancePtr();
     delete myR;
+    myR = NULL;
 
      //R_dot_Last();
      //R_RunExitFinalizers();

@@ -34,6 +34,7 @@
 #include "../PluginManager.h"
 #include "../platform.h"
 #include <iostream>
+#include <memory>
 #include <fstream>
 
 Compiled::Compiled(
@@ -60,16 +61,32 @@ void Compiled::executePlugin(
         tmppath = tmppath.substr(tmppath.find_first_of(PLUMA_PATH_LIST_SEPARATOR)+1, tmppath.length());
         path = tmppath.substr(0, tmppath.find_first_of(PLUMA_PATH_LIST_SEPARATOR));
     } while (!(*infile) && path.length() > 0);
-    
+
     delete infile;
-    
-    // Dynamic load takes place here
-    pluma::platform::LibraryHandle handle = pluma::platform::loadLibrary(filename);
-    if (!handle) {
-        std::cout << "Warning: Null Handle" << std::endl;
-        std::cout << pluma::platform::getLibraryError() << std::endl;
+
+    // Dynamic load takes place here, cached across calls (and dlclose()'d
+    // in unload()) so repeat invocations of the same plugin don't reopen it.
+    pluma::platform::LibraryHandle handle = NULL;
+    {
+        std::lock_guard<std::mutex> lock(openHandlesMutex);
+        std::map<std::string, pluma::platform::LibraryHandle>::iterator handleIt = openHandles.find(filename);
+        if (handleIt != openHandles.end()) {
+            handle = handleIt->second;
+        } else {
+            handle = pluma::platform::loadLibrary(filename);
+            if (!handle) {
+                std::cout << "Warning: Null Handle" << std::endl;
+                std::cout << pluma::platform::getLibraryError() << std::endl;
+            } else {
+                openHandles[filename] = handle;
+            }
+        }
     }
-    Plugin* plugin = PluginManager::getInstance().create(pluginname);
+    std::unique_ptr<Plugin> plugin(PluginManager::getInstance().create(pluginname));
+    if (!plugin) {
+        PluginManager::getInstance().log("ERROR: Could not create C++/CUDA Plugin "+pluginname+".");
+        return;
+    }
 
     PluginManager::getInstance().log("Executing input() For C++/CUDA Plugin "+pluginname);
     plugin->input(inputname);
@@ -78,4 +95,12 @@ void Compiled::executePlugin(
     PluginManager::getInstance().log("Executing output() For C++/CUDA Plugin "+pluginname);
     plugin->output(outputname);
     PluginManager::getInstance().log("C++/CUDA Plugin "+pluginname+" completed successfully.");
+}
+
+void Compiled::unload() {
+    std::lock_guard<std::mutex> lock(openHandlesMutex);
+    for (std::map<std::string, pluma::platform::LibraryHandle>::iterator it = openHandles.begin(); it != openHandles.end(); ++it) {
+        pluma::platform::unloadLibrary(it->second);
+    }
+    openHandles.clear();
 }

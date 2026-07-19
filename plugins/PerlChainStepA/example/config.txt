@@ -1,0 +1,3 @@
+Prefix plugins/PerlChainStepA/example
+Plugin PerlChainStepA inputfile parameters.txt outputfile stepA.out
+Plugin PerlChainStepB inputfile parameters.txt outputfile stepB.out

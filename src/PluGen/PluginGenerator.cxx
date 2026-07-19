@@ -155,7 +155,7 @@ void PluginGenerator::makeSourceFile(std::string pluginname, std::vector<std::st
               optionalflag = false;
       }
       else if (command[i][0] == '-'){
-	if (command[i+1] != "inputfile" && command[i+1] != "outputfile") {
+	if (i + 1 < command.size() && command[i+1] != "inputfile" && command[i+1] != "outputfile") {
          if (optionalflag) {
               cppfile << "addOptionalParameter(\"" << command[i] << "\", \"" << command[i+1] << "\");" << std::endl;
 	      readmefile << "[ " << command[i+1] << " (corresponding flag: " << command[i] << ") ]" << std::endl;

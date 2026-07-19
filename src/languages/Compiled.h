@@ -34,17 +34,22 @@
 #define COMPILED_H
 
 #include "Language.h"
+#include "../platform.h"
 #include <string>
 #include <map>
+#include <mutex>
 
 class Compiled : public Language
 {
 public:
     Compiled(std::string language, std::string ext, std::string pp, std::string pre);
-    //void loadPlugin(std::string path, glob_t* globbuf, std::map<std::string, std::string>* pluginLanguages);
     virtual void executePlugin(std::string pluginname, std::string inputfile, std::string outputfile);//=0;
-    virtual void unload(){}
+    virtual void unload();
     virtual void load(){}
+
+private:
+    std::map<std::string, pluma::platform::LibraryHandle> openHandles;
+    std::mutex openHandlesMutex;
 };
 
 #endif

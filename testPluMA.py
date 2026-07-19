@@ -69,9 +69,9 @@ def check(file1, file2, filetype):
                   if data1[j] != data2[j]:
                      return False
                else:
-                  if (abs(float(data2[j])-float(data1[j])) > EPS): 
+                  if (abs(float(data2[j])-float(data1[j])) > EPS):
                      return False
-            return True
+      return True
 
 
 

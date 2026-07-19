@@ -76,9 +76,7 @@ void JavaPluginGenerator::makeJavaFile(std::string pluginname, std::vector<std::
     // Instance variables
     jfile << "    private String inputFile;" << std::endl;
     jfile << "    private String outputFile;" << std::endl;
-    if (!myLiteral) {
-        jfile << "    private Map<String, String> parameters = new HashMap<>();" << std::endl;
-    }
+    jfile << "    private Map<String, String> parameters = new HashMap<>();" << std::endl;
     jfile << std::endl;
 
     // Default constructor

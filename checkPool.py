@@ -1,8 +1,11 @@
 # Note this requires an internet connection
 # Filename: checkPool.py
 import os
+import subprocess
 import sys
-import urllib.request
+import threading
+
+from pool_utils import discover_websites, scrape_pool
 
 BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN, WHITE = range(8)
 EPS=1e-8
@@ -39,75 +42,28 @@ def printout(text, colour=WHITE):
                 sys.stdout.write('{:>50}'.format(text))
 
 
-#import urllib2
-response = urllib.request.urlopen("http://biorg.cis.fiu.edu/pluma/plugins.html")
-page_source = str(response.read())
-#print(page_source)
-
-
 pool = set()
 local = set()
 normalprintout("************************************", GREEN)
 print("")
 normalprintout("PLUGIN COUNTS:", GREEN)
 print("")
-websites =set()
-# Plugin Table
-while (page_source.find("</table>") != -1):
- plugin_table = page_source[page_source.find("<table "):page_source.find("</table>")]
- plugins = plugin_table.split("<tr>")
- count=0
- for plugin in plugins:
-  while(plugin.find("</a>") != -1):
-   content = plugin[plugin.find("<a href="):plugin.find("</a>")]
-   content = content.replace('<a href=', '')
-   data = content.split('>')
-   websites.add(data[0][1:len(data[0])-1])
-   plugin = plugin[plugin.find("</a>")+1:]
-   #if (len(data) == 2):
-      #print(data[0])
-      #pool.add(data[1])
-      #count += 1
-      #if (os.path.exists(data[1])):
-      #   print("Plugin "+data[1]+" already installed.")
-      #else:
-      #   repo = data[0][1:len(data[0])-1] # Remove quotes
-         #os.system("git clone "+repo)
-
-   #normalprintout(str(count)+" ", GREEN)
-   #print(count,end=" ")
- page_source = page_source[page_source.find("</table>")+1:]
+websites = discover_websites()
 
 count=0
-for website in websites:
+count_lock = threading.Lock()
+
+def process_website(website, entries):
+  global count
   localcount = 0
-  response = urllib.request.urlopen("http://biorg.cis.fiu.edu/pluma/"+website)
-  page_source = str(response.read())
-  while (page_source.find("</table>") != -1):
-    plugin_table = page_source[page_source.find("<table "):page_source.find("</table>")]
-    # Individual Plugins
-    plugins = plugin_table.split("<tr>")
-    for plugin in plugins:
-     while(plugin.find("</a>") != -1):
-      content = plugin[plugin.find("<a href="):plugin.find("</a>")]
-      content = content.replace('<a href=', '')
-      data = content.split('>')
-      if (len(data) == 2):
-         pool.add(data[1])
-         count += 1
-         localcount += 1
-         #if (os.path.exists(data[1])):
-         #   print("Plugin "+data[1]+" already installed.")
-         #else:
-         #   repo = data[0][1:len(data[0])-1] # Remove quotes
-      #os.system("git clone "+repo)
-      plugin = plugin[plugin.find("</a>")+1:]
-
-      #normalprintout(str(count)+" ", GREEN)
-      #print(count,end=" ")
-
-    page_source = page_source[page_source.find("</table>")+1:]
+  for href, name in entries:
+    with count_lock:
+       pool.add(name)
+       count += 1
+    localcount += 1
   normalprintout(website+"\t["+str(localcount)+"]\n", GREEN)
+
+scrape_pool(websites, process_website)
 
 if (len(sys.argv) > 1):
    plugins = [sys.argv[1]]
@@ -145,11 +101,12 @@ print("")
 normalprintout("PLUGINS THAT DIFFER FROM REPOSITORY:", YELLOW)
 print("")
 for plugin in local.intersection(pool):
-   x = os.popen('cd plugins/'+plugin+'; git diff; cd ..').read()
-   if (len(x) != 0):
+   result = subprocess.run(["git", "diff", "--quiet"], cwd="plugins/"+plugin, capture_output=True, text=True)
+   if result.returncode == 1:
       normalprintout(plugin, YELLOW)
       print("")
-   os.system("cd ..")
+   elif result.returncode not in (0, 1):
+      print("Warning: could not check " + plugin + ": " + result.stderr.strip())
 normalprintout("************************************", YELLOW)
 print("")
    

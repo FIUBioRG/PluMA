@@ -24,3 +24,6 @@ jobs:
 
             - name: run tests
               run: python3 ./testPluMA.py
+
+            - name: run negative-path regression test
+              run: bash tests/test_negative_paths.sh

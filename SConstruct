@@ -712,8 +712,24 @@ def _compile_java_plugins_in_folder(env, folder):
 
 
 def build_language_objects(env):
-    """Build language support objects and return the language file list."""
-    languages = Glob("src/languages/*.cxx")
+    """Build language support objects and return the language file list.
+
+    Always-on: Language.cxx (base class) and Compiled.cxx (native plugin
+    loader). Py.cxx/Perl.cxx/R.cxx are only globbed in when their
+    corresponding --without-* flag is absent, so those builds don't pull
+    in language-embedding object code (and the matching libs, see
+    build_main_executable below) they were explicitly asked to exclude.
+    Java.cxx is gated on JAVA_ENABLED the same way it already is elsewhere.
+    """
+    languages = Glob("src/languages/Language.cxx") + Glob("src/languages/Compiled.cxx")
+    if not GetOption("without-python"):
+        languages += Glob("src/languages/Py.cxx")
+    if not GetOption("without-perl"):
+        languages += Glob("src/languages/Perl.cxx")
+    if not GetOption("without-r"):
+        languages += Glob("src/languages/R.cxx")
+    if env.get("JAVA_ENABLED"):
+        languages += Glob("src/languages/Java.cxx")
 
     for language in languages:
         output = language.get_path().replace("src", "obj").replace(".cxx", ".os")
@@ -733,10 +749,13 @@ def _build_language_object(env, language, output):
 
 def build_main_executable(env, languages):
     """Build the main PluMA executable."""
-    program_libs = [
-        "pthread", "m", "dl", "crypt", "c",
-        f"python{python_version}", "util", "perl", "R", "RInside",
-    ]
+    program_libs = ["pthread", "m", "dl", "crypt", "c"]
+    if not GetOption("without-python"):
+        program_libs += [f"python{python_version}", "util"]
+    if not GetOption("without-perl"):
+        program_libs.append("perl")
+    if not GetOption("without-r"):
+        program_libs += ["R", "RInside"]
     if env.get("JAVA_ENABLED"):
         program_libs.append("jvm")
     if env.get("JULIA_ENABLED"):

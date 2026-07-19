@@ -42,6 +42,7 @@
 #include <sstream>
 #include <ctime>
 #include <thread>
+#include <atomic>
 
 #if PLUMA_PLATFORM_WINDOWS
     using pluma::platform::glob_t;
@@ -54,6 +55,12 @@
 using std::thread;
 using std::vector;
 
+// Set by any readConfig() invocation (main thread or a LitterLaunch worker
+// thread) when a plugin throws. Using a flag instead of calling exit()
+// directly from a background thread lets sibling threads finish (or fail on
+// their own terms) before the process actually terminates.
+static std::atomic<bool> pipelineFailed(false);
+
 //////////////////////////////////////////
 // Helper Function: Convert int to string
 std::string toString(int val) {
@@ -64,12 +71,6 @@ std::string toString(int val) {
    return retval;
 }
 //////////////////////////////////////////
-struct args {
-   char* myFile;
-   char* myPrefix;
-   bool* myDoRestart;
-   char* myRestartPoint;
-};
 
 void readConfig(std::string inputfile, std::string prefix, bool doRestart, std::string restartPoint) {
     void* status;
@@ -78,7 +79,7 @@ void readConfig(std::string inputfile, std::string prefix, bool doRestart, std::
     std::string pipeline = "";
     std::string oldprefix = prefix;
     std::string kitty = "";
-    bool parallelflag, kittyflag;
+    bool parallelflag = false, kittyflag = false;
     vector<std::thread> threads;
     while (!infile.eof()) {
         std::string junk, name, inputname, outputname;
@@ -126,6 +127,15 @@ void readConfig(std::string inputfile, std::string prefix, bool doRestart, std::
 	    }
 	    parallelflag = false;
 	    kittyflag = false;
+            // All LitterLaunch sibling threads for this Kitty group have now
+            // either completed or hit a plugin failure and set pipelineFailed
+            // (via a clean return, not exit()). It is now safe to stop this
+            // pipeline level; the actual process exit(1) happens once the
+            // top-level readConfig() call in main() returns, by which point
+            // every thread at every nesting level has been joined.
+            if (pipelineFailed) {
+                return;
+            }
         } else {
             infile >> name >> junk >> inputname >> junk >> outputname;
         }
@@ -155,8 +165,11 @@ void readConfig(std::string inputfile, std::string prefix, bool doRestart, std::
         PluginManager::getInstance().log("Creating plugin "+name);
         try {
             bool executed = false;
+            std::string pluginKey = name+"Plugin";
+            std::map<std::string, std::string>::iterator langIt = PluginManager::getInstance().pluginLanguages.find(pluginKey);
+            std::string pluginLang = (langIt != PluginManager::getInstance().pluginLanguages.end()) ? langIt->second : "";
             for (size_t i = 0; i < PluginManager::supported.size() && !executed; i++) {
-                if (PluginManager::getInstance().pluginLanguages[name+"Plugin"] == PluginManager::supported[i]->lang()) {
+                if (pluginLang == PluginManager::supported[i]->lang()) {
                     std::cout << "[PluMA] Running Plugin: " << name << std::endl;
                     PluginManager::supported[i]->executePlugin(name, inputname, outputname);
                     executed = true;
@@ -166,6 +179,7 @@ void readConfig(std::string inputfile, std::string prefix, bool doRestart, std::
             // In this case we found the plugin, but the language is not PluginManager::supported.
             if (!executed && name != "") {
                 PluginManager::getInstance().log("Error, no suitable language for plugin: "+name+".");
+                exit(1);
             }
             ///////////////////////////////////////////////////////////////////////////////////////////////////////
         }
@@ -173,12 +187,20 @@ void readConfig(std::string inputfile, std::string prefix, bool doRestart, std::
         // This hits if the plugin errored while running it
         // Message(s) will be output to the logfile, and output files will be removed.
         catch (...) {
-            PluginManager::getInstance().log("ERROR IN PLUGIN: "+name+".");;
+            PluginManager::getInstance().log("ERROR IN PLUGIN: "+name+".");
             if (pluma::platform::fileExists(outputname)) {
                 PluginManager::getInstance().log("REMOVING OUTPUT FILE: "+outputname+".");
                 pluma::platform::removeFile(outputname);
-                exit(1);
             }
+            // Do NOT call exit() here: this may be running on a LitterLaunch
+            // worker thread, and exit() from a background thread would tear
+            // down the whole process (including sibling threads still
+            // mid-write on their own output files) with no chance to finish.
+            // Instead, flag the failure and unwind this readConfig() call
+            // cleanly; the owning thread's join (LitterGather, below) or
+            // main() will observe the flag and terminate once it is safe.
+            pipelineFailed = true;
+            return;
         }
         ////////////////////////////////////////////////////////////////////////////////////////////////////////
     }
@@ -224,10 +246,6 @@ int main(int argc, char** argv)
         pluginpath += env_plugin_path;
     }
     pluginpath += PLUMA_PATH_LIST_SEPARATOR;
-    ///////////////////////////////////////////////////////////////////////////////////////////////
-
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // Set PluginManager::supported languages here.
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -293,6 +311,17 @@ int main(int argc, char** argv)
     // Read configuration file and make appropriate plugins
     readConfig(std::string(argv[1]), "", doRestart, restartPoint);
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    /////////////////////////////////////////////////////////////////////
+    // The top-level readConfig() call above only returns once every
+    // recursive Pipeline invocation and every LitterLaunch/LitterGather
+    // thread group (at every nesting level) has completed or joined. Only
+    // now is it safe to actually terminate the process if any plugin along
+    // the way failed.
+    if (pipelineFailed) {
+        exit(1);
+    }
+    /////////////////////////////////////////////////////////////////////
 
     /////////////////////////////////////////////////////////////////////
     // Cleanup.

@@ -72,7 +72,7 @@ public:
         return instance;
     }
 
-    PluginManager() {}
+    PluginManager() : logfile(nullptr) {}
     PluginManager(PluginManager const&) = delete;
     ~PluginManager() {
         if (logfile) delete logfile;
@@ -87,7 +87,12 @@ public:
     void add(std::string name) {installed.insert(name);}
 
     Plugin* create(std::string name) {
-        return makers[name]->create();
+        std::map<std::string, Maker*>::iterator it = makers.find(name);
+        if (it == makers.end()) {
+            log("ERROR: No plugin registered for: "+name+".");
+            return NULL;
+        }
+        return it->second->create();
     }
 
     void setLogFile(std::string lf) {
@@ -96,14 +101,14 @@ public:
     }
 
     static void log(std::string msg) {
-        *(getInstance().logfile) << "[PluMA] " << msg << std::endl;
+        *(getInstance().logfile) << "[PluMA] " << msg << "\n";
     }
 
     static void dependency(std::string plugin) {
        if (getInstance().installed.count(plugin) == 0) {
-           *(getInstance().logfile) << "[PluMA] Plugin dependency " << plugin << " not met.  Exiting..." << std::endl;  exit(1);
+           *(getInstance().logfile) << "[PluMA] Plugin dependency " << plugin << " not met.  Exiting..." << "\n";  exit(1);
         } else {
-            *(getInstance().logfile) << "[PluMA] Plugin dependency " << plugin << " met." << std::endl;
+            *(getInstance().logfile) << "[PluMA] Plugin dependency " << plugin << " met." << "\n";
         }
     }
 
@@ -125,9 +130,15 @@ public:
 #else
         supported.push_back(new Compiled("C", "so", pluginpath, "lib"));
 #endif
+#ifdef HAVE_PYTHON
         supported.push_back(new Py("Python", "py", pluginpath));
+#endif
+#ifdef HAVE_R
         supported.push_back(new MiAMi::R("R", "R", pluginpath, argc, argv));
+#endif
+#ifdef HAVE_PERL
         supported.push_back(new Perl("Perl", "pl", pluginpath));
+#endif
 #ifdef HAVE_JAVA
         supported.push_back(new Java("Java", "class", pluginpath));
 #endif

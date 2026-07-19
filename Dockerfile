@@ -9,9 +9,7 @@ ENV CXX="clang++"
 
 WORKDIR /app
 
-COPY ./ ./
-
-RUN apk add -t .runtime-deps \
+RUN --mount=type=cache,target=/var/cache/apk apk add -t .runtime-deps \
   build-base scons blas blas-dev clang musl-dev musl \
   perl perl-dev git R R-dev R-mathlib python3-dev libffi \
   libffi-dev libexecinfo libexecinfo-dev libc-dev \
@@ -20,8 +18,11 @@ RUN apk add -t .runtime-deps \
 && pip install pythonds \
 && mkdir -p ~/.R \
 && printf 'CXX=clang++\nPKG_CXXFLAGS += -D__MUSL__' > ~/.R/Makevars \
-&& Rscript -e "install.packages('RInside', repos = 'https://cloud.r-project.org')" \
-&& scons
+&& Rscript -e "install.packages('RInside', repos = 'https://cloud.r-project.org')"
+
+COPY ./ ./
+
+RUN scons
 
 VOLUME ["/app/plugins"]
 VOLUME ["/app/pipelines"]

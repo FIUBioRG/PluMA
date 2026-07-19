@@ -35,18 +35,26 @@
 
 #include "Language.h"
 
+#ifdef HAVE_PERL
+#include <EXTERN.h>
+#include <perl.h>
+#endif
+
 class Perl : public Language {
 public:
     Perl(std::string language, std::string ext, std::string pp);
     ~Perl();
     void executePlugin(std::string pluginname, std::string inputname, std::string outputname);
-    void load() {} // Empty
-    void unload() {} // Empty
+    void load();
+    void unload();
 
 private:
     char** env;
     int argc2;
     char** argv2;
+#ifdef HAVE_PERL
+    PerlInterpreter* my_perl;
+#endif
 };
 
 #endif

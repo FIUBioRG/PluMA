@@ -10,7 +10,6 @@ used during the build process.
 """
 
 import os
-import subprocess
 import sys
 from os.path import abspath, relpath
 from typing import List, Optional
@@ -25,14 +24,13 @@ platform = sys.platform
 def _read_os_release_id() -> Optional[str]:
     """Read the ID field from /etc/os-release."""
     try:
-        output = subprocess.check_output(
-            "grep '^ID=' /etc/os-release",
-            shell=True,
-            stderr=subprocess.DEVNULL,
-        )
-        return output.decode().strip().split("=")[1].strip('"')
-    except (subprocess.CalledProcessError, IndexError):
-        return None
+        with open("/etc/os-release") as f:
+            for line in f:
+                if line.startswith("ID="):
+                    return line.strip().split("=", 1)[1].strip('"')
+    except FileNotFoundError:
+        pass
+    return None
 
 
 def _detect_platform_id() -> Optional[str]:

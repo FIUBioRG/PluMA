@@ -47,6 +47,7 @@
 class Language {
 public:
     Language(std::string lang, std::string ext, std::string pp, std::string pre="") {language = lang; extension = ext; pluginpath = pp; prefix = pre;}
+    virtual ~Language() {}
     virtual void loadPlugin(std::string path, glob_t* globbuf, std::map<std::string, std::string>* pluginLanguages, bool list);
     virtual void executePlugin(std::string pluginname, std::string inputfile, std::string outputfile)=0;
     virtual void unload()=0;

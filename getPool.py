@@ -1,55 +1,28 @@
 # Note this requires an internet connection
 import os
+import subprocess
 import sys
-import urllib.request
+import threading
 
-
-#import urllib2
-response = urllib.request.urlopen("http://biorg.cis.fiu.edu/pluma/plugins.html")
-page_source = str(response.read())
-#print(page_source)
-
+from pool_utils import discover_websites, scrape_pool
 
 pool = set()
 local = set()
 print("")
-websites =set()
-# Plugin Table
-while (page_source.find("</table>") != -1):
- plugin_table = page_source[page_source.find("<table "):page_source.find("</table>")]
- plugins = plugin_table.split("<tr>")
- count=0
- for plugin in plugins:
-  while(plugin.find("</a>") != -1):
-   content = plugin[plugin.find("<a href="):plugin.find("</a>")]
-   content = content.replace('<a href=', '')
-   data = content.split('>')
-   websites.add(data[0][1:len(data[0])-1])
-   plugin = plugin[plugin.find("</a>")+1:]
- page_source = page_source[page_source.find("</table>")+1:]
+websites = discover_websites()
 
-for website in websites:
-  response = urllib.request.urlopen("http://biorg.cis.fiu.edu/pluma/"+website)
-  page_source = str(response.read())
-  while (page_source.find("</table>") != -1):
-    plugin_table = page_source[page_source.find("<table "):page_source.find("</table>")]
-    # Individual Plugins
-    plugins = plugin_table.split("<tr>")
-    for plugin in plugins:
-     while(plugin.find("</a>") != -1):
-      content = plugin[plugin.find("<a href="):plugin.find("</a>")]
-      content = content.replace('<a href=', '')
-      data = content.split('>')
-      if (len(data) == 2):
-         pool.add(data[1])
-         if (os.path.exists(data[1])):
-            print("Plugin "+data[1]+" already installed.")
-         else:
-            repo = data[0][1:len(data[0])-1] # Remove quotes
-            os.system("git clone "+repo)
-      plugin = plugin[plugin.find("</a>")+1:]
+pool_lock = threading.Lock()
 
-      #normalprintout(str(count)+" ", GREEN)
-      #print(count,end=" ")
+def process_website(website, entries):
+  for href, name in entries:
+    with pool_lock:
+       pool.add(name)
+    if (os.path.exists(name)):
+       print("Plugin "+name+" already installed.")
+    else:
+       repo = href[1:len(href)-1] # Remove quotes
+       result = subprocess.run(["git", "clone", repo])
+       if result.returncode != 0:
+          print("Failed to clone "+repo)
 
-    page_source = page_source[page_source.find("</table>")+1:]
+scrape_pool(websites, process_website)
