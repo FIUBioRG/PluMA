@@ -1,0 +1,671 @@
+# -*-python-*-
+# Copyright (C) 2026 FIUBioRG
+# SPDX-License-Identifier: MIT
+#
+# Windows (MSVC) build for PluMA.  SConstruct hands off to this file when
+# running on win32; the POSIX build is unaffected.
+#
+# Usage (from a regular or "Developer" PowerShell/cmd prompt):
+#
+#     python -m pip install -r requirements.txt   # provides scons + packaging
+#     scons                                       # pluma.exe, PluGen\plugen.exe, plugins
+#     scons -c                                    # clean
+#
+# How plugins link on Windows
+# ---------------------------
+# A Windows DLL cannot leave symbols unresolved for the host executable to
+# provide at load time (what -rdynamic + RTLD_GLOBAL do on Linux).  pluma.exe
+# therefore exports PluginManager (see src/PlumaExport.h) and the linker
+# writes an import library, lib\pluma.lib, which every C++ plugin links
+# against.  Everything is built with the shared CRT (/MD) so that heap objects
+# and std::string can safely cross the exe/DLL boundary.
+#
+# Language support on Windows
+# ---------------------------
+#   C++     plugins/<Name>/<Name>Plugin.dll       always
+#   Python  embedded via the Python running SCons  unless --without-python
+#   Java    via JNI if a JDK is found              unless --without-java
+#   CUDA    plugins/<Name>/<Name>Plugin.cu -> .dll  with --with-cuda (nvcc)
+#   R       embedded via R's C API (pluma_r.dll)     unless --without-r
+#   Perl    embedded via Strawberry Perl's gcc        unless --without-perl
+#           (pluma_perl.dll; see "R and Perl" below)
+
+import os
+import re
+import shutil
+import sys
+import sysconfig
+
+from resolve_requirements import resolve_and_install
+
+cleaning = GetOption("clean")
+showing_help = GetOption("help")
+
+
+def notice(msg):
+    print("[PluMA] " + msg)
+
+
+def _default_target_arch():
+    # Match the Python we link against (an x64 pluma.exe cannot link an ARM64
+    # or 32-bit pythonXY.lib); PLUMA_TARGET_ARCH overrides.
+    return {
+        "win-amd64": "x86_64",
+        "win-arm64": "arm64",
+        "win32": "x86",
+    }.get(sysconfig.get_platform(), "x86_64")
+
+
+# MSVC_VERSION must be given to the constructor: the msvc tool is configured
+# while the Environment is being created, so assigning it later has no effect.
+msvc_kwargs = {}
+if os.environ.get("PLUMA_MSVC_VERSION"):
+    msvc_kwargs["MSVC_VERSION"] = os.environ["PLUMA_MSVC_VERSION"]
+
+env = Environment(
+    ENV=os.environ.copy(),
+    TARGET_ARCH=os.environ.get("PLUMA_TARGET_ARCH", _default_target_arch()),
+    **msvc_kwargs,
+    CPPPATH=["#src", "#"],
+    CCFLAGS=[
+        "/nologo",
+        "/O2",
+        "/MD",          # shared CRT, required for objects crossing exe/DLL boundaries
+        "/EHsc",
+        "/W3",
+        "/wd4251",      # STL members in exported PluginManager (same CRT everywhere)
+        "/utf-8",
+    ],
+    CXXFLAGS=["/std:c++17", "/permissive-", "/Zc:__cplusplus"],
+    CPPDEFINES=["_CRT_SECURE_NO_WARNINGS", "NOMINMAX", "WIN32_LEAN_AND_MEAN"],
+    LINKFLAGS=["/nologo"],
+)
+
+# Executables run with a UTF-8 process code page (see src/pluma.manifest).
+manifest = File("#src/pluma.manifest")
+exe_linkflags = ["/MANIFEST:EMBED", "/MANIFESTINPUT:" + manifest.abspath]
+
+###################################################################
+# Toolchain sanity check
+###################################################################
+if not cleaning and not showing_help:
+    if not env.WhereIs(env.subst("$CXX")):
+        notice("ERROR: the Microsoft C++ compiler (cl.exe) was not found.")
+        notice("Install Visual Studio or the Build Tools with the 'Desktop development with C++' workload.")
+        Exit(1)
+
+    conf = Configure(env)
+    if not conf.CheckCXX():
+        notice("ERROR: cl.exe cannot compile a simple C++ program; see config.log.")
+        Exit(1)
+    env = conf.Finish()
+
+###################################################################
+# Python (embedded interpreter)
+###################################################################
+python_enabled = False
+if not GetOption("without-python"):
+    py_include = os.environ.get("PYTHON_INCLUDE_DIR") or sysconfig.get_paths()["include"]
+    py_libdir = os.environ.get("PYTHON_LIB_DIR") or os.path.join(sys.base_prefix, "libs")
+    def _header_version(include_dir):
+        # (major, minor) from the headers actually compiled against, which
+        # may differ from the Python running SCons when PYTHON_INCLUDE_DIR
+        # is set.
+        try:
+            with open(os.path.join(include_dir, "patchlevel.h")) as fh:
+                text = fh.read()
+            major = int(re.search(r"#define\s+PY_MAJOR_VERSION\s+(\d+)", text).group(1))
+            minor = int(re.search(r"#define\s+PY_MINOR_VERSION\s+(\d+)", text).group(1))
+            return major, minor
+        except (OSError, AttributeError, ValueError):
+            return None
+
+    version = _header_version(py_include) if os.path.isfile(os.path.join(py_include, "Python.h")) else None
+    if version is None:
+        notice("WARNING: Python headers not found under %s; Python plugins disabled." % py_include)
+    else:
+        # Free-threaded only when the headers belong to the (free-threaded)
+        # Python running SCons; pyconfig.h then needs Py_GIL_DISABLED defined.
+        free_threaded = (
+            version == tuple(sys.version_info[:2])
+            and bool(sysconfig.get_config_var("Py_GIL_DISABLED"))
+        )
+        py_stem = "python%d%d%s" % (version[0], version[1], "t" if free_threaded else "")
+        if not os.path.isfile(os.path.join(py_libdir, py_stem + ".lib")):
+            notice("WARNING: %s.lib not found in %s (headers are Python %d.%d); Python plugins disabled."
+                   % (py_stem, py_libdir, version[0], version[1]))
+        else:
+            # pyconfig.h selects pythonXY.lib with #pragma comment(lib, ...),
+            # so only the library directory is needed.
+            env.Append(CPPDEFINES=["HAVE_PYTHON"], CPPPATH=[py_include], LIBPATH=[py_libdir])
+            if free_threaded:
+                env.Append(CPPDEFINES=["Py_GIL_DISABLED"])
+            python_enabled = True
+            # pythonXY.dll is delay-loaded (like jvm.dll) so pluma.exe starts
+            # even when it is not on PATH; src/languages/Py.cxx locates it.
+            python_dll = py_stem + ".dll"
+            # The directory that actually holds pythonXY.dll: normally the
+            # parent of libs\ (<prefix>\libs\pythonXY.lib), but PYTHON_LIB_DIR
+            # / PYTHON_INCLUDE_DIR may point elsewhere.  Fall back to the
+            # parent of libs\ if none of the candidates has it.
+            candidates = [os.path.dirname(os.path.abspath(py_libdir)),
+                          os.path.dirname(os.path.abspath(py_include)),
+                          os.path.abspath(py_libdir)]
+            if version == tuple(sys.version_info[:2]):
+                candidates.append(sys.base_prefix)
+            python_home = next((d for d in candidates if os.path.isfile(os.path.join(d, python_dll))),
+                               candidates[0])
+            notice("Python support: %d.%d (%s)" % (version[0], version[1], py_include))
+
+###################################################################
+# Java (JNI).  jvm.dll is delay-loaded so pluma.exe still starts on
+# machines without Java on PATH; src/languages/Java.cxx locates it.
+###################################################################
+java_enabled = False
+if not GetOption("without-java"):
+    java_home = os.environ.get("JAVA_HOME")
+    if not java_home:
+        javac = shutil.which("javac")
+        if javac:
+            java_home = os.path.dirname(os.path.dirname(os.path.realpath(javac)))
+    if java_home:
+        jni_include = os.path.join(java_home, "include")
+        jni_md_include = os.path.join(jni_include, "win32")
+        jvm_lib = os.path.join(java_home, "lib", "jvm.lib")
+        if all(os.path.exists(p) for p in (jni_include, jni_md_include, jvm_lib)):
+            env.Append(CPPDEFINES=["HAVE_JAVA"], CPPPATH=[jni_include, jni_md_include])
+            java_enabled = True
+            notice("Java support: %s" % java_home)
+        else:
+            notice("WARNING: JDK at %s is missing include/ or lib\\jvm.lib; Java plugins disabled." % java_home)
+    else:
+        notice("Java support: no JDK found (set JAVA_HOME); Java plugins disabled.")
+
+###################################################################
+# R: embedded through R's C API in pluma_r.dll (src/bridges/RBridge.*),
+# loaded by pluma.exe only when R is installed (R.dll exports data, which a
+# delay-loaded DLL cannot provide).  R for Windows ships R.dll but no MSVC
+# import library: one is generated from R.dll's exports.
+###################################################################
+def _version_key(name):
+    """Sort key for versioned install directories ("R-4.6.2", "v13.5")."""
+    return [int(p) for p in re.findall(r"\d+", name)]
+
+
+def _find_r_home():
+    candidates = []
+    if os.environ.get("R_HOME"):
+        candidates.append(os.environ["R_HOME"])
+    try:
+        import winreg
+        for hive in (winreg.HKEY_CURRENT_USER, winreg.HKEY_LOCAL_MACHINE):
+            for key in (r"SOFTWARE\R-core\R64", r"SOFTWARE\R-core\R"):
+                try:
+                    with winreg.OpenKey(hive, key) as k:
+                        candidates.append(winreg.QueryValueEx(k, "InstallPath")[0])
+                except OSError:
+                    pass
+    except ImportError:
+        pass
+    root = os.path.join(os.environ.get("ProgramFiles", r"C:\Program Files"), "R")
+    if os.path.isdir(root):
+        candidates += [os.path.join(root, d) for d in sorted(os.listdir(root), key=_version_key, reverse=True)]
+    for home in candidates:
+        if home and os.path.isfile(os.path.join(home, "bin", "x64", "R.dll")) and \
+                os.path.isfile(os.path.join(home, "include", "Rinternals.h")):
+            return home
+    return None
+
+
+# R for Windows, Strawberry Perl and the CUDA Toolkit are x64: on another
+# target (ARM64 or x86, following the Python SCons runs under) their
+# libraries cannot be linked, so those languages stay disabled.
+target_is_x64 = env["TARGET_ARCH"] in ("x86_64", "amd64", "x64")
+if not target_is_x64 and not cleaning:
+    for opt, lang in (("without-r", "R"), ("without-perl", "Perl")):
+        if not GetOption(opt):
+            notice("%s support: only x64 builds are supported (target is %s); %s plugins disabled."
+                   % (lang, env["TARGET_ARCH"], lang))
+
+r_home = None
+if not GetOption("without-r") and not cleaning and target_is_x64:
+    r_home = _find_r_home()
+    if r_home:
+        # HAVE_R everywhere (PluginManager.h's R class reports it enabled);
+        # R's headers are only used by the bridge and RPluMA.
+        env.Append(CPPDEFINES=["HAVE_R"])
+        notice("R support: %s" % r_home)
+    else:
+        notice("R support: R for Windows not found (set R_HOME); R plugins disabled.")
+
+###################################################################
+# Perl: Strawberry Perl (built with GCC; MSVC cannot compile its headers).
+# The Perl runner (src/languages/PerlRun.h) is built with Strawberry's own
+# g++ into pluma_perl.dll, and PerlPluMA likewise; both talk to pluma.exe in
+# plain C (src/bridges/PerlBridge.h, the pluma_host_* API).
+###################################################################
+def _find_strawberry():
+    """(perl.exe, g++.exe) of a Strawberry-style Perl: perl on PATH whose
+    distribution ships its compiler (..\\..\\c\\bin\\g++.exe), else
+    C:\\Strawberry."""
+    perls = []
+    found = shutil.which("perl")
+    if found:
+        perls.append(os.path.realpath(found))
+    perls.append(r"C:\Strawberry\perl\bin\perl.exe")
+    for perl in perls:
+        gxx = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(perl))), "c", "bin", "g++.exe")
+        if os.path.isfile(perl) and os.path.isfile(gxx):
+            return perl, gxx
+    return None, None
+
+
+perl_exe = perl_gxx = None
+if not GetOption("without-perl") and not cleaning and target_is_x64:
+    perl_exe, perl_gxx = _find_strawberry()
+    if perl_exe:
+        import subprocess as _sp
+        def _perl(code):
+            return _sp.run([perl_exe, "-MConfig", "-MExtUtils::Embed", "-e", code],
+                           capture_output=True, text=True, check=True).stdout.strip()
+        def _split_flags(text):
+            # Split on whitespace outside double quotes, then drop the quotes:
+            # -I"C:\Program Files\Strawberry\perl\lib\CORE" stays one flag
+            # (re-quoted where the command lines are built).  Not shlex: its
+            # POSIX mode would treat the backslashes as escapes.
+            return [t.replace('"', "") for t in re.findall(r'(?:[^\s"]|"[^"]*")+', text)]
+        perl_ccopts = [o for o in _split_flags(_perl("ccopts")) if o != "-std=c99"]   # (C++ here)
+        perl_ldopts = _split_flags(_perl("ldopts"))
+        perl_dll = re.sub(r"^lib(.*)\.a$", r"\1.dll", _perl("print $Config{libperl}"))
+        perl_bin = os.path.dirname(perl_exe)
+        # The extension DynaLoader loads XS modules with ("xs.dll" in current
+        # Strawberry Perl, "dll" in older releases).
+        perl_dlext = _perl("print $Config{dlext}") or "dll"
+        env.Append(CPPDEFINES=["HAVE_PERL"])
+        notice("Perl support: %s (%s, runner built with %s)" % (perl_bin, perl_dll, perl_gxx))
+    else:
+        notice("Perl support: Strawberry Perl (perl.exe with its bundled g++) not found; Perl plugins disabled.")
+
+###################################################################
+# CUDA (--with-cuda): plugins\<Name>\<Name>Plugin.cu -> <Name>Plugin.dll,
+# compiled by nvcc with cl.exe as the host compiler.
+###################################################################
+def _find_cuda():
+    """The CUDA Toolkit: CUDA_PATH, else the newest under the default
+    install directory (an installer's CUDA_PATH reaches only new shells)."""
+    candidates = []
+    if os.environ.get("CUDA_PATH"):
+        candidates.append(os.environ["CUDA_PATH"])
+    root = os.path.join(os.environ.get("ProgramFiles", r"C:\Program Files"),
+                        "NVIDIA GPU Computing Toolkit", "CUDA")
+    if os.path.isdir(root):
+        for name in sorted(os.listdir(root), key=_version_key, reverse=True):
+            candidates.append(os.path.join(root, name))
+    for home in candidates:
+        if os.path.isfile(os.path.join(home, "bin", "nvcc.exe")):
+            return home
+    return None
+
+
+cuda_home = None
+if GetOption("with-cuda") and not cleaning and not target_is_x64:
+    notice("WARNING: --with-cuda: only x64 builds are supported (target is %s); CUDA plugins skipped."
+           % env["TARGET_ARCH"])
+elif GetOption("with-cuda") and not cleaning:
+    cuda_home = _find_cuda()
+    if cuda_home:
+        notice("CUDA support: %s" % cuda_home)
+    else:
+        notice("WARNING: --with-cuda given but no CUDA Toolkit (nvcc.exe) was found; CUDA plugins skipped.")
+
+if GetOption("with-rust"):
+    notice("WARNING: --with-rust is not supported on Windows yet; ignoring.")
+if GetOption("with-julia"):
+    notice("WARNING: --with-julia is not supported on Windows yet; ignoring.")
+
+###################################################################
+# pluma.exe -- also exports PluginManager and writes lib\pluma.lib
+###################################################################
+core_env = env.Clone()
+# advapi32: registry lookups for the Python/JDK installs (src/platform.h).
+core_env.Append(CPPDEFINES=["PLUMA_EXPORTS"], LIBS=["advapi32"])
+delay_loaded = []
+if java_enabled:
+    core_env.Append(LIBPATH=[os.path.join(java_home, "lib")], LIBS=["jvm"])
+    delay_loaded.append("jvm.dll")
+if python_enabled:
+    delay_loaded.append(python_dll)
+if delay_loaded:
+    core_env.Append(
+        LIBS=["delayimp"],
+        LINKFLAGS=["/DELAYLOAD:" + dll for dll in delay_loaded],
+    )
+
+
+def _c_string(path):
+    return '"' + path.replace("\\", "/").replace('"', '\\"') + '"'
+
+
+# Install directories found at build time, used by Py.cxx / Java.cxx as the
+# last place to look for the delay-loaded DLLs (after PATH and the registry),
+# so installs without registry entries (uv, conda, embeddable Python, zip
+# JDKs) work out of the box on the build machine.
+build_paths = ["// Generated by SConscript.windows -- do not edit.", "#pragma once"]
+if python_enabled:
+    build_paths.append("#define PLUMA_BUILD_PYTHON_DIR " + _c_string(python_home))
+if java_enabled:
+    build_paths.append("#define PLUMA_BUILD_JAVA_HOME " + _c_string(java_home))
+if r_home:
+    build_paths.append("#define PLUMA_BUILD_R_HOME " + _c_string(r_home))
+if perl_exe:
+    build_paths.append("#define PLUMA_PERL_DLL " + _c_string(perl_dll))
+    build_paths.append("#define PLUMA_BUILD_PERL_BIN " + _c_string(perl_bin))
+core_env.Textfile("#obj/pluma_build_paths.h", build_paths)
+core_env.Append(CPPPATH=["#obj"], CPPDEFINES=["PLUMA_HAVE_BUILD_PATHS"])
+
+implib = File("#lib/pluma.lib")
+implib_exp = File("#lib/pluma.exp")
+if not cleaning:
+    os.makedirs(implib.get_dir().abspath, exist_ok=True)
+
+
+def _implib_emitter(target, source, env):
+    # Declare the import library written via /IMPLIB as a real output of the
+    # pluma Program, so SCons orders every plugin link (LIBS=["pluma"]) after
+    # it -- including plugins built by their own SConscript -- and rebuilds
+    # it if it goes missing.
+    return target + [implib, implib_exp], source
+
+
+core_env.Append(PROGEMITTER=[_implib_emitter])
+
+core_sources = ["src/main.cxx", "src/PluginManager.cxx"] + sorted(
+    glob_path for glob_path in Glob("src/languages/*.cxx", strings=True)
+)
+core_objects = []
+for src in core_sources:
+    obj_stem = os.path.splitext(src.replace("\\", "/").replace("src/", "", 1))[0]
+    core_objects += core_env.Object(target="obj/" + obj_stem, source=src)
+
+# /STACK: 8 MB reserved per thread (the Linux default) instead of Windows'
+# 1 MB.  Embedded Python, C++ plugins and JNI all run on PluMA's own threads
+# (main and kitties, which take the executable's default), and deep recursion
+# in a plugin must reach Python's RecursionError, not overflow the stack.
+pluma = core_env.Program(
+    target="pluma",
+    source=core_objects,
+    LINKFLAGS=core_env["LINKFLAGS"] + exe_linkflags + ["/IMPLIB:" + implib.abspath, "/STACK:8388608"],
+)
+env.Depends(pluma, manifest)
+
+###################################################################
+# PluGen
+###################################################################
+# Objects go to obj\ like the core's, not next to the sources.
+plugen_objs = [env.Object("#obj/PluGen/" + os.path.splitext(src.name)[0], src)
+               for src in Glob("src/PluGen/*.cxx")]
+plugen = env.Program(
+    "PluGen/plugen",
+    plugen_objs,
+    LINKFLAGS=env["LINKFLAGS"] + exe_linkflags,
+)
+env.Depends(plugen, manifest)
+
+###################################################################
+# Python wrapper module (PyPluMA) -- only when SWIG is available.
+###################################################################
+def find_swig():
+    """swig on PATH, else next to the Python running SCons: `pip install swig`
+    puts swig.exe in that Python's (or its per-user) Scripts folder, which is
+    often not on PATH (hence `python -m SCons`)."""
+    found = env.WhereIs("swig")
+    if found:
+        return found
+    dirs = [sysconfig.get_path("scripts")]
+    try:
+        dirs.append(sysconfig.get_path("scripts", sysconfig.get_preferred_scheme("user")))
+    except (AttributeError, KeyError):   # Python < 3.10
+        dirs.append(sysconfig.get_path("scripts", "nt_user"))
+    return env.WhereIs("swig", path=os.pathsep.join(d for d in dirs if d))
+
+
+# Looked up once, for the PyPluMA, RPluMA and PerlPluMA modules.
+swig_path = find_swig()
+swig = swig_path if python_enabled else None
+if swig:
+    wrap = env.Command(
+        ["PyPluMA_wrap.cxx", "PyPluMA.py"],
+        "src/PluginWrapper.i",
+        '"%s" -python -c++ -threads -module PyPluMA -o ${TARGETS[0]} $SOURCE' % swig,
+    )
+    pyd_env = env.Clone()
+    pyd_env.Append(LIBPATH=["#lib"], LIBS=["pluma"])
+    pyd = pyd_env.SharedLibrary(
+        target="_PyPluMA",
+        source=[pyd_env.SharedObject("#obj/PyPluMA_wrap", wrap[0]),
+                pyd_env.SharedObject("#obj/PluMA_pyd", "src/PluMA.cxx")],
+        SHLIBPREFIX="",
+        SHLIBSUFFIX=".pyd",
+        no_import_lib=1,
+    )
+    # The .pyd exports PyInit__PyPluMA, so link.exe also writes an import
+    # library that SCons does not track (no_import_lib).
+    pyd_env.Clean(pyd, ["#_PyPluMA.lib", "#_PyPluMA.exp"])
+elif python_enabled and not cleaning:
+    notice("swig not found; skipping the PyPluMA helper module (Python plugins that import PyPluMA will not run).")
+
+###################################################################
+# R bridge (pluma_r.dll) and the RPluMA helper module (RPluMA.dll + RPluMA.R)
+###################################################################
+if r_home:
+    import subprocess
+
+    r_dll = os.path.join(r_home, "bin", "x64", "R.dll")
+
+    def _make_r_implib(target, source, env):
+        """lib\\R.lib from R.dll's export table (dumpbin /exports -> .def -> lib)."""
+        lib_path = target[0].abspath
+        def_path = os.path.splitext(lib_path)[0] + ".def"
+        # Resolved in the MSVC environment SCons set up (subprocess would
+        # search only this process's PATH).
+        dumpbin, libexe = env.WhereIs("dumpbin"), env.WhereIs("lib")
+        if not dumpbin or not libexe:
+            raise SCons.Errors.UserError("dumpbin.exe / lib.exe not found in the MSVC environment")
+        out = subprocess.run([dumpbin, "/nologo", "/exports", source[0].abspath], env=env["ENV"],
+                             capture_output=True, text=True, check=True).stdout
+        names = re.findall(r"^\s+\d+\s+[0-9A-Fa-f]+\s+[0-9A-Fa-f]{8}\s+(\S+)", out, re.MULTILINE)
+        if not names:
+            raise SCons.Errors.UserError("no exports found in %s" % source[0].abspath)
+        with open(def_path, "w") as fh:
+            fh.write("LIBRARY R.dll\nEXPORTS\n" + "".join("    %s\n" % n for n in names))
+        subprocess.run([libexe, "/nologo", "/machine:x64", "/def:" + def_path, "/out:" + lib_path],
+                       env=env["ENV"], check=True, capture_output=True)
+        return None
+
+    import SCons.Errors
+    r_implib = env.Command("#obj/R/R.lib", r_dll, Action(_make_r_implib, "Generating $TARGET from $SOURCE"))
+    env.Clean(r_implib, ["#obj/R/R.def", "#obj/R/R.exp"])
+
+    r_env = env.Clone()
+    # R_LEGACY_RCOMPLEX: MSVC has no C99 _Complex (same layout).
+    r_env.Append(CPPDEFINES=["R_LEGACY_RCOMPLEX"], CPPPATH=[os.path.join(r_home, "include")],
+                 LIBPATH=["#obj/R"], LIBS=["R"])
+    r_bridge = r_env.SharedLibrary(
+        target="pluma_r",
+        source=[r_env.SharedObject("#obj/bridges/RBridge", "src/bridges/RBridge.cxx")],
+        no_import_lib=1,
+    )
+    r_env.Depends(r_bridge, r_implib)
+    r_env.Clean(r_bridge, ["#pluma_r.lib", "#pluma_r.exp"])
+
+    # RPluMA, as on POSIX: the swig wrapper (generated into obj\ when swig is
+    # available, else the committed RPluMA_wrap.cxx) plus PluMA.cxx.
+    if swig_path:
+        r_wrap = env.Command(
+            ["#obj/RPluMA_wrap.cxx", "#RPluMA.R"],
+            "src/PluginWrapper.i",
+            '"%s" -r -c++ -module RPluMA -outdir ${TARGETS[1].dir} -o ${TARGETS[0]} $SOURCE' % swig_path,
+        )[0]
+    else:
+        r_wrap = File("#RPluMA_wrap.cxx")
+        notice("swig not found; using the committed RPluMA_wrap.cxx%s." %
+               ("" if os.path.isfile("RPluMA.R") else " (RPluMA.R is missing: R plugins that load RPluMA will not run)"))
+    rpluma_env = r_env.Clone()
+    rpluma_env.Append(LIBPATH=["#lib"], LIBS=["pluma"], CCFLAGS=["/wd4244", "/wd4267"])
+    rpluma = rpluma_env.SharedLibrary(
+        target="RPluMA",
+        source=[rpluma_env.SharedObject("#obj/RPluMA_wrap", r_wrap),
+                rpluma_env.SharedObject("#obj/PluMA_r", "src/PluMA.cxx")],
+        no_import_lib=1,
+    )
+    rpluma_env.Depends(rpluma, [r_implib, implib])
+    rpluma_env.Clean(rpluma, ["#RPluMA.lib", "#RPluMA.exp"])
+
+###################################################################
+# Perl runner (pluma_perl.dll) and PerlPluMA (PerlPluMA.pm +
+# auto\PerlPluMA\PerlPluMA.xs.dll), built with Strawberry Perl's g++.
+# The GCC runtime is linked statically: the DLLs need nothing but Perl's.
+###################################################################
+if perl_exe:
+    gcc_env = Environment(ENV=os.environ.copy(), tools=[])
+    gcc_env.PrependENVPath("PATH", [os.path.dirname(perl_gxx), perl_bin])
+    gxx_flags = " ".join(['-shared', '-O2', '-std=gnu++17', '-I"%s"' % Dir("#src").abspath] +
+                         ['"%s"' % o if " " in o else o for o in perl_ccopts])
+    gxx_libs = " ".join(['"%s"' % o if " " in o else o for o in perl_ldopts] +
+                        ["-static-libgcc", "-static-libstdc++"])
+    gxx = '"%s"' % perl_gxx
+    perl_runner = gcc_env.Command(
+        "#pluma_perl.dll",
+        ["src/bridges/PerlBridge.cxx"],
+        "%s %s -o $TARGET $SOURCES %s" % (gxx, gxx_flags, gxx_libs),
+    )
+    gcc_env.Depends(perl_runner, ["src/languages/PerlRun.h", "src/bridges/PerlBridge.h"])
+    if swig_path:
+        perl_wrap = gcc_env.Command(
+            ["#obj/PerlPluMA_wrap.cxx", "#PerlPluMA.pm"],
+            "src/PluginWrapper.i",
+            '"%s" -perl5 -c++ -module PerlPluMA -outdir ${TARGETS[1].dir} -o ${TARGETS[0]} $SOURCE' % swig_path,
+        )
+        gcc_env.Command(
+            "#auto/PerlPluMA/PerlPluMA." + perl_dlext,
+            [perl_wrap[0], "src/bridges/PluMAHost.cxx"],
+            "%s %s -w -o $TARGET $SOURCES %s" % (gxx, gxx_flags, gxx_libs),
+        )
+    else:
+        notice("swig not found; skipping the PerlPluMA helper module (Perl plugins that use PerlPluMA will not run).")
+
+###################################################################
+# Python plugin dependencies (shared .venv)
+###################################################################
+if python_enabled and not cleaning and not showing_help:
+    running = tuple(sys.version_info[:2])
+    if version != running:
+        # The .venv is created by the Python running SCons; pluma.exe would
+        # ignore one built for another X.Y (see activateVenv in Py.cxx).
+        notice("WARNING: not installing plugin requirements into .venv: SCons runs under Python %d.%d, "
+               "but PluMA embeds Python %d.%d (PYTHON_INCLUDE_DIR). Run SCons with Python %d.%d to set it up."
+               % (running + version + version))
+    else:
+        resolve_and_install("plugins")
+
+###################################################################
+# C++ plugins: plugins\<Name>\<Name>Plugin.dll
+###################################################################
+plugin_env = env.Clone()
+plugin_env.Append(LIBPATH=["#lib"], LIBS=["pluma"])
+# POSIX headers plugins written on Linux commonly use (<sys/time.h>), for
+# plugin builds only (src/compat/windows).
+plugin_env.Append(CPPPATH=["#src/compat/windows"])
+cuda_env = None
+if cuda_home:
+    gpu_arch = GetOption("gpu_arch")
+    # Not given on the command line: SConstruct's POSIX default (sm_35) is not
+    # supported by CUDA 12+, so the GPU in this machine if there is one, else
+    # every major architecture.  An explicit --gpu-architecture (sm_35
+    # included, e.g. with a CUDA 11 toolkit) is always used as given.
+    # (SCons rejects abbreviations of options added with AddOption, so the
+    # exact spelling is the only one to look for.)
+    if not any(a == "--gpu-architecture" or a.startswith("--gpu-architecture=") for a in sys.argv):
+        gpu_arch = "native" if shutil.which("nvidia-smi") else "all-major"
+    cuda_env = plugin_env.Clone()
+    # nvcc finds cl.exe (and its INCLUDE/LIB) through the MSVC environment
+    # SCons set up for plugin_env.
+    cuda_env.PrependENVPath("PATH", os.path.join(cuda_home, "bin"))
+    # cudaThreadSynchronize() was removed in CUDA 13; cudaDeviceSynchronize()
+    # is the same call (the old name was deprecated in its favour long ago),
+    # so plugins written for older toolkits still build.
+    nvcc_defines = ["-DcudaThreadSynchronize=cudaDeviceSynchronize"]
+    for define in cuda_env["CPPDEFINES"]:
+        if isinstance(define, (list, tuple)):
+            nvcc_defines.append("-D%s=%s" % (define[0], define[1]))
+        else:
+            nvcc_defines.append("-D" + str(define))
+    nvcc_includes = ['-I"%s"' % Dir(p).abspath if str(p).startswith("#") else '-I"%s"' % p
+                     for p in cuda_env["CPPPATH"]]
+    host_flags = "/MD /EHsc /utf-8 /wd4251 /Zc:__cplusplus /permissive-"
+    nvcc_command = (
+        # -diag-suppress 1394: nvcc's own form of C4251 (/wd4251 above).
+        '"%s" -o $TARGET -shared -std=c++17 -arch=%s -diag-suppress 1394 -Xcompiler "%s" %s %s $SOURCES "%s"'
+        % (os.path.join(cuda_home, "bin", "nvcc.exe"), gpu_arch, host_flags,
+           " ".join(nvcc_defines), " ".join(nvcc_includes), implib.abspath)
+    )
+    # The same construction variables as SConstruct's POSIX envPluginCuda,
+    # for plugin SConscripts: "nvcc ... $NVCCFLAGS -arch=$GPU_ARCH ...".
+    cuda_env.Replace(NVCCFLAGS=['-std=c++17', '-diag-suppress', '1394', '-Xcompiler', '"%s"' % host_flags]
+                     + nvcc_defines + nvcc_includes, GPU_ARCH=gpu_arch)
+envPluginCuda = cuda_env   # None without --with-cuda (as on POSIX)
+Export("env", "envPluginCuda")
+
+notice("Compiling C++ plugins")
+for folder in sorted(Glob("plugins/*", strings=True)):
+    if not os.path.isdir(folder):
+        continue
+    scripts = Glob(os.path.join(folder, "SConscript"))
+    for script in scripts:
+        # Copies: what one plugin's SConscript adds stays with that plugin.
+        SConscript(script, exports={"env": plugin_env.Clone(),
+                                    "envPluginCuda": envPluginCuda.Clone() if envPluginCuda else None})
+    # A folder with its own SConscript is built by it alone (building its
+    # *Plugin.cpp here too would define the same target twice).
+    if scripts:
+        continue
+    for plugin in Glob(os.path.join(folder, "*Plugin.cpp")):
+        sources = Glob(os.path.join(str(plugin.get_dir()), "*.cpp"))
+        target = os.path.splitext(plugin.get_path())[0]
+        lib = plugin_env.SharedLibrary(target=target, source=sources, no_import_lib=1)
+        # (A plugin with __declspec(dllexport) makes the linker write these
+        # too, which SCons does not track with no_import_lib.)
+        plugin_env.Clean(lib, [target + ".lib", target + ".exp"])
+
+###################################################################
+# CUDA plugins: plugins\<Name>\<Name>Plugin.cu -> <Name>Plugin.dll
+###################################################################
+if cuda_home:
+    notice("Compiling CUDA plugins (-arch=%s)" % gpu_arch)
+    for folder in sorted(Glob("plugins/*", strings=True)):
+        if not os.path.isdir(folder) or Glob(os.path.join(folder, "SConscript")):
+            continue   # (a folder with its own SConscript builds itself)
+        for plugin in Glob(os.path.join(folder, "*Plugin.cu")):
+            sources = Glob(os.path.join(str(plugin.get_dir()), "*.cu"))
+            target = os.path.splitext(plugin.get_path())[0] + ".dll"
+            built = cuda_env.Command(target, sources, nvcc_command)
+            cuda_env.Depends(built, implib)
+            # nvcc also writes the DLL's import library and export file.
+            cuda_env.Clean(built, [os.path.splitext(target)[0] + ext for ext in (".lib", ".exp")])
+
+# Note: .sconf_temp is deliberately not cleaned -- SCons' configure cache in
+# .sconsign.dblite still references it, and deleting it makes the next
+# Configure check fail with "Cannot open source file".
+env.Clean(pluma, ["#obj"])
+
+# R, Perl and CUDA are not detected while cleaning (the probes above are
+# skipped), so their targets are not declared: name their outputs here so
+# `scons -c` removes them too.  (RPluMA.R is kept: without swig, a later
+# build reuses the one from an earlier build.)
+if cleaning:
+    env.Clean(pluma, ["#pluma_r.dll", "#pluma_r.lib", "#pluma_r.exp",
+                      "#RPluMA.dll", "#RPluMA.lib", "#RPluMA.exp",
+                      "#pluma_perl.dll", "#PerlPluMA.pm", "#auto/PerlPluMA"])
+    for cu in Glob("plugins/*/*Plugin.cu", strings=True):
+        stem = os.path.splitext(cu)[0]
+        env.Clean(pluma, ["#" + stem + ext for ext in (".dll", ".lib", ".exp")])

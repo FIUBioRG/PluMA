@@ -42,11 +42,11 @@ public:
     void executePlugin(std::string pluginname, std::string inputname, std::string outputname);
     void load() {} // Empty
     void unload() {} // Empty
-
-private:
-    char** env;
-    int argc2;
-    char** argv2;
+#ifdef HAVE_PERL
+    bool enabled() const { return true; }
+#else
+    bool enabled() const { return false; }
+#endif
 };
 
 #endif
