@@ -21,8 +21,9 @@ private:
 #ifdef HAVE_JULIA
     bool initialized;
 
-    static std::vector<std::string> splitPaths(const std::string& paths);
-    std::string findPluginFile(const std::string& pluginname) const;
+    // <plugin>/<plugin>Plugin.jl, or <plugin>/plugin.jl, from the plugin
+    // path; throws PluginNotStarted if there is none.
+    std::string findJuliaPluginFile(const std::string& pluginname) const;
     bool callPluginFunction(const std::string& moduleName, const char* funcName,
                            const std::string& arg);
     bool callPluginFunctionNoArgs(const std::string& moduleName, const char* funcName);

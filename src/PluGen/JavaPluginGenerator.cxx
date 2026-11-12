@@ -31,7 +31,7 @@
 \*********************************************************************************/
 
 #include "JavaPluginGenerator.h"
-#include <dirent.h>
+#include "../platform.h"
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
@@ -50,9 +50,11 @@ void JavaPluginGenerator::generate(std::string pluginname, std::vector<std::stri
 
 void JavaPluginGenerator::makeDirectory(std::string pluginname) {
     std::string directory = myPath + "/" + pluginname;
-    DIR* dir = opendir(directory.c_str());
-    if (!dir) {
-        system(("mkdir -p " + directory).c_str());
+    // Create it and any missing parents, as this generator always did
+    // (`mkdir -p`; the C++ generator's plain `mkdir` does not).
+    if (!pluma::makeDirectories(directory)) {
+        std::cerr << "Error: could not create plugin directory " << directory << std::endl;
+        exit(1);
     }
 }
 

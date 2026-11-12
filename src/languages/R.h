@@ -36,11 +36,6 @@
 
 #include "Language.h"
 
-#ifdef HAVE_R
-class RInside;
-//#include "RInside.h"
-#endif
-
 // @TODO: Change to PluMA namespace?
 namespace MiAMi {
 
@@ -50,11 +45,14 @@ public:
     void executePlugin(std::string pluginname, std::string inputname, std::string outputname);
     void unload();
     void load();
+#ifdef HAVE_R
+    bool enabled() const { return true; }
+#else
+    bool enabled() const { return false; }
+#endif
 
 private:
-#ifdef HAVE_R
-      RInside* myR;
-#endif
+      // (The interpreter itself is file-static in R.cxx: one R per process.)
       int argc;
       char ** argv;
 };

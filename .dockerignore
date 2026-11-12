@@ -9,3 +9,12 @@ pluma
 PluGen/
 .vagrant
 Vagrantfile
+# Windows build outputs (SConscript.windows), when building the image from a
+# tree also built on Windows.
+*.exe
+*.dll
+*.pyd
+*.lib
+*.exp
+*.obj
+*.pdb

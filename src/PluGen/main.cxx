@@ -35,7 +35,7 @@
 #include <vector>
 #include <stdio.h>
 #include <stdlib.h>
-#include <dirent.h>
+#include "../platform.h"
 #include <cstring>
 
 #include "PluginGenerator.h"
@@ -118,7 +118,7 @@ int main(int argc, char** argv) {
 
     // If the directory already exists, be sure they want to overwrite
     std::string directory = pluginpath + "/" + pluginname;
-    DIR* dir = opendir(directory.c_str());
+    bool dir = pluma::isDirectory(directory);
     if (dir) {
         std::string choice = "no";
         do {

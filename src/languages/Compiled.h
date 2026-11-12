@@ -41,10 +41,15 @@ class Compiled : public Language
 {
 public:
     Compiled(std::string language, std::string ext, std::string pp, std::string pre);
-    //void loadPlugin(std::string path, glob_t* globbuf, std::map<std::string, std::string>* pluginLanguages);
     virtual void executePlugin(std::string pluginname, std::string inputfile, std::string outputfile);//=0;
     virtual void unload(){}
     virtual void load(){}
+    virtual bool loadsSharedLibraries() const {return true;}
+    // Plugins whose library uses the Python C API: only their steps on the
+    // main thread hold the GIL.  The library is recorded at discovery and
+    // scanned when the plugin first runs.
+    static void setPluginLibrary(const std::string& plugin, const std::string& library);
+    static bool usesPython(const std::string& plugin);
 };
 
 #endif
