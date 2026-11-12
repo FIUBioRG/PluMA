@@ -165,7 +165,7 @@ void Py::executePlugin(
 
     activateVenv(cwd);
 
-    std::vector<std::string> roots = pluma::splitPathList(pluginpath);
+    std::vector<std::string> roots = pluma::splitPluginPath(pluginpath);
     for (size_t i = 0; i < roots.size(); ++i) {
         const std::string path = pluma::normalizeSlashes(roots[i]);
         PyRun_SimpleString(("sys.path.append(\""+path+pluginname+"/\")").c_str());

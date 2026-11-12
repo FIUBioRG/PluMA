@@ -207,6 +207,10 @@ void Java::load() {
     for (size_t i = 0; i < directories.size(); ++i) {
         if (i > 0) classpath += pluma::PATH_LIST_SEP;
         classpath += directories[i];
+        // (java.class.path has no way to escape its separator.)
+        if (directories[i].find(pluma::PATH_LIST_SEP) != std::string::npos)
+            PluginManager::getInstance().log("WARNING: Java cannot use the class path directory " + directories[i] +
+                                             ": its name contains the path separator.");
     }
 
     optionStrings.clear();
@@ -245,7 +249,7 @@ void Java::unload() {
 
 #ifdef HAVE_JAVA
 std::vector<std::string> Java::splitPaths(const std::string& paths) {
-    return pluma::splitPathList(paths);
+    return pluma::splitPluginPath(paths);
 }
 
 std::vector<std::string> Java::collectClasspathDirs() const {

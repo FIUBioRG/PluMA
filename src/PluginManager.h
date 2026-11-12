@@ -38,7 +38,10 @@
 #include "PluginMaker.h"
 #include "PlumaExport.h"
 
+#include <cstdio>
 #include <cstdlib>
+#include <mutex>
+#include <stdexcept>
 #include <string>
 #include <map>
 #include <vector>
@@ -64,15 +67,20 @@ public:
     std::set<std::string> installed;
     static std::vector<Language*> supported;
     std::map<std::string, std::string> pluginLanguages;
-    static std::string myPrefix;
 
 #ifdef _WIN32
     // Defined out of line in PluginManager.cxx and exported from pluma.exe:
     // an inline function-local static would be duplicated in every DLL.
     static PluginManager& getInstance();
 #else
+    // POSIX: plugins carry a weak copy that the dynamic linker coalesces with
+    // the executable's (-rdynamic / two-level namespace on macOS), so keep it
+    // inline -- plugins are linked without a reference to pluma.
     static PluginManager& getInstance()
     {
+        // Must stay `static PluginManager instance` (an object): plugins built
+        // against older headers share this exact function-local static with
+        // the executable, and changing its type would make them misread it.
         static PluginManager instance; // Guaranteed to be destroyed.
                                        // Instantiated on first use.
         return instance;
@@ -81,9 +89,10 @@ public:
 
     PluginManager() : logfile(NULL) {}
     PluginManager(PluginManager const&) = delete;
-    ~PluginManager() {
-        if (logfile) delete logfile;
-    }
+    // Does not close the log file: if a plugin calls exit() while parallel
+    // kitties still run, static destruction must not delete the stream they
+    // are writing to.  Every line is flushed (std::endl) as it is logged.
+    ~PluginManager() {}
     void operator=(PluginManager const&) = delete;
 
 public:
@@ -108,19 +117,69 @@ public:
     // Serialized: plugins on parallel "Kitty" threads log concurrently.
     static void log(std::string msg);
 
-    // If `plugin` is not installed: on a pipeline thread, throws
-    // DependencyNotMet -- readConfig() turns that into an orderly pipeline
-    // stop.  On a thread the plugin started itself (std::thread, OpenMP)
-    // nothing would catch it (std::terminate), so the process exits with
-    // status 1 as PluMA always did.  Defined in PluginManager.cxx (not
-    // inline: the throw stays in PluMA, so plugins compiled without
-    // exceptions still build).
+    // If `plugin` is not installed: on a pipeline thread, throws -- readConfig()
+    // turns that into an orderly pipeline stop (also with parallel kitties).
+    // On a thread the plugin started itself (std::thread, OpenMP) nothing
+    // would catch it (std::terminate), so the process exits with status 1 as
+    // PluMA always did -- via _Exit after flushing output (std::quick_exit is
+    // missing from some macOS libcs), because exit()'s static destructors
+    // would tear down the logger under kitties that are still running.
+    // Defined in PluginManager.cxx (not inline: the throw stays in PluMA, so
+    // plugins compiled without exceptions still build).  Where the exception
+    // cannot propagate (a noexcept function or destructor, a C library
+    // callback), PluMA's terminate handler ends the run the same orderly way
+    // as off a pipeline thread.
     static void dependency(std::string plugin);
 
+    // Deprecated: the most recently set prefix, shared by all threads (kept
+    // for plugins compiled against older headers).  Use prefix().
+    static std::string myPrefix;
+
+    // The current pipeline "Prefix" directory.  Kept per thread: parallel
+    // "Kitty" threads each run under their own prefix, and a single shared
+    // string would be a data race (and give plugins a sibling's directory).
+    // Defined in PluginManager.cxx.
+    static void setPrefix(const std::string& prefix);
+    // Sets only the calling thread's prefix (never the shared "most recent").
+    static void setThreadPrefix(const std::string& prefix);
+
+    // Ends the run at once with status 1, where unwinding is not possible
+    // (an unmet dependency() off a pipeline thread, exit() while kitties
+    // run): removes the outputs of the steps still running that changed --
+    // incomplete, like any failed step's -- except that, with
+    // keepCallersOutput, the calling thread's own is moved to
+    // "<output>.incomplete" (and every changed output, if it has no step of
+    // its own); flushes C/C++ output; _Exit(1).  The removal is done by the
+    // cleanup main() registers.
+    [[noreturn]] static void abortRun(bool keepCallersOutput);
+    static void setAbortCleanup(void (*cleanup)(bool keepCallersOutput));
+
+    // Parallel kitty threads currently running, process-wide.  A kitty is
+    // counted by the thread that launches it (before the thread exists) and
+    // uncounted when it ends.
+    static void kittyLaunching();
+    static void kittyFinished();
+    static int kittiesRunning();
+
+    // POSIX: keeps the log usable in a fork()ed child (e.g. a multiprocessing
+    // worker), which would otherwise inherit the log's lock held if another
+    // thread was logging at the moment of fork().  Called once from main().
+    static void installForkHandlers();
+
     // Whether the calling thread runs a pipeline (readConfig): an exception
-    // thrown here reaches PluMA's error handling.
+    // thrown here normally reaches PluMA's error handling (where it cannot --
+    // out of an OpenMP region, a noexcept function -- PluMA's terminate
+    // handler ends the run in order).
     static void setOnPipelineThread();
     static void clearOnPipelineThread();
+    // Whether the calling thread is PluMA's main thread.
+    static bool isMainThread();
+    // At the end of a kitty thread: frees its bookkeeping of prefix buffers
+    // (not the buffers, which plugins may still hold).
+    static void releaseThreadPrefixBuffers();
+    // Before each step: the thread's prefix buffer, if a plugin wrote into it
+    // in an earlier step, is replaced by an intact copy.
+    static void refreshThreadPrefix();
     static bool onPipelineThread();
 
     // The per-thread mark that an unmet dependency() happened during the
@@ -137,10 +196,11 @@ public:
     // How many unmet dependency() calls this thread has had (not cleared by
     // the language runners, unlike the mark above).
     static unsigned dependencyFailureCount();
-
-    static char* prefix() {
-        return (char*) myPrefix.c_str();
-    }
+    // Whether a DependencyNotMet still exists on this thread -- one being
+    // thrown, not one a plugin caught and finished handling (PluMA's
+    // terminate handler; see plumaDependencyExceptionLive in Language.h).
+    static bool dependencyExceptionAlive();
+    static char* prefix();
 
     static std::string addPrefix(std::string filename) {
         return std::string(prefix())+"/"+filename;
@@ -151,6 +211,10 @@ public:
         int argc,
         char** argv)
     {
+        // Python, R and Perl are registered even when compiled out, so their
+        // plugins fail with "<lang> support is not enabled in this build"
+        // rather than being skipped.  Java is registered only when built in:
+        // stray compiled *.class files must not shadow other plugins.
 #if defined(_WIN32)
         supported.push_back(new Compiled("C", "dll", pluginpath, ""));
 #elif defined(APPLE)
@@ -198,6 +262,9 @@ public:
 
 private:
     std::ofstream* logfile;
+    // (The log's lock is in PluginManager.cxx, never destroyed: on POSIX this
+    // object is a function-local static, destroyed at exit while threads a
+    // plugin started may still log.)
 };
 
 #endif

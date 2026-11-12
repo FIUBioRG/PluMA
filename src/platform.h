@@ -13,11 +13,20 @@
 #define PLUMA_PLATFORM_H
 
 #include <algorithm>
-#include <cerrno>
-#include <cstdio>
+#include <atomic>
+#include <chrono>
+#include <iostream>
+#include <condition_variable>
 #include <ctime>
 #include <fstream>
+#include <cstdio>
+#include <functional>
+#include <cerrno>
+#include <exception>
+#include <memory>
+#include <mutex>
 #include <string>
+#include <thread>
 #include <vector>
 
 #ifdef _WIN32
@@ -93,6 +102,11 @@ const char PATH_LIST_SEP = ':';
 const char TIMESTAMP_SEP = ':';
 #endif
 
+// Between the entries of the plugin search path PluMA builds at startup and
+// hands to each language: not PATH_LIST_SEP, which is legal in a directory
+// name (the working directory may hold a ';', or a ':' on POSIX).
+const char PLUGIN_PATH_SEP = '\x1f';
+
 // Split a search path into its non-empty entries.
 inline std::vector<std::string> splitPathList(const std::string& paths, char separator = PATH_LIST_SEP) {
     std::vector<std::string> result;
@@ -104,6 +118,11 @@ inline std::vector<std::string> splitPathList(const std::string& paths, char sep
         start = end + 1;
     }
     return result;
+}
+
+// The entries of the plugin search path (see PLUGIN_PATH_SEP).
+inline std::vector<std::string> splitPluginPath(const std::string& pluginpath) {
+    return splitPathList(pluginpath, PLUGIN_PATH_SEP);
 }
 
 // True if `name` ends with "Plugin.<ext>".  "Plugin" must match exactly on
@@ -274,10 +293,144 @@ inline bool readFileAt(std::ifstream& file, unsigned long long offset, void* to,
     return file && static_cast<unsigned long long>(file.gcount()) == length;
 }
 
+// Whether this thread is inside loadLibrary() (see runBounded).
+inline bool& loadingLibrary() {
+    static thread_local bool loading = false;
+    return loading;
+}
+
+// Runs `work` on a detached helper thread and waits for it at most `limit`:
+// for work that may block for good (e.g. on a lock another thread never
+// releases) where the process ends right after anyway.  False if it did not
+// finish in time, or no thread could be started (then it did not run).
+// `runHereIfNoThread`: while this thread is loading a library through
+// loadLibrary() on Windows -- a plugin's static initializer, under the DLL
+// loader lock, where no new thread can start -- `work` runs right here
+// instead (output that must not be lost would otherwise be skipped).
+inline bool runBounded(std::function<void()> work, std::chrono::milliseconds limit, bool runHereIfNoThread = false) {
+#ifdef _WIN32
+    if (runHereIfNoThread && loadingLibrary()) {
+        work();
+        return true;
+    }
+#else
+    (void) runHereIfNoThread;
+#endif
+    struct Done {
+        std::mutex m;
+        std::condition_variable cv;
+        bool done = false;
+    };
+    std::shared_ptr<Done> state = std::make_shared<Done>();
+    try {
+        std::thread([work, state] {
+            work();
+            std::lock_guard<std::mutex> lock(state->m);
+            state->done = true;
+            state->cv.notify_all();
+        }).detach();
+    } catch (const std::exception&) {
+        return false;
+    }
+    std::unique_lock<std::mutex> lock(state->m);
+    return state->cv.wait_for(lock, limit, [&] { return state->done; });
+}
+
+// Writes out every open C stream's buffer (fflush(NULL)), bounded: a stream
+// may be locked by a thread blocked for good (a full pipe).
+inline void flushAllStreamsBounded() {
+    runBounded([] { std::fflush(NULL); }, std::chrono::seconds(2), true);
+}
+
+// A line for stdout on a path that must not hang (ending a run): bounded,
+// since a thread blocked on a full stdout pipe may hold the stream's lock
+// (such messages are logged as well).  After one times out, later ones are
+// not attempted.
+inline void warnBounded(const std::string& message) {
+    static std::atomic<bool> stalled(false);
+    if (stalled) return;
+    if (!runBounded([message] { std::cout << message << std::endl; }, std::chrono::seconds(2), true))
+        stalled = true;
+}
+
+
+// This process's id.
+inline unsigned long processId() {
+#ifdef _WIN32
+    return static_cast<unsigned long>(GetCurrentProcessId());
+#else
+    return static_cast<unsigned long>(getpid());
+#endif
+}
+
+// Creates `path` as a new empty file; false if it exists already (or cannot
+// be created).  Atomic: of several processes creating the same name, one wins.
+inline bool createNewFile(const std::string& path) {
+#ifdef _WIN32
+    HANDLE file = CreateFileA(path.c_str(), GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                              NULL, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (file == INVALID_HANDLE_VALUE) return false;
+    CloseHandle(file);
+    return true;
+#else
+    const int fd = open(path.c_str(), O_WRONLY | O_CREAT | O_EXCL, 0666);
+    if (fd < 0) return false;
+    close(fd);
+    return true;
+#endif
+}
+
+// The first of name(0), name(1), ... name(999), then pidName(0) ...
+// pidName(999), that `claim` takes (e.g. creates exclusively); `claimed`
+// tells whether one did.  If none, the last one tried.  For files several
+// runs name alike (logs of one second, "<output>.incomplete").
+inline std::string claimFreeName(const std::function<std::string(int)>& name,
+                                 const std::function<std::string(int)>& pidName,
+                                 const std::function<bool(const std::string&)>& claim, bool& claimed) {
+    std::string candidate;
+    for (int n = 0; n < 1000; ++n)
+        if (claim(candidate = name(n))) return claimed = true, candidate;
+    for (int n = 0; n < 1000; ++n)
+        if (claim(candidate = pidName(n))) return claimed = true, candidate;
+    claimed = false;
+    return candidate;
+}
 
 // Removes a leading UTF-8 byte order mark (files saved by some Windows editors).
 inline void stripUtf8Bom(std::string& text) {
     if (text.compare(0, 3, "\xEF\xBB\xBF") == 0) text.erase(0, 3);
+}
+
+// The claim for claimFreeName() of a file to create: true if `name` was
+// created -- or cannot be created although it does not exist (e.g. the
+// directory is not writable), which ends the search there: trying further
+// names would fail alike.
+inline bool claimNewFile(const std::string& name) {
+    return createNewFile(name) || !fileExists(name);
+}
+
+// Renames `from` to `to`, replacing `to` if it exists (POSIX rename() does;
+// Windows' needs MoveFileEx).  False on failure (e.g. `from` still open on
+// Windows).
+inline bool renameReplacing(const std::string& from, const std::string& to) {
+#ifdef _WIN32
+    return MoveFileExA(from.c_str(), to.c_str(), MOVEFILE_REPLACE_EXISTING) != 0;
+#else
+    return std::rename(from.c_str(), to.c_str()) == 0;
+#endif
+}
+
+// Copies `from` over `to` (created or truncated; an empty file too).
+inline bool copyFile(const std::string& from, const std::string& to) {
+    std::ifstream in(from.c_str(), std::ios::in | std::ios::binary);
+    if (!in) return false;
+    std::ofstream out(to.c_str(), std::ios::out | std::ios::binary);
+    if (!out) return false;
+    char block[65536];
+    while (in.read(block, sizeof(block)) || in.gcount() > 0)
+        out.write(block, in.gcount());
+    out.flush();
+    return !in.bad() && static_cast<bool>(out);
 }
 
 // Reads all of `in` into `data`; false on a read error (not the end).
@@ -315,6 +468,28 @@ inline std::string finalPath(const std::string& path) {
 }
 #endif
 
+// A key identifying the directory `path` names, for spotting the same
+// directory written differently ("plugins", "./plugins/", "<cwd>/plugins").
+// Absolute and resolved (symlinks, junctions, subst drives), without a trailing
+// separator; case-folded on Windows, whose file systems are case-insensitive.
+// Falls back to `path` itself if it cannot be resolved (e.g. it is missing).
+inline std::string directoryKey(const std::string& path) {
+#ifdef _WIN32
+    std::string key = path;
+    fullPathName(path, key);   // unchanged if it fails
+    key = normalizeSlashes(finalPath(key));
+    key = toLowerAscii(key);
+#else
+    std::string key = path;
+    if (char* resolved = realpath(path.c_str(), NULL)) {
+        key = resolved;
+        free(resolved);
+    }
+#endif
+    while (key.size() > 1 && key[key.size() - 1] == '/') key.erase(key.size() - 1);
+    return key;
+}
+
 // Whether `path` is an ordinary file -- not a directory, device (/dev/null,
 // NUL, CON), FIFO or socket.  Only such files are stamped (reading a FIFO or
 // a terminal would block) or removed after a failure.
@@ -332,6 +507,24 @@ inline bool isRegularFile(const std::string& path) {
 #else
     struct stat st;
     return stat(path.c_str(), &st) == 0 && S_ISREG(st.st_mode);
+#endif
+}
+
+// Empties a regular file in place.  For an incomplete output that cannot be
+// removed because a step still has it open (Windows: a plugin's ofstream does
+// not share delete access, but does share write): no partial content stays
+// behind.  POSIX can always unlink an open file, so this is Windows-only.
+inline bool truncateFile(const std::string& path) {
+#ifdef _WIN32
+    HANDLE h = CreateFileA(path.c_str(), GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                           NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (h == INVALID_HANDLE_VALUE) return false;
+    const bool ok = SetEndOfFile(h) != 0;   // a new handle starts at offset 0
+    CloseHandle(h);
+    return ok;
+#else
+    (void) path;
+    return false;
 #endif
 }
 
@@ -510,9 +703,9 @@ inline std::string findInDirs(const std::vector<std::string>& dirs, const std::s
     return "";
 }
 
-// The same, over a PATH_LIST_SEP-separated plugin search path.
+// The same, over the plugin search path.
 inline std::string findInPluginPath(const std::string& pluginpath, const std::string& relative) {
-    return findInDirs(splitPathList(pluginpath), relative);
+    return findInDirs(splitPluginPath(pluginpath), relative);
 }
 
 // Immediate subdirectories of `root` (hidden entries skipped), as root + "/" + name.
@@ -592,6 +785,11 @@ inline void* loadLibrary(const std::string& path) {
     // LOAD_WITH_ALTERED_SEARCH_PATH (search the plugin's own directory for
     // its dependencies) is only defined for absolute paths.
     fullPathName(native, native);   // unchanged if it fails
+    struct Loading {
+        bool previous;
+        Loading() : previous(loadingLibrary()) { loadingLibrary() = true; }
+        ~Loading() { loadingLibrary() = previous; }
+    } loading;
     return (void*) LoadLibraryExA(native.c_str(), NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
 #else
     return dlopen(path.c_str(), RTLD_LAZY | RTLD_GLOBAL);

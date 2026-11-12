@@ -33,6 +33,15 @@ void Julia::executePlugin(
     // Find the plugin file (before anything else, as for every language).
     std::string pluginFile = findJuliaPluginFile(pluginname);
 
+    // The embedded Julia runtime may only be called from the thread that
+    // started it (other threads would have to be adopted first): Julia steps
+    // run on PluMA's main thread, not on parallel kitties.
+    if (!PluginManager::isMainThread()) {
+        PluginManager::getInstance().log("Julia plugin " + pluginname + " cannot run on a parallel kitty; "
+                                         "Julia steps run on PluMA's main thread only.");
+        throw PluginNotStarted("Julia plugins run on PluMA's main thread only");
+    }
+
     if (!initialized) load();
     if (!initialized) {
         PluginManager::getInstance().log("Julia runtime is not available; cannot run " + pluginname);
@@ -100,7 +109,7 @@ void Julia::load() {
     }
 
     // Add plugin paths to Julia's LOAD_PATH
-    std::vector<std::string> roots = pluma::splitPathList(pluginpath);
+    std::vector<std::string> roots = pluma::splitPluginPath(pluginpath);
     for (const auto& root : roots) {
         if (root.empty()) continue;
         std::string pushCode = "push!(LOAD_PATH, \"" + root + "\")";
@@ -124,7 +133,7 @@ void Julia::unload() {
 #ifdef HAVE_JULIA
 std::string Julia::findJuliaPluginFile(const std::string& pluginname) const {
     // <plugin>/<plugin>Plugin.jl, else <plugin>/plugin.jl, root by root.
-    std::vector<std::string> roots = pluma::splitPathList(pluginpath);
+    std::vector<std::string> roots = pluma::splitPluginPath(pluginpath);
     for (const auto& root : roots) {
         if (root.empty()) continue;
         for (const std::string& name : { pluginname + "Plugin.jl", std::string("plugin.jl") }) {

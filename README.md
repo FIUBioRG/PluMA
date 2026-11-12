@@ -45,6 +45,17 @@ and the pipeline went on, set `PLUMA_CONTINUE_ON_ERROR=1` (PluMA still exits
 with status 1 at the end if any step failed, and an unmet `dependency()` still
 stops the run).
 
+Notes for C/C++ plugin authors:
+
+* As in earlier versions, the plugin object is not deleted after its step
+  (its destructor does not run): close or flush output files in `output()`.
+* `PluginManager::prefix()` / `addPrefix()` are per pipeline thread: each
+  parallel kitty sees its own directory. A thread the plugin starts itself
+  (`std::thread`, OpenMP workers) cannot be traced back to its kitty and sees
+  the most recently set prefix, which may be a sibling kitty's: call
+  `prefix()`/`addPrefix()` in the plugin's own `input()`/`run()`/`output()`
+  and hand the result to its worker threads.
+
 ------------------------------------------------------------------------------
 
 ## Building on Windows (MSVC)
