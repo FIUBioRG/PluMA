@@ -33,8 +33,57 @@
 
 #include "Perl.h"
 #include "../PluginManager.h"
+#include "../platform.h"
 
-#ifdef HAVE_PERL
+#if defined(HAVE_PERL) && defined(_WIN32)
+// Windows: Strawberry Perl is built with GCC and its headers cannot be
+// compiled by MSVC, so the Perl runner lives in pluma_perl.dll (built with
+// Strawberry's g++; see bridges/PerlBridge.h and PerlRun.h), loaded on first
+// use after perl5XY.dll (by absolute path: the Perl SCons built against,
+// then PATH).
+#include "../bridges/PerlBridge.h"
+#ifdef PLUMA_HAVE_BUILD_PATHS
+#include "pluma_build_paths.h"
+#endif
+
+static PlumaPerlRun perlRun = NULL;
+static bool perlSearched = false;
+
+static void hostLog(const char* message) { PluginManager::getInstance().log(message); }
+
+static bool loadPerlRunner() {
+    if (perlSearched) return perlRun != NULL;
+    perlSearched = true;
+#ifdef PLUMA_PERL_DLL
+    std::vector<std::string> dirs;
+#ifdef PLUMA_BUILD_PERL_BIN
+    dirs.push_back(PLUMA_BUILD_PERL_BIN);
+#endif
+    const std::vector<std::string> pathDirs = pluma::absolutePathDirs();
+    dirs.insert(dirs.end(), pathDirs.begin(), pathDirs.end());
+    if (!pluma::preloadDll(PLUMA_PERL_DLL, dirs)) {
+        PluginManager::getInstance().log("Perl (" PLUMA_PERL_DLL ") was not found; install Strawberry Perl or put "
+                                         "its perl\\bin on PATH.");
+        return false;
+    }
+    std::string why;
+    HMODULE bridge = pluma::loadBridge("pluma_perl.dll", "pluma_perl_bridge_version", PLUMA_PERL_BRIDGE_VERSION, why);
+    PlumaPerlRun run = bridge ? (PlumaPerlRun) GetProcAddress(bridge, "pluma_perl_run") : NULL;
+    if (bridge && !run) why = pluma::bridgeMismatch("pluma_perl.dll");
+    if (!run) {
+        PluginManager::getInstance().log("The Perl runner " + why + ".");
+        return false;
+    }
+    perlRun = run;
+    return true;
+#else
+    PluginManager::getInstance().log("This build has no Perl runner.");
+    return false;
+#endif
+}
+#endif
+
+#if defined(HAVE_PERL) && !defined(_WIN32)
 #include <EXTERN.h>
 #include <perl.h>
 
@@ -66,7 +115,7 @@ Perl::Perl(
 {
     argc2 = 2;
     argv2 = new char*[2];
-#ifdef HAVE_PERL
+#if defined(HAVE_PERL) && !defined(_WIN32)
     PERL_SYS_INIT3(&argc2, &argv2, &env);
 #endif
     //my_perl = perl_alloc();
@@ -76,7 +125,7 @@ Perl::Perl(
 Perl::~Perl()
 {
     if (argv2) delete[] argv2;
-#ifdef HAVE_PERL
+#if defined(HAVE_PERL) && !defined(_WIN32)
     PERL_SYS_TERM();
 #endif
 }
@@ -86,7 +135,13 @@ void Perl::executePlugin(
     std::string inputname,
     std::string outputname
 ) {
-#ifdef HAVE_PERL
+#if defined(HAVE_PERL) && defined(_WIN32)
+    PluginManager::getInstance().log("Trying to run Perl plugin: "+pluginname+".");
+    if (!loadPerlRunner()) return;
+    const std::string filename = pluma::findInPluginPath(pluginpath, pluginname + "/" + pluginname + "Plugin.pl");
+    const PerlHost host = { hostLog };
+    perlRun(&host, pluginname.c_str(), filename.c_str(), inputname.c_str(), outputname.c_str());
+#elif defined(HAVE_PERL)
     //PerlInterpreter *my_perl;
     PluginManager::getInstance().log("Trying to run Perl plugin: "+pluginname+".");
     //char** env;

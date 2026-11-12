@@ -28,13 +28,17 @@
        For information regarding this software, please contact lead architect
                     Trevor Cickovski at tcickovs@fiu.edu
 
-\********************************************************************************/
+\*********************************************************************************/
 
-#include "platform.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include "Plugin.h"
+//#include "PluginManager.h"
 #include "PluginProxy.h"
+/*#include "languages/Compiled.h"
+#include "languages/Py.h"
+#include "languages/R.h"
+#include "languages/Perl.h"*/
 #include <string>
 #include <map>
 #include <vector>
@@ -42,15 +46,7 @@
 #include <sstream>
 #include <ctime>
 #include <thread>
-
-#if PLUMA_PLATFORM_WINDOWS
-    using pluma::platform::glob_t;
-    using pluma::platform::glob;
-#else
-    #include <glob.h>
-    #include <pthread.h>
-#endif
-
+#include "platform.h"
 using std::thread;
 using std::vector;
 
@@ -71,15 +67,24 @@ struct args {
    char* myRestartPoint;
 };
 
+//void readConfig(void* pars) {
+//void readConfig(void* infilep, void* pref, void* doR, void* rP) {
 void readConfig(std::string inputfile, std::string prefix, bool doRestart, std::string restartPoint) {
-    void* status;
+    //printf("CALLED");
+    //fflush(stdout);
+	//args* params = (args*) pars;
+    //char* inputfile = params->myFile;
     std::ifstream infile(inputfile.c_str(), std::ios::in);
     bool restartFlag = false;
+    //std::string prefix = std::string(params->myPrefix);
+    //std::string restartPoint = std::string(params->myRestartPoint);
+    //bool doRestart = *(params->myDoRestart);
     std::string pipeline = "";
     std::string oldprefix = prefix;
     std::string kitty = "";
-    bool parallelflag, kittyflag;
+    bool parallelflag = false, kittyflag = false;
     vector<std::thread> threads;
+    //vector<args*> argsvec;
     while (!infile.eof()) {
         std::string junk, name, inputname, outputname;
         /**
@@ -87,6 +92,8 @@ void readConfig(std::string inputfile, std::string prefix, bool doRestart, std::
         * Plugin (Name) inputfile (input file) outputfile (output file)
         */
         infile >> junk;
+	//std::cout << "JUNK: " << junk << std::endl;
+	//fflush(stdout);
         if (junk[0] == '#') {
             // the line is a comment
             getline(infile, junk);
@@ -100,11 +107,27 @@ void readConfig(std::string inputfile, std::string prefix, bool doRestart, std::
             continue;
         } else if (junk == "Pipeline") {
             infile >> pipeline;
+		//args* myargs = new args();
+		//myargs->myFile = (char*) pipeline.c_str();
+		//myargs->myPrefix = (char*) prefix.c_str();
+		//myargs->myDoRestart = params->myDoRestart;
+		//myargs->myRestartPoint = params->myRestartPoint;
 	    if (parallelflag && kittyflag) { // Kitty is multithreaded
+		    //std::thread mythread = new std::thread();
+		//std::cout << "[PluMA] Launching Parallel Kitty: " << prefix << std::endl;
+                //int ret1 = pthread_create(mythread, NULL, readConfig, (void*) myargs);
+	        //threads.push_back(mythread);
 		threads.push_back(std::thread(readConfig, pipeline, prefix, false, ""));
+		  //  argsvec.push_back(myargs);
+		//if (ret1 == 0) 
+		//	std::cout << "Succeeded" << std::endl;
+		//else
+		//	std::cout << "Failed" << std::endl;
 	    }
 	    else {
+		//    readConfig(myargs);
             readConfig(pipeline, prefix, false, "");
+	    //delete myargs;
 	    }
         } else if (junk == "Kitty") {
             infile >> kitty;
@@ -120,9 +143,16 @@ void readConfig(std::string inputfile, std::string prefix, bool doRestart, std::
             parallelflag = true;
 	}
 	else if (junk == "LitterGather") {
-	    for (size_t i = 0; i < threads.size(); i++){
+	    for (int i = 0; i < threads.size(); i++){
 	       std::cout << "[PluMA] Gathering Kitty " << i << std::endl;
+               //int ret2 = pthread_join(threads[i], &status);
+	//	if (ret2 == 0) 
+	//		std::cout << "Succeeded" << std::endl;
+	//	else
+	//		std::cout << "Failed: " << status << " " << ret2 << std::endl;
 	       threads[i].join();
+               //delete threads[i];
+	       //delete argsvec[i];
 	    }
 	    parallelflag = false;
 	    kittyflag = false;
@@ -130,11 +160,12 @@ void readConfig(std::string inputfile, std::string prefix, bool doRestart, std::
             infile >> name >> junk >> inputname >> junk >> outputname;
         }
 
-        if (inputname.length() > 0 && inputname[0] != '/' && inputname[0] != '\\') {
+        // (Absolute paths include Windows drive paths, C:/data.)
+        if (!pluma::isAbsolutePath(inputname)) {
             inputname = prefix + inputname;
         }
 
-        if (outputname.length() > 0 && outputname[0] != '/' && outputname[0] != '\\') {
+        if (!pluma::isAbsolutePath(outputname)) {
             outputname = prefix + outputname;
         }
         //////////////////////////////////////////////////////
@@ -155,7 +186,7 @@ void readConfig(std::string inputfile, std::string prefix, bool doRestart, std::
         PluginManager::getInstance().log("Creating plugin "+name);
         try {
             bool executed = false;
-            for (size_t i = 0; i < PluginManager::supported.size() && !executed; i++) {
+            for (int i = 0; i < PluginManager::supported.size() && !executed; i++) {
                 if (PluginManager::getInstance().pluginLanguages[name+"Plugin"] == PluginManager::supported[i]->lang()) {
                     std::cout << "[PluMA] Running Plugin: " << name << std::endl;
                     PluginManager::supported[i]->executePlugin(name, inputname, outputname);
@@ -174,12 +205,14 @@ void readConfig(std::string inputfile, std::string prefix, bool doRestart, std::
         // Message(s) will be output to the logfile, and output files will be removed.
         catch (...) {
             PluginManager::getInstance().log("ERROR IN PLUGIN: "+name+".");;
-            if (pluma::platform::fileExists(outputname)) {
+            if (pluma::fileExists(outputname)) {
                 PluginManager::getInstance().log("REMOVING OUTPUT FILE: "+outputname+".");
-                pluma::platform::removeFile(outputname);
+                std::remove(outputname.c_str());
                 exit(1);
             }
         }
+      //PluginManager::languageUnload("R");
+      //PluginManager::languageLoad("R");
         ////////////////////////////////////////////////////////////////////////////////////////////////////////
     }
 }
@@ -215,24 +248,38 @@ int main(int argc, char** argv)
     std::cout << "***********************************************************************************" << std::endl;
     ///////////////////////////////////////////////////////////////////////////////////////////////
     // Setup plugin path.
-    std::string pluginpath = std::string(PLUMA_PATH_SEPARATOR) + "plugins" + std::string(PLUMA_PATH_SEPARATOR);
-    pluginpath = pluma::platform::getCurrentDirectory() + pluginpath;
-    
-    std::string env_plugin_path = pluma::platform::getEnvVar("PLUMA_PLUGIN_PATH");
-    if (!env_plugin_path.empty()) {
-        pluginpath += PLUMA_PATH_LIST_SEPARATOR;
-        pluginpath += env_plugin_path;
+    // Entries are separated by pluma::PATH_LIST_SEP (':' on POSIX, ';' on
+    // Windows, where ':' is part of drive paths).  The current directory from
+    // the system, not $PWD (which Windows does not set).
+    std::string pluginpath = "/plugins/";
+    pluginpath = pluma::currentDirectory() + pluginpath;
+    if (getenv("PLUMA_PLUGIN_PATH") != NULL) {
+        pluginpath += pluma::PATH_LIST_SEP;
+        pluginpath += getenv("PLUMA_PLUGIN_PATH");
     }
-    pluginpath += PLUMA_PATH_LIST_SEPARATOR;
+    pluginpath += pluma::PATH_LIST_SEP;
+    //pluginpath += "/usr/local/bin/plugins/:/usr/bin/plugins/";
+    //pluginpath += ":";
+    //std::cout << "PluginPath: " << pluginpath << std::endl;
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Set PluginManager::supported languages here.
+    /*std::vector<Language*> PluginManager::supported;
+    std::map<std::string, std::string> PluginManager::getInstance().pluginLanguages;
+    #ifdef APPLE
+    PluginManager::supported.push_back(new Compiled("C", "dylib", pluginpath, "lib"));
+    #else
+    PluginManager::supported.push_back(new Compiled("C", "so", pluginpath, "lib"));
+    #endif
+    PluginManager::supported.push_back(new Py("Python", "py", pluginpath));
+    PluginManager::supported.push_back(new MiAMi::R("R", "R", pluginpath, argc, argv));
+    PluginManager::supported.push_back(new Perl("Perl", "pl", pluginpath));*/
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
     // Command line arguments
-    if ((argc != 2 && argc != 3) || std::string(argv[1]) == "usage") { // Usage
+    if (argc != 2 && argc != 3 || std::string(argv[1]) == "usage") { // Usage
         std::cout << "[PluMA] Usage: ./pluma (config file) (optional restart point)" << std::endl;
         std::cout << "Arguments: help: display this message" << std::endl;
         std::cout << "           version: display release information" << std::endl;
@@ -249,24 +296,26 @@ int main(int argc, char** argv)
     PluginManager::supportedLanguages(pluginpath, argc, argv);
     //////////////////////////////////////////////////////////////////////////////////////////
     // For each PluginManager::supported language, load the appropriate plugins
-    std::string path = pluginpath.substr(0, pluginpath.find_first_of(PLUMA_PATH_LIST_SEPARATOR));
+    std::string path = pluginpath.substr(0, pluginpath.find_first_of(pluma::PATH_LIST_SEP));
     bool list = false;
     while (path.length() > 0) {
-        glob_t globbuf;
+        //std::cout << "Plugin Path: " << pluginpath << std::endl;
+        //std::cout << "Path: " << path << std::endl;
         if (std::string(argv[1]) == "plugins") {
             std::cout << "[PluMA] Current plugin list: " << std::endl;
             list = true;
         }
 
-        for (size_t i = 0; i < PluginManager::supported.size(); i++)
-            PluginManager::supported[i]->loadPlugin(path, &globbuf, &(PluginManager::getInstance().pluginLanguages), list);
+        for (int i = 0; i < PluginManager::supported.size(); i++)
+            PluginManager::supported[i]->loadPlugin(path, &(PluginManager::getInstance().pluginLanguages), list);
 
         std::map<std::string, std::string>::iterator itr;
 
         for (itr = PluginManager::getInstance().pluginLanguages.begin(); itr != PluginManager::getInstance().pluginLanguages.end(); itr++)
             PluginManager::getInstance().add(itr->first.substr(0, itr->first.length()-6));
-        pluginpath = pluginpath.substr(pluginpath.find_first_of(PLUMA_PATH_LIST_SEPARATOR)+1, pluginpath.length());
-        path = pluginpath.substr(0, pluginpath.find_first_of(PLUMA_PATH_LIST_SEPARATOR));
+        //globfree(&globbuf);
+        pluginpath = pluginpath.substr(pluginpath.find_first_of(pluma::PATH_LIST_SEP)+1, pluginpath.length());
+        path = pluginpath.substr(0, pluginpath.find_first_of(pluma::PATH_LIST_SEP));
     }
     if (list) exit(0);
     //////////////////////////////////////////////////////////////////////////////////////////
@@ -285,18 +334,88 @@ int main(int argc, char** argv)
     // Get the current time, and setup the initial log file
     time_t t = time(0);
     struct tm* now = localtime( &t );
-    std::string currentTime = toString(now->tm_year + 1900) + "-" + toString(now->tm_mon + 1) + "-" + toString(now->tm_mday) + "@" + toString(now->tm_hour) + ":" + toString(now->tm_min) + ":" + toString(now->tm_sec);
+    // (TIMESTAMP_SEP: ':' is not allowed in Windows file names.)
+    const std::string sep(1, pluma::TIMESTAMP_SEP);
+    std::string currentTime = toString(now->tm_year + 1900) + "-" + toString(now->tm_mon + 1) + "-" + toString(now->tm_mday) + "@" + toString(now->tm_hour) + sep + toString(now->tm_min) + sep + toString(now->tm_sec);
     std::string mylog = "logs/"+currentTime+".log.txt";
     PluginManager::getInstance().setLogFile(mylog);
 
     /////////////////////////////////////////////////////////////////////
     // Read configuration file and make appropriate plugins
+    //args* myArgs = new args();
+    //myArgs->myFile = argv[1];
+    //myArgs->myPrefix = (char*) "";
+    //myArgs->myDoRestart = &doRestart;
+    //myArgs->myRestartPoint = (char*) (restartPoint.c_str());
     readConfig(std::string(argv[1]), "", doRestart, restartPoint);
+    //readConfig(myArgs);
+    //delete myArgs;
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+   /*std::ifstream infile(argv[1], std::ios::in);
+   bool restartFlag = false;
+   std::string prefix = "";
+   while (!infile.eof()) {
+      ///////////////////////////////////////////////////////
+      // Read one line
+      // Plugin (Name) inputfile (input file) outputfile (output file)
+      std::string junk, name, inputname, outputname;
+      infile >> junk;
+      if (junk[0] == '#') {getline(infile, junk); continue;} // comment
+      else if (junk == "Prefix") {infile >> prefix; prefix += "/"; continue;} // prefix
+      else infile >> name >> junk >> inputname >> junk >> outputname;
+      if (inputname[0] != '/')
+         inputname = prefix + inputname;
+      if (outputname[0] != '/')
+         outputname = prefix + outputname;
+      //////////////////////////////////////////////////////
+
+      ////////////////////////////////////////////////////////////////////////////
+      // If we are restarting and have not hit that point yet, skip this plugin
+      if (doRestart && !restartFlag)
+         if (name == restartPoint)
+            restartFlag = true;
+         else
+           continue;
+      /////////////////////////////////////////////////////////////////////
+
+      ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+      // Try to create and run all three steps of the plugin in the appropriate language
+      PluginManager::getInstance().log("Creating plugin "+name);
+      try {
+         bool executed = false;
+         for (int i = 0; i < PluginManager::supported.size() && !executed; i++)
+            if (PluginManager::getInstance().pluginLanguages[name+"Plugin"] == PluginManager::supported[i]->lang()) {
+               std::cout << "[PluMA] Running Plugin: " << name << std::endl;
+               PluginManager::supported[i]->executePlugin(name, inputname, outputname);
+               executed = true;
+            }
+         ///////////////////////////////////////////////////////////////////////////////////////////////////////
+         // In this case we found the plugin, but the language is not PluginManager::supported.
+         if (!executed && name != "")
+             PluginManager::getInstance().log("Error, no suitable language for plugin: "+name+".");
+         ///////////////////////////////////////////////////////////////////////////////////////////////////////
+      }
+      ///////////////////////////////////////////////////////////////////////////////////////////////////////
+      // This hits if the plugin errored while running it
+      // Message(s) will be output to the logfile, and output files will be removed.
+      catch (...) {
+         PluginManager::getInstance().log("ERROR IN PLUGIN: "+name+".");;
+         if (access( outputname.c_str(), F_OK ) != -1 ) {
+            PluginManager::getInstance().log("REMOVING OUTPUT FILE: "+outputname+".");
+            system(("rm "+outputname).c_str());
+            exit(1);
+	    }
+      }
+      std::cout << "HERE" << std::endl;
+      ////////////////////////////////////////////////////////////////////////////////////////////////////////
+   }*/
+   ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     /////////////////////////////////////////////////////////////////////
     // Cleanup.
-    for (size_t i = 0; i < PluginManager::supported.size(); i++)
+    for (int i = 0; i < PluginManager::supported.size(); i++)
         PluginManager::supported[i]->unload();
     /////////////////////////////////////////////////////////////////////
 

@@ -62,7 +62,7 @@ struct RustPluginVTable {
 class Rust : public Language {
 public:
     Rust(std::string language, std::string ext, std::string pp);
-    void loadPlugin(std::string path, glob_t* globbuf, std::map<std::string, std::string>* pluginLanguages, bool list);
+    void loadPlugin(std::string path, std::map<std::string, std::string>* pluginLanguages, bool list = false);
     void executePlugin(std::string pluginname, std::string inputname, std::string outputname);
     void unload();
     void load() {}

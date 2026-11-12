@@ -28,26 +28,20 @@
        For information regarding this software, please contact lead architect
                     Trevor Cickovski at tcickovs@fiu.edu
 
-\********************************************************************************/
+\*********************************************************************************/
 
 #ifndef LANGUAGE_H
 #define LANGUAGE_H
 
 #include <string>
 #include <map>
-#include "../platform.h"
-
-#if PLUMA_PLATFORM_WINDOWS
-    // Use platform.h glob_t emulation
-    using pluma::platform::glob_t;
-#else
-    #include <glob.h>
-#endif
 
 class Language {
 public:
     Language(std::string lang, std::string ext, std::string pp, std::string pre="") {language = lang; extension = ext; pluginpath = pp; prefix = pre;}
-    virtual void loadPlugin(std::string path, glob_t* globbuf, std::map<std::string, std::string>* pluginLanguages, bool list);
+    // (No glob_t parameter: Windows has no glob(); plugin files are found
+    // through platform.h on every platform.)
+    virtual void loadPlugin(std::string path, std::map<std::string, std::string>* pluginLanguages, bool list = false);
     virtual void executePlugin(std::string pluginname, std::string inputfile, std::string outputfile)=0;
     virtual void unload()=0;
     virtual std::string ext() {return extension;}

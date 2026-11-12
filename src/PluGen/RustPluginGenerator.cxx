@@ -31,7 +31,7 @@
 \*********************************************************************************/
 
 #include "RustPluginGenerator.h"
-#include <dirent.h>
+#include "../platform.h"
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
@@ -54,16 +54,10 @@ void RustPluginGenerator::generate(std::string pluginname, std::vector<std::stri
 void RustPluginGenerator::makeDirectory(std::string pluginname) {
     std::string directory = myPath + "/" + pluginname;
     // Check if directory exists, if so return, if not make it
-    DIR* dir = opendir(directory.c_str());
-    if (!dir) {
-        system(("mkdir -p " + directory + "/src").c_str());
-    } else {
-        // Create src subdirectory if it doesn't exist
-        std::string srcDir = directory + "/src";
-        DIR* srcDirPtr = opendir(srcDir.c_str());
-        if (!srcDirPtr) {
-            system(("mkdir " + srcDir).c_str());
-        }
+    // The plugin directory and its src/ (`mkdir -p`, as before).
+    if (!pluma::makeDirectories(directory + "/src")) {
+        std::cerr << "Error: could not create plugin directory " << directory << "/src" << std::endl;
+        exit(1);
     }
 }
 

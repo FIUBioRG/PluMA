@@ -36,6 +36,7 @@
 #define PLUGINMANAGER_H
 
 #include "PluginMaker.h"
+#include "PlumaExport.h"
 
 #include <cstdlib>
 #include <string>
@@ -57,7 +58,7 @@
 #include "languages/Julia.h"
 #endif
 
-class PluginManager {
+class PLUMA_API PluginManager {
 public:
     std::map<std::string, Maker*> makers;
     std::set<std::string> installed;
@@ -65,14 +66,20 @@ public:
     std::map<std::string, std::string> pluginLanguages;
     static std::string myPrefix;
 
+#ifdef _WIN32
+    // Defined out of line in PluginManager.cxx and exported from pluma.exe:
+    // an inline function-local static would be duplicated in every DLL.
+    static PluginManager& getInstance();
+#else
     static PluginManager& getInstance()
     {
         static PluginManager instance; // Guaranteed to be destroyed.
                                        // Instantiated on first use.
         return instance;
     }
+#endif
 
-    PluginManager() {}
+    PluginManager() : logfile(NULL) {}
     PluginManager(PluginManager const&) = delete;
     ~PluginManager() {
         if (logfile) delete logfile;
@@ -120,7 +127,9 @@ public:
         int argc,
         char** argv)
     {
-#ifdef APPLE
+#if defined(_WIN32)
+        supported.push_back(new Compiled("C", "dll", pluginpath, ""));
+#elif defined(APPLE)
         supported.push_back(new Compiled("C", "dylib", pluginpath, "lib"));
 #else
         supported.push_back(new Compiled("C", "so", pluginpath, "lib"));

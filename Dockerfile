@@ -2,7 +2,8 @@
 # Copyright 2019-2021 Florida International University
 # SPDX-License-Identifier: MIT
 
-FROM alpine:latest
+# The 3.23 series, not one patch release: rebuilds pick up its security fixes.
+FROM alpine:3.23
 
 ENV CC="clang"
 ENV CXX="clang++"
@@ -14,10 +15,10 @@ COPY ./ ./
 RUN apk add -t .runtime-deps \
   build-base scons blas blas-dev clang musl-dev musl \
   perl perl-dev git R R-dev R-mathlib python3-dev libffi \
-  libffi-dev libexecinfo libexecinfo-dev libc-dev \
+  libffi-dev libc-dev \
   py3-pip py3-pandas py3-numpy swig pcre pcre-dev \
-&& ln -s /usr/bin/python3 /usr/bin/python \
-&& pip install pythonds \
+&& ln -sf /usr/bin/python3 /usr/bin/python \
+&& pip install --break-system-packages pythonds \
 && mkdir -p ~/.R \
 && printf 'CXX=clang++\nPKG_CXXFLAGS += -D__MUSL__' > ~/.R/Makevars \
 && Rscript -e "install.packages('RInside', repos = 'https://cloud.r-project.org')" \

@@ -101,10 +101,13 @@ else:
         "/usr/lib",
         "/usr/local/lib",
     ]
+    # "#src": relative to the top-level SConstruct, also inside a plugin's
+    # own SConscript (a plain "src" would be read relative to that plugin's
+    # folder).
     include_search_path = [
         "/usr/include",
         "/usr/local/include",
-        relpath("./src"),
+        "#src",
     ]
 
 # =============================================================================

@@ -32,6 +32,7 @@
 
 #include "Rust.h"
 #include "../PluginManager.h"
+#include "../platform.h"
 #include <iostream>
 #include <fstream>
 
@@ -47,43 +48,39 @@ Rust::Rust(
 
 void Rust::loadPlugin(
     std::string path,
-    glob_t* globbuf,
     std::map<std::string, std::string>* pluginLanguages,
     bool list
 ) {
 #ifdef HAVE_RUST
     // Rust plugins are identified by the presence of Cargo.toml
     // and a compiled .so file (lib*Plugin.so)
-    std::string pathGlob = path + "/*/Cargo.toml";
-
-    if (glob(pathGlob.c_str(), 0, NULL, globbuf) == 0) {
-        for (unsigned int i = 0; i < globbuf->gl_pathc; i++) {
-            std::string cargoPath = globbuf->gl_pathv[i];
-
-            // Extract plugin directory and name
-            std::string pluginDir = cargoPath.substr(0, cargoPath.find_last_of("/"));
-            std::string pluginName = pluginDir.substr(pluginDir.find_last_of("/") + 1);
-
-            // Check if compiled .so exists
-            std::string soPath = pluginDir + "/lib" + pluginName + "Plugin.so";
-            std::ifstream soFile(soPath.c_str());
-
-            if (soFile.good()) {
-                // Register this as a Rust plugin
-                std::string keyName = pluginName + "Plugin";
-                (*pluginLanguages)[keyName] = language;
-
-                if (list) {
-                    std::cout << "Plugin: " << pluginName << " Language: " << language << " Path: " << pluginDir << std::endl;
-                }
-            } else {
-                std::cout << "Warning: Rust plugin " << pluginName << " found but not compiled (missing " << soPath << ")" << std::endl;
-            }
+    bool found = false;
+    while (path.size() > 1 && path.back() == '/') path.pop_back();   // (no "//" in the paths below)
+    std::vector<std::string> dirs = pluma::listSubdirectories(path);
+    for (size_t i = 0; i < dirs.size(); i++) {
+        const std::string& pluginDir = dirs[i];
+        if (!pluma::fileExists(pluginDir + "/Cargo.toml")) continue;
+        found = true;
+        const std::string pluginName = pluma::baseName(pluginDir);
+        // Check if compiled .so exists
+        const std::string soPath = pluginDir + "/lib" + pluginName + "Plugin.so";
+        if (!pluma::fileExists(soPath)) {
+            std::cout << "Warning: Rust plugin " << pluginName << " found but not compiled (missing " << soPath << ")" << std::endl;
+            continue;
         }
-    } else {
-        std::cout << "Found no " << language << " plugins" << std::endl;
+        if (list) {
+            std::cout << "  " << pluginName << " (" << language << "): " << soPath << std::endl;
+        } else {
+            // Register this as a Rust plugin (after C/C++, which may have
+            // loaded the same library: the last registration wins).
+            (*pluginLanguages)[pluginName + "Plugin"] = language;
+        }
     }
+    if (!found) std::cout << "Found no " << language << " plugins" << std::endl;
 #else
+    (void) path;
+    (void) pluginLanguages;
+    (void) list;
     std::cout << "Found no " << language << " plugins (Rust support not compiled)" << std::endl;
 #endif
 }

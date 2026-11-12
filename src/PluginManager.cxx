@@ -34,3 +34,40 @@
 #include <vector>
 std::vector<Language*> PluginManager::supported;
 std::string PluginManager::myPrefix = "";
+
+#ifdef _WIN32
+// The plugin API as plain C, exported by pluma.exe for modules built with
+// another compiler -- PerlPluMA, which must be built with Strawberry Perl's
+// g++ and so cannot use PluginManager's C++ interface (see
+// src/bridges/PluMAHost.cxx).
+#define PLUMA_HOST_API extern "C" __declspec(dllexport)
+
+PLUMA_HOST_API int pluma_host_api_version(void) { return 1; }
+
+PLUMA_HOST_API void pluma_host_log(const char* message) {
+    PluginManager::log(message ? message : "");
+}
+
+// As PluginManager::dependency(): ends PluMA when the dependency is not met.
+PLUMA_HOST_API void pluma_host_dependency(const char* plugin) {
+    PluginManager::dependency(plugin ? plugin : "");
+}
+
+PLUMA_HOST_API const char* pluma_host_prefix(void) {
+    return PluginManager::prefix();
+}
+
+PLUMA_HOST_API void pluma_host_language_load(const char* lang) {
+    PluginManager::languageLoad(lang ? lang : "");
+}
+
+PLUMA_HOST_API void pluma_host_language_unload(const char* lang) {
+    PluginManager::languageUnload(lang ? lang : "");
+}
+
+PluginManager& PluginManager::getInstance()
+{
+    static PluginManager* instance = new PluginManager();
+    return *instance;
+}
+#endif
