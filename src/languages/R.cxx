@@ -32,12 +32,95 @@
 
 #ifdef HAVE_R
 #include "R.h"
+#ifdef _WIN32
+#include "../bridges/RBridge.h"
+#else
 #include "RInside.h"
 #include "Rinterface.h"
 #endif
+#endif
 #include "../PluginManager.h"
+#include "../platform.h"
+#include <stdexcept>
+#if defined(HAVE_R) && defined(_WIN32) && defined(PLUMA_HAVE_BUILD_PATHS)
+#include "pluma_build_paths.h"
+#endif
 
 namespace MiAMi {
+
+#if defined(HAVE_R) && defined(_WIN32)
+// Windows: R's C API in pluma_r.dll (see bridges/RBridge.h), loaded the first
+// time R is needed -- pluma.exe itself does not link R, so it starts on
+// machines without it.
+static PlumaREval rEval = NULL;
+static PlumaREnd rEnd = NULL;
+static bool rRunning = false;
+static bool rAttempted = false;   // (not retried after failing)
+
+// R's installation directory: R_HOME, then the registration the R installer
+// writes, then the R SCons built against.
+static std::string findRHome() {
+    std::vector<std::string> dirs;
+    if (const char* home = getenv("R_HOME")) dirs.push_back(home);
+    for (const char* key : { "SOFTWARE\\R-core\\R64", "SOFTWARE\\R-core\\R" }) {
+        dirs.push_back(pluma::registryString(HKEY_CURRENT_USER, key, "InstallPath"));
+        dirs.push_back(pluma::registryString(HKEY_LOCAL_MACHINE, key, "InstallPath"));
+    }
+#ifdef PLUMA_BUILD_R_HOME
+    dirs.push_back(PLUMA_BUILD_R_HOME);
+#endif
+    for (size_t i = 0; i < dirs.size(); ++i) {
+        if (dirs[i].empty() || !pluma::isAbsolutePath(dirs[i])) continue;
+        if (pluma::fileExists(pluma::normalizeSlashes(dirs[i]) + "/bin/x64/R.dll")) return dirs[i];
+    }
+    return "";
+}
+
+// Starts embedded R once; logs why if it cannot.
+static bool startR(int argc, char** argv) {
+    if (rRunning || rAttempted) return rRunning;
+    rAttempted = true;
+    const std::string home = findRHome();
+    if (home.empty()) {
+        PluginManager::getInstance().log("R was not found (set R_HOME, or install R for Windows).");
+        return false;
+    }
+    // R reads R_HOME from the environment (the C runtime's and Win32's).
+    _putenv_s("R_HOME", home.c_str());
+    SetEnvironmentVariableA("R_HOME", home.c_str());
+    // R.dll first, by absolute path (its own directory resolves its
+    // dependencies), then Rblas.dll / Rlapack.dll, so package DLLs that
+    // import them bind to these without R's bin on PATH; then the bridge
+    // next to pluma.exe, which binds to that R.dll.
+    const std::string bin = pluma::normalizeSlashes(home) + "/bin/x64";
+    if (!pluma::loadLibrary(bin + "/R.dll")) {
+        PluginManager::getInstance().log("R.dll could not be loaded from " + bin + ": " + pluma::lastLibraryError());
+        return false;
+    }
+    for (const char* dll : { "Rblas.dll", "Rlapack.dll" })
+        if (pluma::fileExists(bin + "/" + dll)) pluma::loadLibrary(bin + "/" + dll);
+    std::string why;
+    HMODULE bridge = pluma::loadBridge("pluma_r.dll", "pluma_r_bridge_version", PLUMA_R_BRIDGE_VERSION, why);
+    if (!bridge) {
+        PluginManager::getInstance().log("The R bridge " + why + ".");
+        return false;
+    }
+    PlumaRStart rStart = (PlumaRStart) GetProcAddress(bridge, "pluma_r_start");
+    rEval = (PlumaREval) GetProcAddress(bridge, "pluma_r_eval");
+    rEnd = (PlumaREnd) GetProcAddress(bridge, "pluma_r_end");
+    if (!rStart || !rEval || !rEnd) {
+        PluginManager::getInstance().log("The R bridge " + pluma::bridgeMismatch("pluma_r.dll") + ".");
+        return false;
+    }
+    char err[1024];
+    if (rStart(argc, argv, err, sizeof(err)) != 0) {
+        PluginManager::getInstance().log(std::string("Cannot start R: ") + err);
+        return false;
+    }
+    rRunning = true;
+    return true;
+}
+#endif
 
 R::R(
     std::string language,
@@ -48,17 +131,43 @@ R::R(
 ) : Language(language, ext, pp) {
     this->argc = argc;
     this->argv = argv;
-#ifdef HAVE_R
+#if defined(HAVE_R) && !defined(_WIN32)
     myR = new RInside(argc, argv);
 #endif
 }
 
 void R::load() {
 #ifdef HAVE_R
+#ifdef _WIN32
+    startR(argc, argv);
+#else
     myR = new RInside(argc, argv);
+#endif
 #endif
 }
 
+
+#ifdef HAVE_R
+// Evaluates R code; false (with R's message in `error`) if it raised an error.
+static bool evalR(const std::string& code, std::string& error) {
+#ifdef _WIN32
+    char err[4096];
+    if (rEval(code.c_str(), err, sizeof(err)) != 0) {
+        error = err;
+        return false;
+    }
+    return true;
+#else
+    try {
+        RInside::instancePtr()->parseEvalQ(code);
+        return true;
+    } catch (const std::exception& e) {
+        error = e.what();
+        return false;
+    }
+#endif
+}
+#endif
 
 void R::executePlugin(
     std::string pluginname,
@@ -66,15 +175,19 @@ void R::executePlugin(
     std::string outputname)
 {
 #ifdef HAVE_R
-    std::string tmppath = pluginpath;
-    std::string path = tmppath.substr(0, pluginpath.find_first_of(":"));
-    std::ifstream* infile = NULL;
-    do {
-        if (infile) delete infile;
-        infile = new std::ifstream((path+"/"+pluginname+"/"+pluginname+"Plugin.R").c_str(), std::ios::in);
-        tmppath = tmppath.substr(tmppath.find_first_of(":")+1, tmppath.length());
-        path = tmppath.substr(0, tmppath.find_first_of(":"));
-    } while (!(*infile) && path.length() > 0);// {
+    // The first plugin directory that has <plugin>/<plugin>Plugin.R; if none,
+    // the step fails before any plugin code.
+    const std::string filename = findPluginFile(pluginname);
+#ifdef _WIN32
+    if (!startR(argc, argv)) {
+        PluginManager::getInstance().log("R is not available; cannot run " + pluginname + ".");
+        throw PluginNotStarted("R is not available");
+    }
+    // Forward slashes: the paths go into R string literals below.
+    inputname = pluma::normalizeSlashes(inputname);
+    outputname = pluma::normalizeSlashes(outputname);
+#endif
+    std::ifstream* infile = new std::ifstream(filename.c_str(), std::ios::in);
 
     std::string txt;
     std::string line;
@@ -84,13 +197,34 @@ void R::executePlugin(
     }
     delete infile;
 
+    // Each phase on its own, so a failure is reported where it happened: the
+    // plugin's code failing to load, or an unmet dependency() in input(), is
+    // "not started" (an existing output is kept); a later error is a failure.
+    std::string error;
     PluginManager::getInstance().log("Executing R Plugin "+pluginname);
-    txt += "input(\"" + inputname + "\");\n";
-    txt += "run();";
-    txt += "output(\"" + outputname + "\");\n";
-    myR->parseEvalQ(txt);
+    if (!evalR(txt, error)) {
+        PluginManager::getInstance().log("R Plugin "+pluginname+" failed to load: "+error);
+        throw PluginNotStarted("R plugin " + pluginname + " failed to load");
+    }
+    if (!evalR("input(\"" + inputname + "\")", error)) {
+        if (PluginManager::takeDependencyFailed()) {
+            PluginManager::getInstance().log("R Plugin "+pluginname+": dependency not met in input(): "+error);
+            throw PluginNotStarted("R plugin " + pluginname + ": dependency not met");
+        }
+        PluginManager::getInstance().log("R Plugin "+pluginname+" failed in input(): "+error);
+        throw std::runtime_error("R plugin " + pluginname + " failed in input()");
+    }
+    if (!evalR("run()", error)) {
+        PluginManager::getInstance().log("R Plugin "+pluginname+" failed in run(): "+error);
+        throw std::runtime_error("R plugin " + pluginname + " failed in run()");
+    }
+    if (!evalR("output(\"" + outputname + "\")", error)) {
+        PluginManager::getInstance().log("R Plugin "+pluginname+" failed in output(): "+error);
+        throw std::runtime_error("R plugin " + pluginname + " failed in output()");
+    }
     PluginManager::getInstance().log("R Plugin "+pluginname+" completed successfully.");
-    //unload();
+#else
+    notEnabled(pluginname);
 #endif
 }
 
@@ -98,6 +232,10 @@ void R::executePlugin(
 void R::unload()
 {
 #ifdef HAVE_R
+#ifdef _WIN32
+    if (rRunning) rEnd();
+    rRunning = false;
+#else
     //delete myR->instancePtr();
     delete myR;
 
@@ -116,6 +254,7 @@ void R::unload()
     Rf_KillAllDevices();
     R_GlobalContext = NULL;
     Rf_endEmbeddedR(0);
+#endif
 #endif
 }
 

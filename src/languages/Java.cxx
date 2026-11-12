@@ -1,12 +1,62 @@
 #include "Java.h"
+#include <stdexcept>
 #include "../PluginManager.h"
+#include "../platform.h"
 #include <fstream>
+#if defined(HAVE_JAVA) && defined(_WIN32) && defined(PLUMA_HAVE_BUILD_PATHS)
+#include "pluma_build_paths.h"
+#endif
 
-#ifdef HAVE_JAVA
-#include <dirent.h>
-#include <sstream>
-#include <sys/stat.h>
-#include <unistd.h>
+#if defined(HAVE_JAVA) && defined(_WIN32)
+// pluma.exe links jvm.dll with /DELAYLOAD so it can start on machines where
+// the JVM is not on PATH.  Before the first JNI call, find jvm.dll and load
+// it by full path; the delay-load helper then binds to the loaded module.
+
+// JavaHome of the current JDK/JRE registered by the Oracle/OpenJDK installers.
+static void registryJavaHomes(std::vector<std::string>& homes) {
+    const char* roots[] = {
+        "SOFTWARE\\JavaSoft\\JDK",
+        "SOFTWARE\\JavaSoft\\Java Development Kit",
+        "SOFTWARE\\JavaSoft\\JRE",
+        "SOFTWARE\\JavaSoft\\Java Runtime Environment",
+    };
+    for (size_t i = 0; i < sizeof(roots) / sizeof(roots[0]); ++i) {
+        std::string version = pluma::registryString(HKEY_LOCAL_MACHINE, roots[i], "CurrentVersion");
+        if (version.empty()) continue;
+        std::string home = pluma::registryString(HKEY_LOCAL_MACHINE,
+                                                 std::string(roots[i]) + "\\" + version, "JavaHome");
+        if (!home.empty()) homes.push_back(home);
+    }
+}
+
+// jvm.dll candidates, in order of the user's explicit intent: JAVA_HOME,
+// jvm.dll on PATH, the home of java.exe on PATH, the JavaSoft registry, and
+// finally the JDK SCons compiled against.  PATH is searched through its
+// absolute entries only (never the current directory).
+static bool preloadJvm() {
+    const char* subdirs[] = { "/bin/server", "/jre/bin/server", "/bin/client" };
+    std::vector<std::string> dirs;
+    auto addHome = [&](const std::string& home) {
+        for (size_t j = 0; j < sizeof(subdirs) / sizeof(subdirs[0]); ++j)
+            dirs.push_back(pluma::normalizeSlashes(home) + subdirs[j]);
+    };
+
+    if (const char* jh = getenv("JAVA_HOME")) addHome(jh);
+    const std::vector<std::string> pathDirs = pluma::absolutePathDirs();
+    dirs.insert(dirs.end(), pathDirs.begin(), pathDirs.end());
+    // <home>\bin\java.exe -> <home>
+    std::string javaExe = pluma::findInDirs(pathDirs, "java.exe");
+    if (!javaExe.empty()) {
+        addHome(pluma::dirName(pluma::dirName(pluma::finalPath(javaExe))));
+    }
+    std::vector<std::string> homes;
+    registryJavaHomes(homes);
+#ifdef PLUMA_BUILD_JAVA_HOME
+    homes.push_back(PLUMA_BUILD_JAVA_HOME);   // the JDK SCons compiled against
+#endif
+    for (size_t i = 0; i < homes.size(); ++i) addHome(homes[i]);
+    return pluma::preloadDll("jvm.dll", dirs);
+}
 #endif
 
 Java::Java(
@@ -34,7 +84,7 @@ void Java::executePlugin(
     if (!jvm) load();
     if (!env) {
         PluginManager::getInstance().log("Java VM is not available; cannot run " + pluginname);
-        return;
+        throw PluginNotStarted("Java VM is not available");
     }
 
     std::vector<std::string> roots = splitPaths(pluginpath);
@@ -52,7 +102,7 @@ void Java::executePlugin(
     }
     if (!found) {
         PluginManager::getInstance().log("Java plugin " + pluginname + " not found in plugin path.");
-        return;
+        throw PluginNotStarted("Java plugin " + pluginname + " not found");
     }
 
     std::string className = pluginname + "Plugin";
@@ -61,14 +111,15 @@ void Java::executePlugin(
         env->ExceptionDescribe();
         env->ExceptionClear();
         PluginManager::getInstance().log("Java plugin class " + className + " could not be loaded.");
-        return;
+        throw PluginNotStarted("Java plugin class " + className + " could not be loaded");
     }
 
     jmethodID constructor = env->GetMethodID(pluginClass, "<init>", "()V");
     if (!constructor) {
+        env->ExceptionClear();
         PluginManager::getInstance().log("Java plugin " + pluginname + " is missing a default constructor.");
         env->DeleteLocalRef(pluginClass);
-        return;
+        throw PluginNotStarted("Java plugin " + pluginname + " is missing a default constructor");
     }
 
     jobject pluginInstance = env->NewObject(pluginClass, constructor);
@@ -77,7 +128,7 @@ void Java::executePlugin(
         env->ExceptionDescribe();
         env->ExceptionClear();
         env->DeleteLocalRef(pluginClass);
-        return;
+        throw PluginNotStarted("Java plugin " + pluginname + " could not be instantiated");
     }
 
     auto handleException = [&](const std::string& phase) {
@@ -93,6 +144,7 @@ void Java::executePlugin(
     auto callPhaseWithString = [&](const char* methodName, const std::string& value, const char* phase) {
         jmethodID method = env->GetMethodID(pluginClass, methodName, "(Ljava/lang/String;)V");
         if (!method) {
+            env->ExceptionClear();
             PluginManager::getInstance().log("Java plugin " + pluginname + " missing method " + methodName);
             return false;
         }
@@ -105,6 +157,7 @@ void Java::executePlugin(
     auto callPhaseNoArgs = [&](const char* methodName, const char* phase) {
         jmethodID method = env->GetMethodID(pluginClass, methodName, "()V");
         if (!method) {
+            env->ExceptionClear();
             PluginManager::getInstance().log("Java plugin " + pluginname + " missing method " + methodName);
             return false;
         }
@@ -112,43 +165,52 @@ void Java::executePlugin(
         return !handleException(phase);
     };
 
-    PluginManager::getInstance().log("Executing input() For Java Plugin " + pluginname);
-    if (!callPhaseWithString("input", inputname, "input")) {
+    // A failed phase: the plugin ran and failed (its output is removed) --
+    // except a failing input(), which may have been an unmet dependency
+    // (the step then counts as not started).
+    auto fail = [&](const char* phase, bool notStarted) {
         env->DeleteLocalRef(pluginInstance);
         env->DeleteLocalRef(pluginClass);
-        return;
-    }
+        const std::string what = "Java plugin " + pluginname + " failed in " + phase + "()";
+        if (notStarted) throw PluginNotStarted(what);
+        throw std::runtime_error(what);
+    };
+
+    PluginManager::getInstance().log("Executing input() For Java Plugin " + pluginname);
+    if (!callPhaseWithString("input", inputname, "input")) fail("input", PluginManager::takeDependencyFailed());
 
     PluginManager::getInstance().log("Executing run() For Java Plugin " + pluginname);
-    if (!callPhaseNoArgs("run", "run")) {
-        env->DeleteLocalRef(pluginInstance);
-        env->DeleteLocalRef(pluginClass);
-        return;
-    }
+    if (!callPhaseNoArgs("run", "run")) fail("run", false);
 
     PluginManager::getInstance().log("Executing output() For Java Plugin " + pluginname);
-    if (!callPhaseWithString("output", outputname, "output")) {
-        env->DeleteLocalRef(pluginInstance);
-        env->DeleteLocalRef(pluginClass);
-        return;
-    }
+    if (!callPhaseWithString("output", outputname, "output")) fail("output", false);
 
     PluginManager::getInstance().log("Java Plugin " + pluginname + " completed successfully.");
     env->DeleteLocalRef(pluginInstance);
     env->DeleteLocalRef(pluginClass);
 #else
-    PluginManager::getInstance().log("Java support is not enabled in this build; skipping " + pluginname + ".");
+    notEnabled(pluginname);
 #endif
 }
 
 void Java::load() {
 #ifdef HAVE_JAVA
     if (jvm) return;
+#ifdef _WIN32
+    if (!preloadJvm()) {
+        PluginManager::getInstance().log("Could not locate jvm.dll (set JAVA_HOME or put java.exe on PATH).");
+        return;
+    }
+#endif
     std::vector<std::string> directories = collectClasspathDirs();
     std::string classpath;
     for (size_t i = 0; i < directories.size(); ++i) {
-        if (i > 0) classpath += ":";
+        if (i > 0) classpath += pluma::PATH_LIST_SEP;
         classpath += directories[i];
+        // (java.class.path has no way to escape its separator.)
+        if (directories[i].find(pluma::PATH_LIST_SEP) != std::string::npos)
+            PluginManager::getInstance().log("WARNING: Java cannot use the class path directory " + directories[i] +
+                                             ": its name contains the path separator.");
     }
 
     optionStrings.clear();
@@ -187,15 +249,7 @@ void Java::unload() {
 
 #ifdef HAVE_JAVA
 std::vector<std::string> Java::splitPaths(const std::string& paths) {
-    std::vector<std::string> result;
-    std::stringstream ss(paths);
-    std::string entry;
-    while (std::getline(ss, entry, ':')) {
-        if (!entry.empty()) {
-            result.push_back(entry);
-        }
-    }
-    return result;
+    return pluma::splitPluginPath(paths);
 }
 
 std::vector<std::string> Java::collectClasspathDirs() const {
@@ -205,18 +259,8 @@ std::vector<std::string> Java::collectClasspathDirs() const {
     for (const auto& root : roots) {
         if (root.empty()) continue;
         classpath.push_back(root);
-        DIR* dir = opendir(root.c_str());
-        if (!dir) continue;
-        struct dirent* entry;
-        while ((entry = readdir(dir)) != nullptr) {
-            if (entry->d_name[0] == '.') continue;
-            std::string child = root + "/" + entry->d_name;
-            struct stat buf;
-            if (stat(child.c_str(), &buf) == 0 && S_ISDIR(buf.st_mode)) {
-                classpath.push_back(child);
-            }
-        }
-        closedir(dir);
+        std::vector<std::string> children = pluma::listSubdirectories(root);
+        classpath.insert(classpath.end(), children.begin(), children.end());
     }
     return classpath;
 }

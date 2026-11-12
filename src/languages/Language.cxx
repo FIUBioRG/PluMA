@@ -28,48 +28,54 @@
        For information regarding this software, please contact lead architect
                     Trevor Cickovski at tcickovs@fiu.edu
 
-\********************************************************************************/
+\*********************************************************************************/
 
 #include "Language.h"
+#include "../PluginManager.h"
 #include "../platform.h"
 #include <iostream>
 
-#if PLUMA_PLATFORM_WINDOWS
-    using pluma::platform::glob;
-    using pluma::platform::glob_t;
-#endif
+std::string Language::findPluginFile(const std::string& pluginname) const {
+    const std::string file = pluma::findInPluginPath(pluginpath, pluginname + "/" + pluginname + "Plugin." + extension);
+    if (file.empty()) {
+        PluginManager::getInstance().log(language + " plugin " + pluginname + " not found in plugin path.");
+        throw PluginNotStarted(language + " plugin " + pluginname + " not found");
+    }
+    return file;
+}
+
+void Language::notEnabled(const std::string& pluginname) {
+    PluginManager::getInstance().log(language + " support is not enabled in this build; cannot run " + pluginname + ".");
+    throw PluginNotStarted(language + " support is not enabled in this build");
+}
 
 void Language::loadPlugin(
     std::string path,
-    glob_t* globbuf,
     std::map<std::string, std::string>* pluginLanguages,
     bool list
 ) {
-    std::string pathGlob = path + "/" + "*/*" + "Plugin." + extension;
-    int ext_len = extension.length()+2;
-    if (glob(pathGlob.c_str(), 0, NULL, &(*globbuf)) == 0) {
-        for (unsigned int i = 0; i < globbuf->gl_pathc; i++) {
-            std::string filename = globbuf->gl_pathv[i];
+    // Matches <path>/*/*Plugin.<ext>
+    std::vector<std::string> files = pluma::findPluginFiles(path, extension);
+    const std::string::size_type ext_len = extension.length()+2;
+    if (!files.empty()) {
+        for (size_t i = 0; i < files.size(); i++) {
+            std::string filename = pluma::normalizeSlashes(files[i]);
             std::string name;
-            std::string::size_type pos = filename.find_last_of("/\\");
+            std::string::size_type pos = filename.find_last_of("/");
             if (pos != std::string::npos) {
                 name = filename.substr(pos + prefix.length()+1, filename.length()-pos-prefix.length()-ext_len);
             } else {
                 name = filename.substr(prefix.length(), filename.length()-pos-ext_len);
             }
             if (name == "__init__") continue;
+            //std::cout << "Plugin: " << name.substr(0, name.length()-6) << " Language: " << language << " Path: " << path << std::endl;
             if (!list) {
-#if PLUMA_PLATFORM_WINDOWS
-                // On Windows, check for .dll extension
-                if (extension == "dll") {
-#else
-                // On Unix, check for .so extension
-                if (extension == "so") {
-#endif
-                    pluma::platform::LibraryHandle handle = pluma::platform::loadLibrary(filename);
+                if (extension == "so" || extension == "dll" || extension == "dylib") {
+                    void* handle = pluma::loadLibrary(filename);
                     if (!handle) {
+                        std::string err = pluma::lastLibraryError();   // before any I/O
                         std::cout << "Warning: Null Handle" << std::endl;
-                        std::cout << pluma::platform::getLibraryError() << std::endl;
+                        std::cout << err << std::endl;
                     } else {
                         (*pluginLanguages)[name] = language;
                     }
