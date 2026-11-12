@@ -36,6 +36,7 @@
 #define PLUGINMANAGER_H
 
 #include "PluginMaker.h"
+#include "PlumaExport.h"
 
 #include <cstdlib>
 #include <string>
@@ -57,7 +58,7 @@
 #include "languages/Julia.h"
 #endif
 
-class PluginManager {
+class PLUMA_API PluginManager {
 public:
     std::map<std::string, Maker*> makers;
     std::set<std::string> installed;
@@ -65,14 +66,20 @@ public:
     std::map<std::string, std::string> pluginLanguages;
     static std::string myPrefix;
 
+#ifdef _WIN32
+    // Defined out of line in PluginManager.cxx and exported from pluma.exe:
+    // an inline function-local static would be duplicated in every DLL.
+    static PluginManager& getInstance();
+#else
     static PluginManager& getInstance()
     {
         static PluginManager instance; // Guaranteed to be destroyed.
                                        // Instantiated on first use.
         return instance;
     }
+#endif
 
-    PluginManager() {}
+    PluginManager() : logfile(NULL) {}
     PluginManager(PluginManager const&) = delete;
     ~PluginManager() {
         if (logfile) delete logfile;
@@ -87,25 +94,49 @@ public:
     void add(std::string name) {installed.insert(name);}
 
     Plugin* create(std::string name) {
-        return makers[name]->create();
+        std::map<std::string, Maker*>::iterator it = makers.find(name);
+        if (it == makers.end() || it->second == NULL) return NULL;
+        return it->second->create();
     }
 
-    void setLogFile(std::string lf) {
-        if (logfile) delete logfile;
-        logfile = new std::ofstream(lf.c_str(), std::ios::out);
-    }
+    // Out of line (PluginManager.cxx), like dependency(): plugins call into
+    // pluma's own logger rather than compiling its members into themselves.
+    void setLogFile(std::string lf);
+    // Whether the log file set by setLogFile() could be opened for writing.
+    static bool logFileOpen();
 
-    static void log(std::string msg) {
-        *(getInstance().logfile) << "[PluMA] " << msg << std::endl;
-    }
+    // Serialized: plugins on parallel "Kitty" threads log concurrently.
+    static void log(std::string msg);
 
-    static void dependency(std::string plugin) {
-       if (getInstance().installed.count(plugin) == 0) {
-           *(getInstance().logfile) << "[PluMA] Plugin dependency " << plugin << " not met.  Exiting..." << std::endl;  exit(1);
-        } else {
-            *(getInstance().logfile) << "[PluMA] Plugin dependency " << plugin << " met." << std::endl;
-        }
-    }
+    // If `plugin` is not installed: on a pipeline thread, throws
+    // DependencyNotMet -- readConfig() turns that into an orderly pipeline
+    // stop.  On a thread the plugin started itself (std::thread, OpenMP)
+    // nothing would catch it (std::terminate), so the process exits with
+    // status 1 as PluMA always did.  Defined in PluginManager.cxx (not
+    // inline: the throw stays in PluMA, so plugins compiled without
+    // exceptions still build).
+    static void dependency(std::string plugin);
+
+    // Whether the calling thread runs a pipeline (readConfig): an exception
+    // thrown here reaches PluMA's error handling.
+    static void setOnPipelineThread();
+    static void clearOnPipelineThread();
+    static bool onPipelineThread();
+
+    // The per-thread mark that an unmet dependency() happened during the
+    // current step (set by dependency(), cleared by readConfig() before each
+    // step).  takeDependencyFailed() reads *and clears* it.  The script
+    // languages use it to classify an input() that failed as "not started"
+    // -- no error-text matching, which wrapping or rewording would break.
+    // That classification only ever keeps an output file the step left
+    // untouched (readConfig compares it with its state before the step), so
+    // a plugin that caught the dependency error and then failed otherwise
+    // can at most keep an earlier, unmodified result.
+    static void markDependencyFailed();
+    static bool takeDependencyFailed();
+    // How many unmet dependency() calls this thread has had (not cleared by
+    // the language runners, unlike the mark above).
+    static unsigned dependencyFailureCount();
 
     static char* prefix() {
         return (char*) myPrefix.c_str();
@@ -120,7 +151,9 @@ public:
         int argc,
         char** argv)
     {
-#ifdef APPLE
+#if defined(_WIN32)
+        supported.push_back(new Compiled("C", "dll", pluginpath, ""));
+#elif defined(APPLE)
         supported.push_back(new Compiled("C", "dylib", pluginpath, "lib"));
 #else
         supported.push_back(new Compiled("C", "so", pluginpath, "lib"));
@@ -138,6 +171,13 @@ public:
 #ifdef HAVE_JULIA
         supported.push_back(new Julia("Julia", "jl", pluginpath));
 #endif
+    }
+
+    // Whether the registered language `lang` is compiled into this build.
+    static bool languageEnabled(const std::string& lang) {
+        for (size_t i = 0; i < supported.size(); i++)
+            if (supported[i]->lang() == lang) return supported[i]->enabled();
+        return false;
     }
 
     static void languageLoad(std::string lang) {

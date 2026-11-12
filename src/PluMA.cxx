@@ -39,6 +39,8 @@ void log(char* msg) {
     PluginManager::log(std::string(msg));
 }
 
+// Throws when the dependency is not met; the SWIG %exception handler in
+// PluginWrapper.i converts that into a Python/Perl/R exception.
 void dependency(char* plugin) {
     PluginManager::dependency(std::string(plugin));
 }

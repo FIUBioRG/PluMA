@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!--
+  Embedded into pluma.exe and plugen.exe by SConscript.windows.
+
+  Sets the process code page to UTF-8 (Windows 10 1903+), so the narrow
+  ("A") Win32 APIs and the CRT's narrow file functions accept and return
+  UTF-8.  This keeps paths consistent with Python's filesystem encoding
+  (UTF-8 on Windows) and makes non-ASCII paths work end to end.
+-->
+<assembly manifestVersion="1.0" xmlns="urn:schemas-microsoft-com:asm.v1">
+  <application xmlns="urn:schemas-microsoft-com:asm.v3">
+    <windowsSettings>
+      <activeCodePage xmlns="http://schemas.microsoft.com/SMI/2019/WindowsSettings">UTF-8</activeCodePage>
+    </windowsSettings>
+  </application>
+</assembly>

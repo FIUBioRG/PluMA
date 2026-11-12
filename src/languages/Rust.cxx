@@ -32,8 +32,10 @@
 
 #include "Rust.h"
 #include "../PluginManager.h"
+#include "../platform.h"
 #include <iostream>
 #include <fstream>
+#include <stdexcept>
 
 #ifdef HAVE_RUST
 #include <dlfcn.h>
@@ -47,43 +49,39 @@ Rust::Rust(
 
 void Rust::loadPlugin(
     std::string path,
-    glob_t* globbuf,
     std::map<std::string, std::string>* pluginLanguages,
     bool list
 ) {
 #ifdef HAVE_RUST
     // Rust plugins are identified by the presence of Cargo.toml
     // and a compiled .so file (lib*Plugin.so)
-    std::string pathGlob = path + "/*/Cargo.toml";
-
-    if (glob(pathGlob.c_str(), 0, NULL, globbuf) == 0) {
-        for (unsigned int i = 0; i < globbuf->gl_pathc; i++) {
-            std::string cargoPath = globbuf->gl_pathv[i];
-
-            // Extract plugin directory and name
-            std::string pluginDir = cargoPath.substr(0, cargoPath.find_last_of("/"));
-            std::string pluginName = pluginDir.substr(pluginDir.find_last_of("/") + 1);
-
-            // Check if compiled .so exists
-            std::string soPath = pluginDir + "/lib" + pluginName + "Plugin.so";
-            std::ifstream soFile(soPath.c_str());
-
-            if (soFile.good()) {
-                // Register this as a Rust plugin
-                std::string keyName = pluginName + "Plugin";
-                (*pluginLanguages)[keyName] = language;
-
-                if (list) {
-                    std::cout << "Plugin: " << pluginName << " Language: " << language << " Path: " << pluginDir << std::endl;
-                }
-            } else {
-                std::cout << "Warning: Rust plugin " << pluginName << " found but not compiled (missing " << soPath << ")" << std::endl;
-            }
+    bool found = false;
+    while (path.size() > 1 && path.back() == '/') path.pop_back();   // (no "//" in the paths below)
+    std::vector<std::string> dirs = pluma::listSubdirectories(path);
+    for (size_t i = 0; i < dirs.size(); i++) {
+        const std::string& pluginDir = dirs[i];
+        if (!pluma::fileExists(pluginDir + "/Cargo.toml")) continue;
+        found = true;
+        const std::string pluginName = pluma::baseName(pluginDir);
+        // Check if compiled .so exists
+        const std::string soPath = pluginDir + "/lib" + pluginName + "Plugin.so";
+        if (!pluma::fileExists(soPath)) {
+            std::cout << "Warning: Rust plugin " << pluginName << " found but not compiled (missing " << soPath << ")" << std::endl;
+            continue;
         }
-    } else {
-        std::cout << "Found no " << language << " plugins" << std::endl;
+        if (list) {
+            std::cout << "  " << pluginName << " (" << language << "): " << soPath << std::endl;
+        } else {
+            // Register this as a Rust plugin (after C/C++, which may have
+            // loaded the same library: the last registration wins).
+            (*pluginLanguages)[pluginName + "Plugin"] = language;
+        }
     }
+    if (!found) std::cout << "Found no " << language << " plugins" << std::endl;
 #else
+    (void) path;
+    (void) pluginLanguages;
+    (void) list;
     std::cout << "Found no " << language << " plugins (Rust support not compiled)" << std::endl;
 #endif
 }
@@ -151,30 +149,27 @@ void Rust::executePlugin(
     std::string outputname)
 {
 #ifdef HAVE_RUST
-    std::string tmppath = pluginpath;
-    std::string path = tmppath.substr(0, pluginpath.find_first_of(":"));
-    std::ifstream* infile = nullptr;
-    std::string filename;
+    // Rust plugins are compiled to lib<PluginName>Plugin.so (not .rs): the
+    // first plugin directory that has it.
+    const std::string filename = pluma::findInPluginPath(pluginpath, pluginname + "/lib" + pluginname + "Plugin.so");
+    if (filename.empty()) {
+        PluginManager::getInstance().log("Rust plugin " + pluginname + " not found in plugin path.");
+        throw PluginNotStarted("Rust plugin " + pluginname + " not found");
+    }
 
-    // Search for the Rust plugin shared library in plugin paths
-    // Note: Rust plugins are compiled to .so files, not .rs
-    do {
-        if (infile) delete infile;
-        // Rust plugins are compiled to lib<PluginName>Plugin.so
-        filename = path + "/" + pluginname + "/lib" + pluginname + "Plugin.so";
-        infile = new std::ifstream(filename.c_str(), std::ios::in);
-        tmppath = tmppath.substr(tmppath.find_first_of(":") + 1, tmppath.length());
-        path = tmppath.substr(0, tmppath.find_first_of(":"));
-    } while (!(*infile) && path.length() > 0);
-
-    delete infile;
-
-    // Load the Rust plugin
+    // Load the Rust plugin.  Everything up to input() failing means the step
+    // did not start (an existing output is kept).
     RustPluginVTable vtable = loadRustPlugin(filename, pluginname);
+    {
+        std::lock_guard<std::mutex> lock(loadedPluginsMutex);
+        // Kept for unload(), as before (a later load of the same library
+        // returns the same handle).
+        if (vtable.handle) loadedPlugins[pluginname] = vtable;
+    }
 
     if (!vtable.create || !vtable.input || !vtable.run || !vtable.output || !vtable.destroy) {
         PluginManager::getInstance().log("Error: Failed to load Rust plugin " + pluginname);
-        return;
+        throw PluginNotStarted("Rust plugin " + pluginname + " failed to load");
     }
 
     // Create plugin instance
@@ -183,10 +178,11 @@ void Rust::executePlugin(
 
     if (!plugin_instance) {
         PluginManager::getInstance().log("Error: Failed to create Rust plugin instance for " + pluginname);
-        return;
+        throw PluginNotStarted("Rust plugin " + pluginname + " failed to construct");
     }
 
-    // Execute plugin phases
+    // Execute plugin phases.  (The C ABI has no error channel: a Rust panic
+    // across it aborts the process, as before.)
     PluginManager::getInstance().log("Executing input() For Rust Plugin " + pluginname);
     vtable.input(plugin_instance, inputname.c_str());
 
@@ -201,14 +197,16 @@ void Rust::executePlugin(
     vtable.destroy(plugin_instance);
 
     PluginManager::getInstance().log("Rust Plugin " + pluginname + " completed successfully.");
-
-    // Store vtable for potential cleanup
-    loadedPlugins[pluginname] = vtable;
+#else
+    (void) inputname;
+    (void) outputname;
+    notEnabled(pluginname);
 #endif
 }
 
 void Rust::unload() {
 #ifdef HAVE_RUST
+    std::lock_guard<std::mutex> lock(loadedPluginsMutex);
     // Close all loaded plugin handles
     for (auto& pair : loadedPlugins) {
         if (pair.second.handle) {

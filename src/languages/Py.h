@@ -43,6 +43,11 @@ public:
     void executePlugin(std::string pluginname, std::string inputname, std::string outputname);
     void unload();
     void load() {} // Empty
+#ifdef HAVE_PYTHON
+    bool enabled() const { return true; }
+#else
+    bool enabled() const { return false; }
+#endif
 };
 
 

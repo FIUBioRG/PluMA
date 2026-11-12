@@ -31,7 +31,7 @@
 \*********************************************************************************/
 
 #include "JuliaPluginGenerator.h"
-#include <dirent.h>
+#include "../platform.h"
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
@@ -50,9 +50,10 @@ void JuliaPluginGenerator::generate(std::string pluginname, std::vector<std::str
 
 void JuliaPluginGenerator::makeDirectory(std::string pluginname) {
     std::string directory = myPath + "/" + pluginname;
-    DIR* dir = opendir(directory.c_str());
-    if (!dir) {
-        system(("mkdir -p " + directory).c_str());
+    // Create it and any missing parents (`mkdir -p`, as before).
+    if (!pluma::makeDirectories(directory)) {
+        std::cerr << "Error: could not create plugin directory " << directory << std::endl;
+        exit(1);
     }
 }
 
