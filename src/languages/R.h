@@ -36,11 +36,6 @@
 
 #include "Language.h"
 
-#ifdef HAVE_R
-class RInside;
-//#include "RInside.h"
-#endif
-
 // @TODO: Change to PluMA namespace?
 namespace MiAMi {
 
@@ -57,9 +52,7 @@ public:
 #endif
 
 private:
-#ifdef HAVE_R
-      RInside* myR;
-#endif
+      // (The interpreter itself is file-static in R.cxx: one R per process.)
       int argc;
       char ** argv;
 };

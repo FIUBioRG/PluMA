@@ -287,12 +287,15 @@ static void onTerminate() {
 //
 // Likewise exit() from a thread a plugin started while no kitties run: the
 // main thread is still inside its step.  Not exit() on the main thread with
-// no kitties (the plugin's status and outputs, as in earlier versions).
+// no kitties (the plugin's status and outputs, as in earlier versions), nor
+// a Java plugin's System.exit() then (the JVM calls exit() from a thread of
+// its own; see PluginManager::markExitKeepsStatus).
 static void exitWhileKittiesRun() {
 #ifndef _WIN32
     if (getpid() != plumaPid) return;   // a fork()ed child: exits normally
 #endif
-    if (PluginManager::kittiesRunning() == 0 && PluginManager::isMainThread())
+    if (PluginManager::kittiesRunning() == 0 &&
+        (PluginManager::isMainThread() || PluginManager::exitKeepsStatus()))
         return;
     PluginManager::abortRun(true);   // the exit()ing plugin's own output is moved aside, not removed
 }
@@ -1163,6 +1166,27 @@ int main(int argc, char** argv)
     if (!PluginManager::logFileOpen())
         std::cout << "[PluMA] Warning: cannot write the log file " << mylog
                   << "; plugin errors will not be logged." << std::endl;
+    // Embedded R is started here -- after the log file is open, so its
+    // diagnostics are logged -- on the main thread before any kitty.
+    // POSIX: R was already started with PluMA, before the plugin libraries
+    // were loaded (R::R, as always: C/C++ plugins may use its RInside
+    // directly); this only logs, now that the log is open, if that start
+    // failed.  Windows: only when R plugins are installed (no
+    // MSVC plugin can use RInside; R.dll is loaded only when needed); the
+    // first R step or languageLoad("R") starts it otherwise.
+    if (PluginManager::languageEnabled("R")) {
+#ifdef _WIN32
+        bool rPlugins = false;
+        std::map<std::string, std::string>::const_iterator itr;
+        const std::map<std::string, std::string>& langs = PluginManager::getInstance().pluginLanguages;
+        for (itr = langs.begin(); itr != langs.end() && !rPlugins; itr++)
+            rPlugins = itr->second == "R";
+        if (rPlugins) PluginManager::languageLoad("R");
+#else
+        PluginManager::languageLoad("R");
+#endif
+    }
+
     /////////////////////////////////////////////////////////////////////
     // Read configuration file and make appropriate plugins
     const bool restartReached = readConfigGuarded(std::string(argv[1]), "", restart);

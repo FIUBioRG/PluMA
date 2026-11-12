@@ -45,6 +45,12 @@ and the pipeline went on, set `PLUMA_CONTINUE_ON_ERROR=1` (PluMA still exits
 with status 1 at the end if any step failed, and an unmet `dependency()` still
 stops the run).
 
+In parallel kitties (`LitterLaunch`), C/C++, Python and Java steps run side
+by side; R steps and Perl steps each run one at a time (one embedded R, and
+Perl's runtime is not shared between threads -- earlier versions could crash
+there), so a block of kitties running R or Perl plugins takes as long as
+running them in turn.
+
 Notes for C/C++ plugin authors:
 
 * As in earlier versions, the plugin object is not deleted after its step
@@ -111,11 +117,13 @@ prompt is not required. Notes:
   DLLs.
 * R plugins work when R for Windows is found, in this order: `R_HOME`, the R
   installer's registry entry, then the R used at build time. When it starts R
-  (R needs it), PluMA sets `R_HOME` to that R. R for Windows is built with
-  GCC, so the RInside/Rcpp layer used on Linux is not available to MSVC;
-  PluMA embeds R through R's C API in `pluma_r.dll`, which `pluma.exe` loads
-  -- after `R.dll`, by absolute path -- on the first R step or
-  `languageLoad("R")`. The
+  (R needs it), PluMA sets `R_HOME` to that R -- at startup, before any kitty
+  runs, when R plugins are installed: plugins and the programs they start
+  see it too. Pipelines without R leave it alone. R for Windows is
+  built with GCC, so the RInside/Rcpp layer used on Linux is not available to
+  MSVC; PluMA embeds R through R's C API in `pluma_r.dll`, which `pluma.exe`
+  loads -- after `R.dll`, by absolute path -- when it starts if R plugins are
+  installed, otherwise on the first R step or `languageLoad("R")`. The
   `RPluMA` module is `RPluMA.dll` (`dyn.load("<PluMA>/RPluMA.dll")`, then
   `source("<PluMA>/RPluMA.R")`), built from the swig wrapper, or from the
   committed `RPluMA_wrap.cxx` without swig.

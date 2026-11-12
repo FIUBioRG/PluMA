@@ -332,6 +332,10 @@ void PluginManager::refreshThreadPrefix() {
 // (Static initialization runs on the main thread.)
 static const std::thread::id plumaMainThread = std::this_thread::get_id();
 
+static std::atomic<bool> exitStatusKept(false);
+void PluginManager::markExitKeepsStatus() { exitStatusKept = true; }
+bool PluginManager::exitKeepsStatus() { return exitStatusKept; }
+
 bool PluginManager::isMainThread() {
     return std::this_thread::get_id() == plumaMainThread;
 }

@@ -25,7 +25,7 @@ struct PerlHost {
 };
 
 enum PerlRunStatus {
-    PERL_RUN_OK = 0,           /* completed                                   */
+    PERL_RUN_OK = 0,           /* completed, or ended with exit(0)            */
     PERL_RUN_NOT_STARTED = 1,  /* PluginNotStarted: existing output is kept   */
     PERL_RUN_FAILED = 2        /* a failure while running: output removed     */
 };

@@ -12,7 +12,8 @@
    R.dll by absolute path) and calls these functions through GetProcAddress.
 
    Every function is noexcept (plain C): errors come back as a nonzero
-   return value with a message in `err` (always NUL-terminated). */
+   return value with a message in `err` (always NUL-terminated).  The calls
+   are serialized by pluma.exe (one R interpreter, see R.cxx). */
 #ifndef PLUMA_RBRIDGE_H
 #define PLUMA_RBRIDGE_H
 
@@ -30,7 +31,13 @@ typedef int (*PlumaRStart)(int argc, char** argv, char* err, int errlen);
    value.  0 on success; on an R error (which R has already printed), 1 and
    "Error evaluating: <code>" in `err`, as RInside reports it. */
 typedef int (*PlumaREval)(const char* code, char* err, int errlen);
-/* Ends embedded R; not restartable. */
+/* As PlumaREval; the value as a logical (TRUE -> 1), or as the first
+   element of a character vector (NUL-terminated, truncated to buflen). */
+typedef int (*PlumaREvalBool)(const char* code, int* value, char* err, int errlen);
+typedef int (*PlumaREvalString)(const char* code, char* buf, int buflen, char* err, int errlen);
+/* Assigns the UTF-8 string `value` to `name` in the global environment. */
+typedef int (*PlumaRAssignString)(const char* name, const char* value, char* err, int errlen);
+/* Ends embedded R (.Last, exit finalizers, temp-dir cleanup); not restartable. */
 typedef void (*PlumaREnd)(void);
 
 #ifdef __cplusplus

@@ -70,6 +70,9 @@
   failed is removed (as before); a step that failed before its plugin started
   (unknown name, language not enabled, runtime missing) keeps an existing
   output file.
+- A Java plugin calling `System.exit()` still ends the whole run with its
+  status (a JVM cannot confine it), but PluMA now logs and prints that it did,
+  so later steps are not skipped silently.
 - A failure outside any step, such as running out of memory reading a kitty's
   pipeline, stops the run in order (status 1) instead of aborting. The end of
   a failed run no longer waits for a stream another thread holds (a plugin
@@ -99,7 +102,9 @@
   until their next `prefix()` call, which returns an intact copy.)
 - After `languageUnload("Python")`, a later Python step starts the interpreter
   again, as before (logged, since some C extension modules such as numpy cannot
-  be imported again in a re-initialized interpreter).
+  be imported again in a re-initialized interpreter). Java (one JVM per
+  process) and R (embedded R cannot be restarted) are not restarted; their
+  later steps fail with a clear message.
 - The embedded Python interpreter starts on first use, as before (not at all
   for pipelines without Python steps), installs no SIGINT handler (Ctrl-C
   keeps ending PluMA), and supports Python plugins on parallel kitties.
@@ -109,9 +114,13 @@
   kitties then wait for them; other C/C++ plugins no longer hold it (see the
   GIL entry below for how use of the C API is detected). On kitty threads,
   C/C++ plugins take it with `PyGILState_Ensure()`/`PyGILState_Release()`.
-- `run()` and `output()` are optional for Python plugins (as they are for C++
-  plugins via the `Plugin` base class); a missing one is logged and skipped. A
-  missing `input()` is a failure that keeps existing output.
+- A Perl plugin calling `exit()` no longer terminates PluMA: `exit(0)` ends the
+  plugin successfully, any other status is a plugin failure.
+- `run()` and `output()` are optional for Python, Java and R plugins (as they
+  are for C++ plugins via the `Plugin` base class); a missing one is logged and
+  skipped. A missing `input()` is a failure that keeps existing output. An R
+  plugin no longer inherits the previous R plugin's `input`/`run`/`output`
+  functions from R's shared global environment.
 - Without a `Prefix` line, a `Kitty` directory is now relative (`k1/`) instead
   of `/k1/` at the filesystem root, and kitty directories no longer accumulate
   (`/k1//k2/`). With a `Prefix`, kitty paths no longer contain a doubled
@@ -129,6 +138,11 @@
   before failing is removed. Only regular files are ever checked or removed:
   an output that is a device (`/dev/null`, `NUL`), FIFO or directory is left
   alone and never read.
+- An R plugin calling `quit()`/`q()` now ends only that plugin, as Python's
+  `sys.exit()` and Perl's `exit()` do: status 0 ends it successfully (its
+  remaining phases are skipped), any other status is a failure. Previously
+  it ended PluMA itself, skipping the rest of the pipeline. As with R's own
+  `quit()`, a `try()` or `tryCatch(error = ...)` around it does not catch it.
 - Restarting a run (`pluma <pipeline> <plugin>`) now also works when the
   restart point is in a nested `Pipeline` or a kitty: everything before it
   is skipped, including the earlier steps of nested pipelines (which used to
@@ -156,6 +170,10 @@
   dependency raised where the exception cannot propagate -- a `noexcept`
   function or destructor, a callback from C code -- ends the run in order
   (status 1, incomplete outputs removed) instead of aborting the process.
+- Embedded R is started with PluMA on POSIX, as before (C/C++ plugins may
+  use its RInside directly). On Windows it is started only when R plugins
+  are installed, or on first use (`languageLoad("R")`, an R step), so runs
+  without R plugins do not load R.
 - A step's output is checked and, after a failure, removed by its absolute
   path as of the step's start, so a plugin that changes the current
   directory before failing cannot make PluMA remove a different file.
@@ -192,12 +210,30 @@
   cannot propagate, ends the run through PluMA's terminate handler instead.
   Any other uncaught exception still goes to the runtime's own handler, so
   GCC/Clang still print its type and `what()` before aborting.
+- A JVM started by `languageLoad("Java")` on a plugin's own thread (an
+  OpenMP pool thread, a detached `std::thread`) no longer keeps PluMA from
+  exiting: that thread is attached to the JVM as a daemon thread.
 - A plugin that catches its own unmet `dependency()` (`catch (...)`,
   `except Exception`, `tryCatch`) and goes on still fails its step, as when
-  `dependency()` ended the run with `exit(1)`.
+  `dependency()` ended the run with `exit(1)` -- also when it then ends
+  itself cleanly (`sys.exit(0)`, `quit(status = 0)`, Perl's `exit 0`).
+- An R plugin script that R cannot read (e.g. Latin-1 characters in a
+  string, not valid UTF-8) fails to load with R's message instead of ending
+  PluMA ("Execution halted" on Linux, a crash on Windows).
+- Windows: when PluMA starts R it points `R_HOME` at that R (an `R_HOME`
+  naming another or a missing R made R fail to start); with R plugins
+  installed, at startup on the main thread, before any kitty runs. Pipelines
+  without R leave the environment alone.
+- Linux: an `R_HOME` that is not an R installation is ignored with a notice
+  (R would end PluMA at startup); the R PluMA was built with is used, as on
+  Windows. An exception from RInside's startup no longer aborts PluMA: R
+  plugins then fail with the reason.
 - `pluma <pipeline> <plugin>` with a restart point that matches no step
   (e.g. misspelled) now reports it and exits with status 1, instead of
   skipping every step and exiting 0.
+- `languageUnload("Java")` from a parallel kitty (or a plugin's own thread)
+  after the JVM was started on PluMA's main thread is ignored with a log
+  message, instead of deadlocking; the JVM is shut down at the end of the run.
 - `exit()` on a thread a plugin started itself, while steps are running on
   kitties, moves every output those steps changed to `<output>.incomplete`
   (or `.incomplete.1`, ... -- an earlier one is never replaced): which step
@@ -233,6 +269,9 @@
   running the plugin with its files exchanged -- where a failure would then
   remove what is really its input. Other words in place of `Plugin`,
   `inputfile` and `outputfile` still run, as before, now with a warning.
+- A C/C++ step on the main thread that calls `languageLoad("R")` or
+  `languageUnload("R")` while holding the GIL no longer deadlocks with an R
+  step on a kitty that calls into Python (reticulate).
 - On PluMA's main thread, only C/C++ plugins whose library uses the Python C
   API hold the GIL during their steps (as earlier versions' main thread always
   held it); other C/C++ steps, and R and Perl steps, run without it, so Python
@@ -249,10 +288,12 @@
   Python through `dlopen`/`GetProcAddress`) is still released after it, and
   from then on every C/C++ step on the main thread takes it back for its
   duration, as in earlier versions (that plugin's later steps may rely on
-  holding it). The same for a Perl step that leaves it held
-  (Inline::Python starting Python): a Python step on a kitty
+  holding it). The same for an R, Perl or Java step that leaves it held
+  (reticulate or Inline::Python starting Python): a Python step on a kitty
   no longer waits for it forever. A plugin library is scanned for Python
   use when the plugin first runs, not for every plugin at startup.
+- An R plugin whose script fails while loading is reported with R's own
+  error message (e.g. that of a `stop()` at the top of the script).
 - A pipeline file that is a directory (`pluma pipelines/`, or a `Pipeline`
   line naming one) is an error, as on Windows -- on Linux/macOS it read as
   an empty pipeline and the run ended successfully having done nothing. A
@@ -264,6 +305,15 @@
 - PluMA runs from a working directory whose name contains the path list
   separator (`;` on Windows, `:` on Linux/macOS); plugins there were not
   found. Java cannot use such a directory on its class path (logged).
+- An R plugin's `.Last` that raises an error at the end of the run no longer
+  crashes PluMA (Windows) or makes it exit with status 1 (Linux/macOS): the
+  error is printed and the run's status stands.
+- Java: file names with characters outside the Basic Multilingual Plane (or
+  bytes that are not UTF-8) reach Java plugins intact (`NewStringUTF`, used
+  before, expects modified UTF-8; such paths were mangled or failed).
+- Linux/macOS: R plugin scripts saved with Windows line endings (CRLF) run;
+  R's parser rejected the carriage returns ("unexpected input"). R scripts
+  saved as UTF-8 with a byte order mark run too, on every platform.
 - POSIX `scons -c` keeps `RPluMA.R`, which only swig can regenerate.
 - `exit()` from a thread a plugin started ends the run as `exit()` while
   kitties run does (status 1, the running step's output moved to
@@ -282,6 +332,10 @@
 - Windows: a pipeline file name with a drive but no root (`D:in.txt`, relative
   to drive D's current directory) is passed to the plugin as given; the
   `Prefix` is no longer put in front of it (which made an invalid path).
+- Linux/macOS: an R script with a syntax error, or one that ends inside an
+  unfinished expression (an unclosed `{`), fails to load with "Parse error at
+  line N: ...", as on Windows. Before, an unfinished script loaded, and its
+  text was prepended to every later R evaluation of the run (a crash).
 - A plugin's own `SConscript` gets copies of `env` and `envPluginCuda`:
   what it adds (defines, flags, libraries) no longer reaches the `pluma`
   executable or the plugins built after it. `envPluginCuda` already has
@@ -304,7 +358,10 @@
 - At the end of a run PluMA finalizes Python (flushing its output and
   running its `atexit` handlers) -- but not while a non-daemon Python thread
   a plugin started is still running, which finalization would wait for
-  forever; then it only flushes the output. So a plugin that leaves such a
+  forever; then it only flushes the output. The JVM is shut down the same
+  way (shutdown hooks run, `System.out` is flushed) unless a non-daemon Java
+  thread a plugin started is still alive; then only `System.out`/`System.err`
+  are flushed and it is left, as before. So a plugin that leaves such a
   thread running no longer keeps PluMA from exiting. The languages are shut
   down in reverse order, Python last, so R's `.Last` and Perl's `END`
   blocks can still call into Python (reticulate, Inline::Python); a Python
@@ -320,6 +377,8 @@
   itself is destroyed at exit).
 - Windows build: Perl's embedding flags are split respecting quotes, so a
   Strawberry Perl installed under a path with spaces builds.
+- An R plugin whose input path cannot be passed to R fails as "not started"
+  (its existing output is kept), like any failure before `input()`.
 - The prefix a plugin's own thread falls back to is kept in storage that is
   never destroyed, so such a thread still running at process exit reads a
   valid string.
@@ -330,7 +389,7 @@
   is started again), instead of failing -- and stopping the run -- only
   because of when it started.
 - When a run is aborted, every language's buffered output is flushed first
-  (Python's `sys.stdout`; it waits only briefly).
+  (Python's `sys.stdout`, Java's `System.out`; each waits only briefly).
 - When a run is aborted, buffered Python output is still flushed if another
   thread holds PluMA's Python state lock for a moment.
 - The libpython version is read from the last include directory that
@@ -362,6 +421,11 @@
   directory or another plugin directory no longer replaces it. Plugin
   directories are still appended to `sys.path`, so the standard library and
   installed packages win over same-named helper files.
+- Known limitation (unchanged): all Java plugins share one JVM classpath (every
+  plugin root and plugin directory), so helper classes with the same name in
+  different plugin directories resolve to the first one. A stray
+  `<Name>Plugin.class` that would shadow a plugin is now reported instead of
+  run. Give helper classes plugin-specific names or packages.
 - A plugin that calls `exit()` itself while parallel kitties are running now
   ends PluMA at once with status 1 (C/C++ standard output flushed; the
   outputs that the steps it cuts off on other kitties had already changed

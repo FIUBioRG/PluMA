@@ -181,6 +181,11 @@ public:
     static void clearOnPipelineThread();
     // Whether the calling thread is PluMA's main thread.
     static bool isMainThread();
+    // An exit() about to come from a thread that is not the main one is the
+    // run's end with the plugin's status, as exit() on the main thread
+    // (a Java plugin's System.exit(): the JVM exits from a thread of its own).
+    static void markExitKeepsStatus();
+    static bool exitKeepsStatus();
     // At the end of a kitty thread: frees its bookkeeping of prefix buffers
     // (not the buffers, which plugins may still hold).
     static void releaseThreadPrefixBuffers();
