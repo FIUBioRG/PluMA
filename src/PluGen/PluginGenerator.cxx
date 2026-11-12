@@ -31,7 +31,7 @@
 \*********************************************************************************/
 
 #include "PluginGenerator.h"
-#include <dirent.h>
+#include "../platform.h"
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
@@ -52,10 +52,17 @@ void PluginGenerator::generate(std::string pluginname, std::vector<std::string>&
 
 void PluginGenerator::makeDirectory(std::string pluginname) {
    std::string directory = myPath+"/"+pluginname;
-   // Check if directory exists, if so return, if not make it
-   DIR* dir = opendir(directory.c_str());
-   if (!dir) {
-      system(("mkdir "+directory).c_str());
+   // Only the plugin's own directory is created, as before (`mkdir`, not
+   // `mkdir -p`): a missing plugins directory means plugen runs from the
+   // wrong place, and must not create one somewhere unrelated.
+   if (!pluma::isDirectory(myPath)) {
+      std::cerr << "Error: plugin directory " << myPath << " does not exist (run plugen from PluMA's PluGen "
+                << "directory)" << std::endl;
+      exit(1);
+   }
+   if (!pluma::makeDirectory(directory)) {   // one level, as `mkdir` (a name with a '/' fails)
+      std::cerr << "Error: could not create plugin directory " << directory << std::endl;
+      exit(1);
    }
 }
 

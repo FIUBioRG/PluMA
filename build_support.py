@@ -15,6 +15,8 @@ This module provides helper functions for:
 
 import logging
 import os
+import re
+import shlex
 import subprocess
 import sys
 from dataclasses import dataclass, field
@@ -148,6 +150,38 @@ def _detect_python_version() -> str:
 
 
 python_version = _detect_python_version()
+
+
+def python_version_from_includes(includes: str) -> str:
+    """The libpython version ("3.12", "3.14t") of the installation whose
+    `python3-config --includes` output is `includes`, read from its include
+    directory (".../include/python3.14t"): the python3-config SConstruct uses
+    may belong to another installation than the one on PATH.
+    PLUMA_PYTHON_VERSION overrides; the default above is the last resort."""
+    override = _get_python_version_from_env()
+    if override:
+        return override
+    # The last -I entry's final path component: an earlier "python3.14" may
+    # be part of the install prefix (/usr/share/python3.14/...).
+    found = re.findall(r"python(\d+\.\d+[a-z]*)(?=[\\/]?(?:\s|$))", includes or "")
+    if found:
+        return found[-1]
+    return python_version
+
+
+def compiler_is_clang(cxx: str) -> bool:
+    """Whether the C++ compiler command `cxx` is clang, asked from the
+    compiler itself: macOS's `c++` is clang, Alpine's is GCC, and a plain
+    `c++` names neither."""
+    try:
+        command = shlex.split(cxx)
+        if not command:
+            return False
+        output = subprocess.run(command + ["--version"], stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT, universal_newlines=True).stdout
+    except (OSError, ValueError):
+        return False
+    return "clang" in output.lower()
 
 # =============================================================================
 # Path Helper Functions
