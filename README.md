@@ -39,6 +39,12 @@ PluMA can execute plugins implemented in C/C++, Python, Perl, R, and Java.
 Java support requires a JDK with JNI headers and `libjvm`; the build scans `JAVA_HOME`
 or the location of `javac` to configure the JNI include path and library.
 
+A failing plugin stops the pipeline (exit status 1). To get the behavior of
+earlier versions, where a failed step that left no output file was only logged
+and the pipeline went on, set `PLUMA_CONTINUE_ON_ERROR=1` (PluMA still exits
+with status 1 at the end if any step failed, and an unmet `dependency()` still
+stops the run).
+
 ------------------------------------------------------------------------------
 
 ## Building on Windows (MSVC)

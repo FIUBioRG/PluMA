@@ -13,7 +13,9 @@
 #define PLUMA_PLATFORM_H
 
 #include <algorithm>
+#include <cerrno>
 #include <cstdio>
+#include <ctime>
 #include <fstream>
 #include <string>
 #include <vector>
@@ -151,6 +153,14 @@ inline std::string toLowerAscii(std::string s) {
 // to drive D's current directory) nor rooted ("\data.txt") -- the only kind a
 // pipeline Prefix can go in front of.
 inline bool isAbsolutePath(const std::string& path);
+inline bool isPlainRelativePath(const std::string& path) {
+    if (path.empty()) return true;   // (as before: the prefix itself)
+    if (isAbsolutePath(path)) return false;
+#ifdef _WIN32
+    if (path[0] == '\\' || (path.size() >= 2 && path[1] == ':')) return false;
+#endif
+    return true;
+}
 
 inline bool isAbsolutePath(const std::string& path) {
     if (path.empty()) return false;
@@ -179,7 +189,33 @@ inline bool fullPathName(const std::string& path, std::string& out) {
     return true;
 }
 
+// The Win32 device namespace (\\.\pipe\x, \\.\COM1, \\.\NUL): never a file,
+// and opening a pipe there would take one of its server's instances.
+inline bool isDeviceNamespacePath(const std::string& path) {
+    return path.size() >= 4 && (path[0] == '\\' || path[0] == '/') && (path[1] == '\\' || path[1] == '/') &&
+           path[2] == '.' && (path[3] == '\\' || path[3] == '/');
+}
 #endif
+
+// `path` made absolute against the current directory (`cwd`, as returned by
+// currentDirectory()).  Windows: resolved by the system, so drive-relative
+// ("D:plugins": drive D's current directory) and root-relative ("\plugins":
+// the current drive) forms are pinned down too; UNC paths are kept as given.
+inline std::string absolutePath(const std::string& path, const std::string& cwd) {
+#ifdef _WIN32
+    const bool unc = path.size() >= 2 && (path[0] == '\\' || path[0] == '/') &&
+                     (path[1] == '\\' || path[1] == '/');
+    std::string full;
+    if (!path.empty() && !unc) {
+        // A plain relative path ("data/x.txt") is resolved against `cwd`, as
+        // on POSIX; drive-relative ("D:x") and rooted ("\\x") ones need the
+        // process's per-drive state, which only GetFullPathName has.
+        const bool plainRelative = isPlainRelativePath(path);
+        if (fullPathName(plainRelative && !cwd.empty() ? cwd + "/" + path : path, full)) return normalizeSlashes(full);
+    }
+#endif
+    return isAbsolutePath(path) ? path : cwd + "/" + path;
+}
 
 inline std::string baseName(const std::string& path) {
 #ifdef _WIN32
@@ -229,6 +265,27 @@ inline bool fileExists(const std::string& path) {
 #endif
 }
 
+// Reads `length` bytes at `offset` of `file`; false if they are not all
+// there.  (For the binary-format readers: only the parts needed are read.)
+inline bool readFileAt(std::ifstream& file, unsigned long long offset, void* to, unsigned long long length) {
+    file.clear();
+    file.seekg(static_cast<std::streamoff>(offset));
+    file.read(static_cast<char*>(to), static_cast<std::streamsize>(length));
+    return file && static_cast<unsigned long long>(file.gcount()) == length;
+}
+
+
+// Removes a leading UTF-8 byte order mark (files saved by some Windows editors).
+inline void stripUtf8Bom(std::string& text) {
+    if (text.compare(0, 3, "\xEF\xBB\xBF") == 0) text.erase(0, 3);
+}
+
+// Reads all of `in` into `data`; false on a read error (not the end).
+inline bool readWholeStream(std::istream& in, std::string& data) {
+    char block[65536];
+    while (in.read(block, sizeof(block)) || in.gcount() > 0) data.append(block, static_cast<size_t>(in.gcount()));
+    return !in.bad();
+}
 
 inline bool isDirectory(const std::string& path) {
 #ifdef _WIN32
@@ -257,6 +314,153 @@ inline std::string finalPath(const std::string& path) {
     return result;
 }
 #endif
+
+// Whether `path` is an ordinary file -- not a directory, device (/dev/null,
+// NUL, CON), FIFO or socket.  Only such files are stamped (reading a FIFO or
+// a terminal would block) or removed after a failure.
+inline bool isRegularFile(const std::string& path) {
+#ifdef _WIN32
+    if (isDeviceNamespacePath(path)) return false;
+    HANDLE h = CreateFileA(path.c_str(), 0, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                           NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
+    if (h == INVALID_HANDLE_VALUE) return false;
+    BY_HANDLE_FILE_INFORMATION info;
+    const bool regular = GetFileType(h) == FILE_TYPE_DISK && GetFileInformationByHandle(h, &info) &&
+                         !(info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY);
+    CloseHandle(h);
+    return regular;
+#else
+    struct stat st;
+    return stat(path.c_str(), &st) == 0 && S_ISREG(st.st_mode);
+#endif
+}
+
+// What a pipeline step's output looked like, to tell whether the step touched
+// it before failing: existence, size, modification time and change time (POSIX
+// inode change time / NTFS ChangeTime, which every write updates and which,
+// unlike the modification time, utime() cannot set back).  A file whose change
+// time is more than kStampRecentSeconds old cannot be rewritten without its
+// change time moving on (for any timestamp granularity up to that), so its
+// content is not read.  Only when the change time cannot tell -- unavailable
+// (FAT) or recent (a rewrite could fall in the same timestamp tick) -- is the
+// content (files up to kStampHashLimit) compared too.  Anything but a regular
+// file (a device, FIFO, directory) is only checked for existence: never read.
+const unsigned long long kStampHashLimit = 16ULL * 1024 * 1024;
+const long long kStampRecentSeconds = 2;
+
+struct FileStamp {
+    bool exists;
+    bool regular;
+    unsigned long long size;
+    long long mtime;      // seconds (POSIX) or FILETIME ticks (Windows)
+    long long mtimeNs;    // sub-second part on POSIX; 0 on Windows
+    long long ctime;      // change time: seconds (POSIX) or FILETIME ticks (Windows; 0 = none)
+    long long ctimeNs;
+    bool hashed;
+    unsigned long long hash;
+    // Stamps to compare must be taken with the same hashing (see
+    // fileStampLike): a content hash is compared only when both have one.
+    bool operator==(const FileStamp& o) const {
+        if (exists != o.exists || regular != o.regular) return false;
+        if (!exists || !regular) return true;
+        return size == o.size && mtime == o.mtime && mtimeNs == o.mtimeNs &&
+               ctime == o.ctime && ctimeNs == o.ctimeNs && (!hashed || !o.hashed || hash == o.hash);
+    }
+    bool operator!=(const FileStamp& o) const { return !(*this == o); }
+};
+
+// 64-bit FNV-1a of the file's content, in `h`; false if it cannot be read
+// (e.g. open in another step without read sharing).
+inline bool fileContentHash(const std::string& path, unsigned long long& h) {
+    std::ifstream in(path.c_str(), std::ios::binary);
+    if (!in.is_open()) return false;
+    h = 1469598103934665603ULL;
+    char buf[65536];
+    while (in) {
+        in.read(buf, sizeof(buf));
+        const std::streamsize n = in.gcount();
+        for (std::streamsize i = 0; i < n; ++i) {
+            h ^= static_cast<unsigned char>(buf[i]);
+            h *= 1099511628211ULL;
+        }
+    }
+    return !in.bad();
+}
+
+enum StampHashing { STAMP_HASH_IF_NEEDED, STAMP_HASH, STAMP_NO_HASH };
+
+inline FileStamp fileStamp(const std::string& path, StampHashing hashing = STAMP_HASH_IF_NEEDED) {
+    FileStamp s = { false, false, 0, 0, 0, 0, 0, false, 0 };
+    bool changeTimeReliable = false;
+#ifdef _WIN32
+    if (isDeviceNamespacePath(path)) {   // never a regular file; never opened
+        s.exists = fileExists(path);
+        return s;
+    }
+    // One open for everything (this runs before every step).
+    HANDLE h = CreateFileA(path.c_str(), FILE_READ_ATTRIBUTES, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                           NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
+    if (h == INVALID_HANDLE_VALUE) {
+        s.exists = fileExists(path);   // e.g. present but not openable
+        return s;
+    }
+    s.exists = true;
+    FILE_BASIC_INFO basic;
+    FILE_STANDARD_INFO standard;
+    const bool ok = GetFileType(h) == FILE_TYPE_DISK &&
+                    GetFileInformationByHandleEx(h, FileBasicInfo, &basic, sizeof(basic)) &&
+                    GetFileInformationByHandleEx(h, FileStandardInfo, &standard, sizeof(standard)) &&
+                    !standard.Directory;
+    CloseHandle(h);
+    if (!ok) return s;
+    s.regular = true;
+    s.size = static_cast<unsigned long long>(standard.EndOfFile.QuadPart);
+    s.mtime = basic.LastWriteTime.QuadPart;
+    s.ctime = basic.ChangeTime.QuadPart;
+    const long long ticksPerSecond = 10000000LL;
+    FILETIME now;
+    GetSystemTimeAsFileTime(&now);
+    const long long nowTicks = static_cast<long long>((static_cast<unsigned long long>(now.dwHighDateTime) << 32) |
+                                                      now.dwLowDateTime);
+    // A volume with no change time (FAT, exFAT, some network shares: 0) goes
+    // by the modification time, recorded in 2-second steps on FAT.
+    const long long changed = s.ctime != 0 ? s.ctime : s.mtime;
+    const long long margin = s.ctime != 0 ? kStampRecentSeconds : kStampRecentSeconds + 2;
+    changeTimeReliable = changed != 0 && nowTicks - changed > margin * ticksPerSecond;
+#else
+    struct stat st;
+    if (stat(path.c_str(), &st) != 0) {
+        s.exists = fileExists(path);
+        return s;
+    }
+    s.exists = true;
+    if (!S_ISREG(st.st_mode)) return s;
+    s.regular = true;
+    s.size = static_cast<unsigned long long>(st.st_size);
+    s.mtime = static_cast<long long>(st.st_mtime);
+    s.ctime = static_cast<long long>(st.st_ctime);
+#  ifdef __APPLE__
+    s.mtimeNs = static_cast<long long>(st.st_mtimespec.tv_nsec);
+    s.ctimeNs = static_cast<long long>(st.st_ctimespec.tv_nsec);
+#  else
+    s.mtimeNs = static_cast<long long>(st.st_mtim.tv_nsec);
+    s.ctimeNs = static_cast<long long>(st.st_ctim.tv_nsec);
+#  endif
+    changeTimeReliable = static_cast<long long>(time(NULL)) - s.ctime > kStampRecentSeconds;
+#endif
+    const bool hash = hashing == STAMP_HASH || (hashing == STAMP_HASH_IF_NEEDED && !changeTimeReliable);
+    if (hash && s.size <= kStampHashLimit) {
+        s.hashed = fileContentHash(path, s.hash);   // (left out of comparisons if unreadable)
+    }
+    return s;
+}
+
+// A stamp of `path` now, comparable with `before`: content hashed exactly
+// when `before`'s was (whether the change time is still "recent" depends on
+// when each stamp is taken).
+inline FileStamp fileStampLike(const std::string& path, const FileStamp& before) {
+    return fileStamp(path, before.hashed ? STAMP_HASH : STAMP_NO_HASH);
+}
 
 // Equivalent of plain `mkdir` (one level: the parent must exist).  Returns
 // true if the directory exists afterwards.

@@ -35,6 +35,7 @@
 
 #include "Language.h"
 #include <map>
+#include <mutex>
 #include <string>
 
 #ifdef HAVE_RUST
@@ -70,6 +71,7 @@ public:
 private:
 #ifdef HAVE_RUST
     std::map<std::string, RustPluginVTable> loadedPlugins;
+    std::mutex loadedPluginsMutex;   // kitties run Rust steps in parallel
     RustPluginVTable loadRustPlugin(const std::string& path, const std::string& pluginname);
 #endif
 };

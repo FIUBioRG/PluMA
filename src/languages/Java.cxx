@@ -1,4 +1,5 @@
 #include "Java.h"
+#include <stdexcept>
 #include "../PluginManager.h"
 #include "../platform.h"
 #include <fstream>
@@ -83,7 +84,7 @@ void Java::executePlugin(
     if (!jvm) load();
     if (!env) {
         PluginManager::getInstance().log("Java VM is not available; cannot run " + pluginname);
-        return;
+        throw PluginNotStarted("Java VM is not available");
     }
 
     std::vector<std::string> roots = splitPaths(pluginpath);
@@ -101,7 +102,7 @@ void Java::executePlugin(
     }
     if (!found) {
         PluginManager::getInstance().log("Java plugin " + pluginname + " not found in plugin path.");
-        return;
+        throw PluginNotStarted("Java plugin " + pluginname + " not found");
     }
 
     std::string className = pluginname + "Plugin";
@@ -110,14 +111,15 @@ void Java::executePlugin(
         env->ExceptionDescribe();
         env->ExceptionClear();
         PluginManager::getInstance().log("Java plugin class " + className + " could not be loaded.");
-        return;
+        throw PluginNotStarted("Java plugin class " + className + " could not be loaded");
     }
 
     jmethodID constructor = env->GetMethodID(pluginClass, "<init>", "()V");
     if (!constructor) {
+        env->ExceptionClear();
         PluginManager::getInstance().log("Java plugin " + pluginname + " is missing a default constructor.");
         env->DeleteLocalRef(pluginClass);
-        return;
+        throw PluginNotStarted("Java plugin " + pluginname + " is missing a default constructor");
     }
 
     jobject pluginInstance = env->NewObject(pluginClass, constructor);
@@ -126,7 +128,7 @@ void Java::executePlugin(
         env->ExceptionDescribe();
         env->ExceptionClear();
         env->DeleteLocalRef(pluginClass);
-        return;
+        throw PluginNotStarted("Java plugin " + pluginname + " could not be instantiated");
     }
 
     auto handleException = [&](const std::string& phase) {
@@ -142,6 +144,7 @@ void Java::executePlugin(
     auto callPhaseWithString = [&](const char* methodName, const std::string& value, const char* phase) {
         jmethodID method = env->GetMethodID(pluginClass, methodName, "(Ljava/lang/String;)V");
         if (!method) {
+            env->ExceptionClear();
             PluginManager::getInstance().log("Java plugin " + pluginname + " missing method " + methodName);
             return false;
         }
@@ -154,6 +157,7 @@ void Java::executePlugin(
     auto callPhaseNoArgs = [&](const char* methodName, const char* phase) {
         jmethodID method = env->GetMethodID(pluginClass, methodName, "()V");
         if (!method) {
+            env->ExceptionClear();
             PluginManager::getInstance().log("Java plugin " + pluginname + " missing method " + methodName);
             return false;
         }
@@ -161,32 +165,31 @@ void Java::executePlugin(
         return !handleException(phase);
     };
 
-    PluginManager::getInstance().log("Executing input() For Java Plugin " + pluginname);
-    if (!callPhaseWithString("input", inputname, "input")) {
+    // A failed phase: the plugin ran and failed (its output is removed) --
+    // except a failing input(), which may have been an unmet dependency
+    // (the step then counts as not started).
+    auto fail = [&](const char* phase, bool notStarted) {
         env->DeleteLocalRef(pluginInstance);
         env->DeleteLocalRef(pluginClass);
-        return;
-    }
+        const std::string what = "Java plugin " + pluginname + " failed in " + phase + "()";
+        if (notStarted) throw PluginNotStarted(what);
+        throw std::runtime_error(what);
+    };
+
+    PluginManager::getInstance().log("Executing input() For Java Plugin " + pluginname);
+    if (!callPhaseWithString("input", inputname, "input")) fail("input", PluginManager::takeDependencyFailed());
 
     PluginManager::getInstance().log("Executing run() For Java Plugin " + pluginname);
-    if (!callPhaseNoArgs("run", "run")) {
-        env->DeleteLocalRef(pluginInstance);
-        env->DeleteLocalRef(pluginClass);
-        return;
-    }
+    if (!callPhaseNoArgs("run", "run")) fail("run", false);
 
     PluginManager::getInstance().log("Executing output() For Java Plugin " + pluginname);
-    if (!callPhaseWithString("output", outputname, "output")) {
-        env->DeleteLocalRef(pluginInstance);
-        env->DeleteLocalRef(pluginClass);
-        return;
-    }
+    if (!callPhaseWithString("output", outputname, "output")) fail("output", false);
 
     PluginManager::getInstance().log("Java Plugin " + pluginname + " completed successfully.");
     env->DeleteLocalRef(pluginInstance);
     env->DeleteLocalRef(pluginClass);
 #else
-    PluginManager::getInstance().log("Java support is not enabled in this build; skipping " + pluginname + ".");
+    notEnabled(pluginname);
 #endif
 }
 

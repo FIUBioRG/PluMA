@@ -35,6 +35,7 @@
 #include "../platform.h"
 #include <iostream>
 #include <fstream>
+#include <stdexcept>
 
 #ifdef HAVE_RUST
 #include <dlfcn.h>
@@ -148,30 +149,27 @@ void Rust::executePlugin(
     std::string outputname)
 {
 #ifdef HAVE_RUST
-    std::string tmppath = pluginpath;
-    std::string path = tmppath.substr(0, pluginpath.find_first_of(":"));
-    std::ifstream* infile = nullptr;
-    std::string filename;
+    // Rust plugins are compiled to lib<PluginName>Plugin.so (not .rs): the
+    // first plugin directory that has it.
+    const std::string filename = pluma::findInPluginPath(pluginpath, pluginname + "/lib" + pluginname + "Plugin.so");
+    if (filename.empty()) {
+        PluginManager::getInstance().log("Rust plugin " + pluginname + " not found in plugin path.");
+        throw PluginNotStarted("Rust plugin " + pluginname + " not found");
+    }
 
-    // Search for the Rust plugin shared library in plugin paths
-    // Note: Rust plugins are compiled to .so files, not .rs
-    do {
-        if (infile) delete infile;
-        // Rust plugins are compiled to lib<PluginName>Plugin.so
-        filename = path + "/" + pluginname + "/lib" + pluginname + "Plugin.so";
-        infile = new std::ifstream(filename.c_str(), std::ios::in);
-        tmppath = tmppath.substr(tmppath.find_first_of(":") + 1, tmppath.length());
-        path = tmppath.substr(0, tmppath.find_first_of(":"));
-    } while (!(*infile) && path.length() > 0);
-
-    delete infile;
-
-    // Load the Rust plugin
+    // Load the Rust plugin.  Everything up to input() failing means the step
+    // did not start (an existing output is kept).
     RustPluginVTable vtable = loadRustPlugin(filename, pluginname);
+    {
+        std::lock_guard<std::mutex> lock(loadedPluginsMutex);
+        // Kept for unload(), as before (a later load of the same library
+        // returns the same handle).
+        if (vtable.handle) loadedPlugins[pluginname] = vtable;
+    }
 
     if (!vtable.create || !vtable.input || !vtable.run || !vtable.output || !vtable.destroy) {
         PluginManager::getInstance().log("Error: Failed to load Rust plugin " + pluginname);
-        return;
+        throw PluginNotStarted("Rust plugin " + pluginname + " failed to load");
     }
 
     // Create plugin instance
@@ -180,10 +178,11 @@ void Rust::executePlugin(
 
     if (!plugin_instance) {
         PluginManager::getInstance().log("Error: Failed to create Rust plugin instance for " + pluginname);
-        return;
+        throw PluginNotStarted("Rust plugin " + pluginname + " failed to construct");
     }
 
-    // Execute plugin phases
+    // Execute plugin phases.  (The C ABI has no error channel: a Rust panic
+    // across it aborts the process, as before.)
     PluginManager::getInstance().log("Executing input() For Rust Plugin " + pluginname);
     vtable.input(plugin_instance, inputname.c_str());
 
@@ -198,14 +197,16 @@ void Rust::executePlugin(
     vtable.destroy(plugin_instance);
 
     PluginManager::getInstance().log("Rust Plugin " + pluginname + " completed successfully.");
-
-    // Store vtable for potential cleanup
-    loadedPlugins[pluginname] = vtable;
+#else
+    (void) inputname;
+    (void) outputname;
+    notEnabled(pluginname);
 #endif
 }
 
 void Rust::unload() {
 #ifdef HAVE_RUST
+    std::lock_guard<std::mutex> lock(loadedPluginsMutex);
     // Close all loaded plugin handles
     for (auto& pair : loadedPlugins) {
         if (pair.second.handle) {

@@ -31,9 +31,92 @@
 \*********************************************************************************/
 
 #include "PluginManager.h"
+#include <cstdio>
+#include <mutex>
 #include <vector>
 std::vector<Language*> PluginManager::supported;
 std::string PluginManager::myPrefix = "";
+
+// Never destroyed (unlike this object on POSIX, a function-local static):
+// a thread a plugin started may log while the process exits.
+// (Function-local: usable even from another file's static initializer.)
+static std::mutex& logMutex() {
+    static std::mutex* lock = new std::mutex;
+    return *lock;
+}
+
+void PluginManager::setLogFile(std::string lf) {
+    std::lock_guard<std::mutex> lock(logMutex());
+    if (logfile) delete logfile;
+    logfile = new std::ofstream(lf.c_str(), std::ios::out);
+}
+
+bool PluginManager::logFileOpen() {
+    PluginManager& self = getInstance();
+    std::lock_guard<std::mutex> lock(logMutex());
+    return self.logfile && self.logfile->is_open();
+}
+
+void PluginManager::log(std::string msg) {
+    PluginManager& self = getInstance();
+    std::lock_guard<std::mutex> lock(logMutex());
+    if (self.logfile) *(self.logfile) << "[PluMA] " << msg << std::endl;
+}
+
+static thread_local bool dependencyFailed = false;
+static thread_local unsigned dependencyFailures = 0;   // on this thread, never cleared
+
+void PluginManager::markDependencyFailed() {
+    dependencyFailed = true;
+    ++dependencyFailures;
+}
+
+unsigned PluginManager::dependencyFailureCount() {
+    return dependencyFailures;
+}
+
+bool PluginManager::takeDependencyFailed() {
+    const bool failed = dependencyFailed;
+    dependencyFailed = false;
+    return failed;
+}
+
+static thread_local bool pipelineThread = false;
+
+void PluginManager::setOnPipelineThread() {
+    pipelineThread = true;
+}
+
+void PluginManager::clearOnPipelineThread() {
+    pipelineThread = false;
+}
+
+bool PluginManager::onPipelineThread() {
+    return pipelineThread;
+}
+
+void PluginManager::dependency(std::string plugin) {
+    if (getInstance().installed.count(plugin) == 0) {
+        log("Plugin dependency " + plugin + " not met.");
+        if (!onPipelineThread()) {
+            // Also on stderr: the log file may not be open yet (e.g. called
+            // from a plugin's static initializer during discovery).
+            const std::string message = "[PluMA] Plugin dependency " + plugin +
+                                        " not met outside a pipeline step; exiting.\n";
+            std::fputs(message.c_str(), stderr);
+            std::fflush(stderr);
+            exit(1);
+        }
+        // C++ plugins get DependencyNotMet; through the SWIG wrappers it
+        // becomes a Python/Perl/R error carrying the same message.  The mark
+        // records that it really happened on this thread (see
+        // takeDependencyFailed()).
+        markDependencyFailed();
+        throw DependencyNotMet("plugin dependency " + plugin + " not met");
+    } else {
+        log("Plugin dependency " + plugin + " met.");
+    }
+}
 
 #ifdef _WIN32
 // The plugin API as plain C, exported by pluma.exe for modules built with
@@ -48,9 +131,20 @@ PLUMA_HOST_API void pluma_host_log(const char* message) {
     PluginManager::log(message ? message : "");
 }
 
-// As PluginManager::dependency(): ends PluMA when the dependency is not met.
-PLUMA_HOST_API void pluma_host_dependency(const char* plugin) {
-    PluginManager::dependency(plugin ? plugin : "");
+// 0 if `plugin` is installed; otherwise 1 with the error text in `err` (the
+// caller turns it into an exception of its own language).  Off a pipeline
+// thread an unmet dependency ends the run, as PluginManager::dependency does.
+PLUMA_HOST_API int pluma_host_dependency(const char* plugin, char* err, int errlen) {
+    try {
+        PluginManager::dependency(plugin ? plugin : "");
+        return 0;
+    } catch (const std::exception& e) {
+        if (err && errlen > 0) snprintf(err, (size_t) errlen, "%s", e.what());
+        return 1;
+    } catch (...) {
+        if (err && errlen > 0) snprintf(err, (size_t) errlen, "%s", "dependency check failed");
+        return 1;
+    }
 }
 
 PLUMA_HOST_API const char* pluma_host_prefix(void) {

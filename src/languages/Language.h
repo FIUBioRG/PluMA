@@ -35,6 +35,32 @@
 
 #include <string>
 #include <map>
+#include <stdexcept>
+#ifndef _WIN32
+#include <glob.h>   // not used here: plugins written against earlier versions get it through this header
+#endif
+
+#include "../PlumaExport.h"
+
+// Thrown when a pipeline step fails *before the plugin's input() phase*:
+// plugin not found, language not enabled, runtime unavailable, or the plugin
+// failed to load (Perl compile error, Python import/construction error, Java
+// class/constructor error).  Such a step never reached a phase that writes
+// its output, so an existing output file -- e.g. a valid result from an
+// earlier run -- is kept.  Any other exception means the plugin ran and
+// failed, and its (possibly partial) output is removed.
+class PluginNotStarted : public std::runtime_error {
+public:
+    explicit PluginNotStarted(const std::string& what) : std::runtime_error(what) {}
+};
+
+// Thrown by PluginManager::dependency(): an unmet precondition, so the step
+// counts as not started.  A C++ plugin that lets it propagate keeps its
+// existing output; one that catches it and continues is on its own.
+class DependencyNotMet : public PluginNotStarted {
+public:
+    explicit DependencyNotMet(const std::string& what) : PluginNotStarted(what) {}
+};
 
 class Language {
 public:
@@ -48,8 +74,20 @@ public:
     virtual std::string lang() {return language;}
     virtual std::string pre() {return prefix;}
     virtual void load()=0;
+    virtual ~Language() {}
+    // False when this language's support is compiled out of this build; its
+    // plugins then fail with "not enabled" instead of being skipped.
+    virtual bool enabled() const {return true;}
 
 protected:
+    // Logs and throws: used when this language's support is compiled out, so
+    // its plugins fail loudly instead of being silently skipped.
+    [[noreturn]] void notEnabled(const std::string& pluginname);
+    // The plugin's file, <plugin>/<plugin>Plugin.<ext>, from the plugin path
+    // (first root that has it); logs and throws PluginNotStarted if there is
+    // none -- before any plugin code, as for every language.
+    std::string findPluginFile(const std::string& pluginname) const;
+
     std::string language;
     std::string extension;
     std::string prefix;

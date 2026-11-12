@@ -40,6 +40,51 @@
   installed. On Windows, the embedded Python's `sys.executable` is the
   installation's `python.exe` (not `pluma.exe`), so `multiprocessing` and
   `subprocess` work from plugins.
+- **Behavior change:** a plugin failure now stops the pipeline (exit status 1)
+  on every platform. Previously PluMA continued to later plugins unless the
+  failing plugin had already written its output file, and Python exceptions
+  were printed but otherwise ignored, so downstream plugins could silently
+  run against missing output. Set `PLUMA_CONTINUE_ON_ERROR=1` for the previous
+  behavior (a failed step that left no output is logged and the pipeline goes
+  on), except that PluMA then exits with status 1, so scripts and CI see that
+  steps failed. An unmet `dependency()` still ends the run, as it always did. Failures now include: Python exceptions, Java
+  exceptions, an unknown/misspelled plugin name or one missing from the
+  plugin path, a plugin whose language support is not compiled into this
+  build, an unmet `dependency()`, a pipeline file that cannot be opened, a
+  `Plugin` line missing its input or output file (previously run with the
+  bare `Prefix` directory as that path), and a `Prefix`, `Pipeline` or
+  `Kitty` line without its argument (previously the filesystem root, the
+  previous pipeline, or the previous kitty's directory). A statement may
+  still span several lines, but one cut short no longer takes the next
+  statement's keyword (`Plugin`, `Prefix`, ...) as its missing argument.
+  So a file name that is a statement keyword or starts with `#` must be on
+  the same line as the word before it (`inputfile #raw.txt`): at the start
+  of a continuation line it ends the statement, which is then incomplete.
+  With parallel kitties (`LitterLaunch`), running kitties finish their current
+  plugin and no new plugins start. The output file of a plugin that ran and
+  failed is removed (as before); a step that failed before its plugin started
+  (unknown name, language not enabled, runtime missing) keeps an existing
+  output file.
+- An unmet `dependency()` in a plugin's `input()` counts as "not started" (the
+  existing output file is kept) in every language; later in the plugin it is
+  an ordinary failure. A plugin that catches the error and carries on still
+  fails its step (see below), as `dependency()` ended the run in earlier
+  versions. In every "not started" case the existing output is kept
+  only if the step left it untouched (same size, modification and change
+  times; where the change time cannot tell -- unavailable, whole-second
+  resolution, or changed within the last 2 seconds -- also the same content,
+  for files up to 16 MB, so a same-size rewrite is caught even on file
+  systems with coarse timestamps); one the plugin created, truncated or wrote
+  before failing is removed. Only regular files are ever checked or removed:
+  an output that is a device (`/dev/null`, `NUL`), FIFO or directory is left
+  alone and never read.
+- A pipeline file saved with a UTF-8 byte order mark (as some Windows
+  editors do) is read correctly; the mark used to corrupt its first line.
+- `PluginManager::dependency()` is no longer inline in `PluginManager.h`
+  (plugins built without exception support compile again).
+- A step's output is checked and, after a failure, removed by its absolute
+  path as of the step's start, so a plugin that changes the current
+  directory before failing cannot make PluMA remove a different file.
 - Building with swig no longer rewrites the git-tracked `RPluMA_wrap.cxx`: the
   wrapper is generated into `obj/`, and the tracked copy is used only when
   swig is missing. Without swig, the `PyPluMA` and `PerlPluMA` helper modules
@@ -62,8 +107,24 @@
   overrides. The `R_INCLUDE_DIR` override
   now reaches the compiler (it was set on a misspelled variable), and the
   language sources are no longer compiled twice.
+- A plugin that catches its own unmet `dependency()` (`catch (...)`,
+  `except Exception`, `tryCatch`) and goes on still fails its step, as when
+  `dependency()` ended the run with `exit(1)`.
+- An unmet `dependency()` outside a pipeline step (e.g. in a plugin's static
+  initializer, before the log file is open) is also reported on stderr.
 - Linux/macOS: a working directory that cannot be read (removed, no
   permission) no longer makes PluMA retry `getcwd` with ever larger buffers.
+- `Plugin` lines with the keywords exactly swapped
+  (`... outputfile a inputfile b`) stop the run with an error, instead of
+  running the plugin with its files exchanged -- where a failure would then
+  remove what is really its input. Other words in place of `Plugin`,
+  `inputfile` and `outputfile` still run, as before, now with a warning.
+- A pipeline file that is a directory (`pluma pipelines/`, or a `Pipeline`
+  line naming one) is an error, as on Windows -- on Linux/macOS it read as
+  an empty pipeline and the run ended successfully having done nothing. A
+  read error partway through a pipeline file also fails the run. Pipelines
+  read from a FIFO or `/dev/stdin` (`pluma <(make_pipeline)`) work, also with
+  a UTF-8 byte order mark.
 - POSIX `scons -c` keeps `RPluMA.R`, which only swig can regenerate.
 - Docker: the image builds again on Alpine 3.23 (`libexecinfo` is no longer
   an Alpine package; `pythonds` is installed past PEP 668's guard on the
@@ -87,11 +148,22 @@
 - Windows: an explicit `--gpu-architecture` (also `sm_35`) is used as given;
   only when it is not given do CUDA plugins target this machine's GPU (or
   every major architecture).
+- The `PyPluMA`/`PerlPluMA`/`RPluMA` wrappers turn any C++ exception into a
+  language error (not only `std::exception`), so none unwinds through the
+  interpreter.
+- Plugins count as installed for `dependency()` after each plugin directory
+  is loaded, as before: a plugin library that checks a dependency while it
+  is loaded finds plugins of the directories searched before its own.
 - Windows: Perl plugins load the Perl that PluMA was built against before
   any other `perl5XY.dll` of the same name on `PATH` (another Perl
   distribution may be built with incompatible options).
+- The log's lock is never destroyed, so a thread a plugin left running can
+  still log while the process exits (on POSIX the `PluginManager` object
+  itself is destroyed at exit).
 - Windows build: Perl's embedding flags are split respecting quotes, so a
   Strawberry Perl installed under a path with spaces builds.
+- `PluginManager::log()` and `setLogFile()` are defined in pluma, like
+  `dependency()`: plugins no longer compile the logger's internals in.
 - The libpython version is read from the last include directory that
   `python3-config --includes` reports (e.g. `3.14t`), not from a
   `python3.14` in the install prefix.
@@ -112,3 +184,8 @@
   the `glob()` emulation are removed (PluMA no longer uses them). PluGen's
   Python, R, Julia and Rust generators build on Windows too; `--with-rust`
   and `--with-julia` are ignored there with a warning.
+- Rust and Julia plugins fail their step like plugins of other languages:
+  one that is not found, not compiled or fails to load counts as not
+  started (an existing output file is kept); a Julia exception in a phase
+  is a failure (an unmet `dependency()` in `input()` counts as not
+  started).

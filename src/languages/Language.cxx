@@ -31,8 +31,23 @@
 \*********************************************************************************/
 
 #include "Language.h"
+#include "../PluginManager.h"
 #include "../platform.h"
 #include <iostream>
+
+std::string Language::findPluginFile(const std::string& pluginname) const {
+    const std::string file = pluma::findInPluginPath(pluginpath, pluginname + "/" + pluginname + "Plugin." + extension);
+    if (file.empty()) {
+        PluginManager::getInstance().log(language + " plugin " + pluginname + " not found in plugin path.");
+        throw PluginNotStarted(language + " plugin " + pluginname + " not found");
+    }
+    return file;
+}
+
+void Language::notEnabled(const std::string& pluginname) {
+    PluginManager::getInstance().log(language + " support is not enabled in this build; cannot run " + pluginname + ".");
+    throw PluginNotStarted(language + " support is not enabled in this build");
+}
 
 void Language::loadPlugin(
     std::string path,

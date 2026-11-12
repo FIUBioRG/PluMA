@@ -73,24 +73,46 @@ void Compiled::executePlugin(
     std::string inputname,
     std::string outputname)
 {
-    // The plugin's library, <plugin>/<prefix><plugin>Plugin.<ext>, from the
-    // first plugin directory that has it ("lib" prefix on POSIX, none on
-    // Windows).  It was loaded during discovery; loading it again returns the
-    // same module.
-    std::string filename = pluma::findInPluginPath(pluginpath, pluginname + "/" + pre() + pluginname + "Plugin." + ext());
-    void* handle = filename.empty() ? NULL : pluma::loadLibrary(filename);
-    if (!handle) {
-        std::string err = pluma::lastLibraryError();   // before any I/O
-        std::cout << "Warning: Null Handle" << std::endl;
-        std::cout << err << std::endl;
+    // The library was loaded during discovery (Language::loadPlugin), where
+    // its static PluginProxy registered a maker; plugins that failed to load
+    // never reach this point.
+    Plugin* plugin = NULL;
+    // Constructor failed (e.g. an unmet dependency() there): before input(),
+    // so like other languages any existing output is kept.  Any exception
+    // type; its message when it is a std::exception.
+    std::string constructError;
+    bool constructFailed = false;
+    try {
+        plugin = PluginManager::getInstance().create(pluginname);
+    } catch (const std::exception& e) {
+        constructFailed = true;
+        constructError = std::string(": ") + e.what();
+    } catch (...) {
+        constructFailed = true;
     }
-    Plugin* plugin = PluginManager::getInstance().create(pluginname);
+    if (constructFailed) {
+        PluginManager::getInstance().log("C++/CUDA Plugin "+pluginname+" failed to construct"+constructError+".");
+        throw PluginNotStarted("plugin " + pluginname + " failed to construct");
+    }
+    if (!plugin) {
+        PluginManager::getInstance().log("C++/CUDA Plugin "+pluginname+" did not register itself "
+                                         "(its PluginProxy keyword must be \""+pluginname+"\").");
+        throw PluginNotStarted("plugin " + pluginname + " not registered");
+    }
 
     PluginManager::getInstance().log("Executing input() For C++/CUDA Plugin "+pluginname);
-    plugin->input(inputname);
-    PluginManager::getInstance().log("Executing run() For C++/CUDA Plugin "+pluginname);
-    plugin->run();
-    PluginManager::getInstance().log("Executing output() For C++/CUDA Plugin "+pluginname);
-    plugin->output(outputname);
+    plugin->input(inputname);   // DependencyNotMet here: not started (output kept)
+    // Past input(), an unmet dependency -- or any other "not started" error,
+    // e.g. from a step the plugin runs itself -- is an ordinary failure: the
+    // plugin may already have written partial output, which must be removed
+    // (the same rule as for Python, Perl and R).
+    try {
+        PluginManager::getInstance().log("Executing run() For C++/CUDA Plugin "+pluginname);
+        plugin->run();
+        PluginManager::getInstance().log("Executing output() For C++/CUDA Plugin "+pluginname);
+        plugin->output(outputname);
+    } catch (const PluginNotStarted& e) {   // includes DependencyNotMet
+        throw std::runtime_error(e.what());
+    }
     PluginManager::getInstance().log("C++/CUDA Plugin "+pluginname+" completed successfully.");
 }

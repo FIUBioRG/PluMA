@@ -37,6 +37,7 @@
 #include "Python.h"
 #endif
 #include "../platform.h"
+#include <stdexcept>
 #include <string>
 #include <vector>
 #if defined(_WIN32) && defined(PLUMA_HAVE_BUILD_PATHS)
@@ -131,12 +132,14 @@ void Py::executePlugin(
     std::string inputname,
     std::string outputname
 ) {
+    // Not in the plugin path: fails before any plugin code.
+    findPluginFile(pluginname);
 #ifdef HAVE_PYTHON
 #ifdef _WIN32
     static const bool pythonFound = preloadPython();
     if (!pythonFound) {
         PluginManager::getInstance().log("Python (" + pythonDllName() + ") was not found; cannot run " + pluginname + ".");
-        return;
+        throw PluginNotStarted("Python runtime not found");
     }
 #endif
     // Forward slashes: the paths go into Python string literals below.
@@ -171,16 +174,37 @@ void Py::executePlugin(
 
     inputname = pluma::normalizeSlashes(inputname);
     outputname = pluma::normalizeSlashes(outputname);
-    PyRun_SimpleString(("import "+pluginname+"Plugin").c_str());
-    PyRun_SimpleString(("plugin = "+pluginname+"Plugin."+pluginname+"Plugin()").c_str());
-    PluginManager::getInstance().log("[PluMA] Executing input() For Python Plugin "+pluginname);
-    PyRun_SimpleString(("plugin.input(\""+inputname+"\")").c_str());
-    PluginManager::getInstance().log("[PluMA] Executing run() For Python Plugin "+pluginname);
-    PyRun_SimpleString("plugin.run()");
-    PluginManager::getInstance().log("[PluMA] Executing output() For Python Plugin "+pluginname);
-    PyRun_SimpleString(("plugin.output(\""+outputname+"\")").c_str());
-    //Py_Finalize();
-    PluginManager::getInstance().log("[PluMA] Python Plugin "+pluginname+" complted successfully.");
+    // PyRun_SimpleString returns -1 when the code raised (the traceback is
+    // printed).  Import or construction failing: the plugin never reached
+    // input(), so the step counts as not started (an existing output is kept).
+    if (PyRun_SimpleString(("import "+pluginname+"Plugin").c_str()) != 0 ||
+        PyRun_SimpleString(("plugin = "+pluginname+"Plugin."+pluginname+"Plugin()").c_str()) != 0) {
+        PluginManager::getInstance().log("Python Plugin "+pluginname+" failed to load.");
+        throw PluginNotStarted("Python plugin " + pluginname + " failed to load");
+    }
+    PluginManager::getInstance().log("Executing input() For Python Plugin "+pluginname);
+    if (PyRun_SimpleString(("plugin.input(\""+inputname+"\")").c_str()) != 0) {
+        // An unmet dependency() in input(): not started, as in every language.
+        if (PluginManager::takeDependencyFailed()) {
+            PluginManager::getInstance().log("Python Plugin "+pluginname+": dependency not met in input().");
+            throw PluginNotStarted("Python plugin " + pluginname + ": dependency not met");
+        }
+        PluginManager::getInstance().log("Python Plugin "+pluginname+" failed in input().");
+        throw std::runtime_error("Python plugin " + pluginname + " failed in input()");
+    }
+    PluginManager::getInstance().log("Executing run() For Python Plugin "+pluginname);
+    if (PyRun_SimpleString("plugin.run()") != 0) {
+        PluginManager::getInstance().log("Python Plugin "+pluginname+" failed in run().");
+        throw std::runtime_error("Python plugin " + pluginname + " failed in run()");
+    }
+    PluginManager::getInstance().log("Executing output() For Python Plugin "+pluginname);
+    if (PyRun_SimpleString(("plugin.output(\""+outputname+"\")").c_str()) != 0) {
+        PluginManager::getInstance().log("Python Plugin "+pluginname+" failed in output().");
+        throw std::runtime_error("Python plugin " + pluginname + " failed in output()");
+    }
+    PluginManager::getInstance().log("Python Plugin "+pluginname+" completed successfully.");
+#else
+    notEnabled(pluginname);
 #endif
 }
 

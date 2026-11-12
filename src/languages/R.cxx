@@ -147,23 +147,46 @@ void R::load() {
 }
 
 
+#ifdef HAVE_R
+// Evaluates R code; false (with R's message in `error`) if it raised an error.
+static bool evalR(const std::string& code, std::string& error) {
+#ifdef _WIN32
+    char err[4096];
+    if (rEval(code.c_str(), err, sizeof(err)) != 0) {
+        error = err;
+        return false;
+    }
+    return true;
+#else
+    try {
+        RInside::instancePtr()->parseEvalQ(code);
+        return true;
+    } catch (const std::exception& e) {
+        error = e.what();
+        return false;
+    }
+#endif
+}
+#endif
+
 void R::executePlugin(
     std::string pluginname,
     std::string inputname,
     std::string outputname)
 {
 #ifdef HAVE_R
+    // The first plugin directory that has <plugin>/<plugin>Plugin.R; if none,
+    // the step fails before any plugin code.
+    const std::string filename = findPluginFile(pluginname);
 #ifdef _WIN32
     if (!startR(argc, argv)) {
         PluginManager::getInstance().log("R is not available; cannot run " + pluginname + ".");
-        return;
+        throw PluginNotStarted("R is not available");
     }
     // Forward slashes: the paths go into R string literals below.
     inputname = pluma::normalizeSlashes(inputname);
     outputname = pluma::normalizeSlashes(outputname);
 #endif
-    // The first plugin directory that has <plugin>/<plugin>Plugin.R.
-    const std::string filename = pluma::findInPluginPath(pluginpath, pluginname + "/" + pluginname + "Plugin.R");
     std::ifstream* infile = new std::ifstream(filename.c_str(), std::ios::in);
 
     std::string txt;
@@ -174,18 +197,34 @@ void R::executePlugin(
     }
     delete infile;
 
+    // Each phase on its own, so a failure is reported where it happened: the
+    // plugin's code failing to load, or an unmet dependency() in input(), is
+    // "not started" (an existing output is kept); a later error is a failure.
+    std::string error;
     PluginManager::getInstance().log("Executing R Plugin "+pluginname);
-    txt += "input(\"" + inputname + "\");\n";
-    txt += "run();";
-    txt += "output(\"" + outputname + "\");\n";
-#ifdef _WIN32
-    char err[4096];
-    if (rEval(txt.c_str(), err, sizeof(err)) != 0) throw std::runtime_error(err);
-#else
-    myR->parseEvalQ(txt);
-#endif
+    if (!evalR(txt, error)) {
+        PluginManager::getInstance().log("R Plugin "+pluginname+" failed to load: "+error);
+        throw PluginNotStarted("R plugin " + pluginname + " failed to load");
+    }
+    if (!evalR("input(\"" + inputname + "\")", error)) {
+        if (PluginManager::takeDependencyFailed()) {
+            PluginManager::getInstance().log("R Plugin "+pluginname+": dependency not met in input(): "+error);
+            throw PluginNotStarted("R plugin " + pluginname + ": dependency not met");
+        }
+        PluginManager::getInstance().log("R Plugin "+pluginname+" failed in input(): "+error);
+        throw std::runtime_error("R plugin " + pluginname + " failed in input()");
+    }
+    if (!evalR("run()", error)) {
+        PluginManager::getInstance().log("R Plugin "+pluginname+" failed in run(): "+error);
+        throw std::runtime_error("R plugin " + pluginname + " failed in run()");
+    }
+    if (!evalR("output(\"" + outputname + "\")", error)) {
+        PluginManager::getInstance().log("R Plugin "+pluginname+" failed in output(): "+error);
+        throw std::runtime_error("R plugin " + pluginname + " failed in output()");
+    }
     PluginManager::getInstance().log("R Plugin "+pluginname+" completed successfully.");
-    //unload();
+#else
+    notEnabled(pluginname);
 #endif
 }
 

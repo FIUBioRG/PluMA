@@ -1,6 +1,8 @@
 #include "Julia.h"
 #include "../PluginManager.h"
+#include "../platform.h"
 #include <fstream>
+#include <stdexcept>
 
 #ifdef HAVE_JULIA
 #include <sstream>
@@ -28,17 +30,13 @@ void Julia::executePlugin(
     std::string outputname
 ) {
 #ifdef HAVE_JULIA
+    // Find the plugin file (before anything else, as for every language).
+    std::string pluginFile = findJuliaPluginFile(pluginname);
+
     if (!initialized) load();
     if (!initialized) {
         PluginManager::getInstance().log("Julia runtime is not available; cannot run " + pluginname);
-        return;
-    }
-
-    // Find the plugin file
-    std::string pluginFile = findPluginFile(pluginname);
-    if (pluginFile.empty()) {
-        PluginManager::getInstance().log("Julia plugin " + pluginname + " not found in plugin path.");
-        return;
+        throw PluginNotStarted("Julia runtime is not available");
     }
 
     // Create a unique module name for this plugin
@@ -56,30 +54,35 @@ void Julia::executePlugin(
         const char* err_msg = jl_typeof_str(ex);
         PluginManager::getInstance().log("Julia plugin " + pluginname + " failed to load: " + std::string(err_msg));
         jl_exception_clear();
-        return;
+        throw PluginNotStarted("Julia plugin " + pluginname + " failed to load");
     }
 
     // Execute input phase
     PluginManager::getInstance().log("Executing input() For Julia Plugin " + pluginname);
     if (!callPluginFunction(moduleName, "input", inputname)) {
-        return;
+        // An unmet dependency() in input(): not started, as in every language.
+        if (PluginManager::takeDependencyFailed())
+            throw PluginNotStarted("Julia plugin " + pluginname + ": dependency not met");
+        throw std::runtime_error("Julia plugin " + pluginname + " failed in input()");
     }
 
     // Execute run phase
     PluginManager::getInstance().log("Executing run() For Julia Plugin " + pluginname);
     if (!callPluginFunctionNoArgs(moduleName, "run")) {
-        return;
+        throw std::runtime_error("Julia plugin " + pluginname + " failed in run()");
     }
 
     // Execute output phase
     PluginManager::getInstance().log("Executing output() For Julia Plugin " + pluginname);
     if (!callPluginFunction(moduleName, "output", outputname)) {
-        return;
+        throw std::runtime_error("Julia plugin " + pluginname + " failed in output()");
     }
 
     PluginManager::getInstance().log("Julia Plugin " + pluginname + " completed successfully.");
 #else
-    PluginManager::getInstance().log("Julia support is not enabled in this build; skipping " + pluginname + ".");
+    (void) inputname;
+    (void) outputname;
+    notEnabled(pluginname);
 #endif
 }
 
@@ -97,7 +100,7 @@ void Julia::load() {
     }
 
     // Add plugin paths to Julia's LOAD_PATH
-    std::vector<std::string> roots = splitPaths(pluginpath);
+    std::vector<std::string> roots = pluma::splitPathList(pluginpath);
     for (const auto& root : roots) {
         if (root.empty()) continue;
         std::string pushCode = "push!(LOAD_PATH, \"" + root + "\")";
@@ -119,40 +122,18 @@ void Julia::unload() {
 }
 
 #ifdef HAVE_JULIA
-std::vector<std::string> Julia::splitPaths(const std::string& paths) {
-    std::vector<std::string> result;
-    std::stringstream ss(paths);
-    std::string entry;
-    while (std::getline(ss, entry, ':')) {
-        if (!entry.empty()) {
-            result.push_back(entry);
-        }
-    }
-    return result;
-}
-
-std::string Julia::findPluginFile(const std::string& pluginname) const {
-    std::vector<std::string> roots = splitPaths(pluginpath);
-
+std::string Julia::findJuliaPluginFile(const std::string& pluginname) const {
+    // <plugin>/<plugin>Plugin.jl, else <plugin>/plugin.jl, root by root.
+    std::vector<std::string> roots = pluma::splitPathList(pluginpath);
     for (const auto& root : roots) {
         if (root.empty()) continue;
-
-        // Check for PluginName/PluginNamePlugin.jl
-        std::string path1 = root + "/" + pluginname + "/" + pluginname + "Plugin.jl";
-        std::ifstream file1(path1);
-        if (file1.good()) {
-            return path1;
-        }
-
-        // Check for PluginName/plugin.jl
-        std::string path2 = root + "/" + pluginname + "/plugin.jl";
-        std::ifstream file2(path2);
-        if (file2.good()) {
-            return path2;
+        for (const std::string& name : { pluginname + "Plugin.jl", std::string("plugin.jl") }) {
+            const std::string path = root + "/" + pluginname + "/" + name;
+            if (pluma::fileExists(path)) return path;
         }
     }
-
-    return "";
+    PluginManager::getInstance().log("Julia plugin " + pluginname + " not found in plugin path.");
+    throw PluginNotStarted("Julia plugin " + pluginname + " not found");
 }
 
 bool Julia::callPluginFunction(const std::string& moduleName, const char* funcName,
