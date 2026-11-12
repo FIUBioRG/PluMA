@@ -293,6 +293,17 @@ inline bool readFileAt(std::ifstream& file, unsigned long long offset, void* to,
     return file && static_cast<unsigned long long>(file.gcount()) == length;
 }
 
+// Locks `lock`'s mutex, waiting at most `limit` for a holder that may never
+// let go.  False if it could not be taken in that time.
+inline bool lockBounded(std::unique_lock<std::mutex>& lock, std::chrono::milliseconds limit) {
+    const std::chrono::steady_clock::time_point giveUp = std::chrono::steady_clock::now() + limit;
+    while (!lock.try_lock()) {
+        if (std::chrono::steady_clock::now() >= giveUp) return false;
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    return true;
+}
+
 // Whether this thread is inside loadLibrary() (see runBounded).
 inline bool& loadingLibrary() {
     static thread_local bool loading = false;

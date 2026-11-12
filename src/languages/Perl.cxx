@@ -33,6 +33,7 @@
 #include "Perl.h"
 #include "../PluginManager.h"
 #include "../platform.h"
+#include "Py.h"   // Py::NativeStepGuard (no Python headers)
 #include <mutex>
 #include <stdexcept>
 
@@ -148,6 +149,11 @@ void Perl::executePlugin(
     // First plugin directory that contains the script.
     const std::string filename = findPluginFile(pluginname);
     std::lock_guard<std::mutex> lock(perlMutex);
+    // No GIL here: Perl steps run in parallel with Python steps on kitties.
+    // A Perl plugin that calls the embedded Python (Inline::Python) takes the
+    // GIL itself, as Python's C API requires on any thread -- except one that
+    // started Python and kept its GIL on the main thread (see R::executePlugin).
+    Py::NativeStepGuard foreignGil(false);
     const PerlHost host = { hostLog, hostTakeDependencyFailed };
     std::string message;
     int status;

@@ -183,6 +183,18 @@ bool PluginManager::dependencyExceptionAlive() {
     return liveDependencyExceptions.count(token) != 0;
 }
 
+// Constant-initialized (no constructor), so it reads false even when pluma.exe
+// was mapped without running its initializers.
+static bool hostProcess = false;
+
+void PluginManager::markHostProcess() {
+    hostProcess = true;
+}
+
+bool PluginManager::inHostProcess() {
+    return hostProcess;
+}
+
 // Never destroyed (unlike this object on POSIX, a function-local static):
 // a thread a plugin started may log while the process exits.
 // (Function-local: usable even from another file's static initializer.)
@@ -372,6 +384,8 @@ char* PluginManager::prefix() {
 #define PLUMA_HOST_API extern "C" __declspec(dllexport)
 
 PLUMA_HOST_API int pluma_host_api_version(void) { return 1; }
+
+PLUMA_HOST_API int pluma_host_in_host_process(void) { return PluginManager::inHostProcess() ? 1 : 0; }
 
 PLUMA_HOST_API void pluma_host_log(const char* message) {
     try { PluginManager::log(message ? message : ""); } catch (...) {}

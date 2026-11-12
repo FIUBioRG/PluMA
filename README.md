@@ -55,6 +55,22 @@ Notes for C/C++ plugin authors:
   the most recently set prefix, which may be a sibling kitty's: call
   `prefix()`/`addPrefix()` in the plugin's own `input()`/`run()`/`output()`
   and hand the result to its worker threads.
+* On PluMA's main thread, a C/C++ plugin whose library uses the Python C API
+  (it has undefined `Py*` symbols on Linux and macOS, or links a library whose
+  name contains "python" -- `pythonXY.dll`, also delay-loaded, `libpython3.x`,
+  Boost.Python -- itself or through a helper library in its own folder that
+  it links) runs holding Python's GIL whenever the embedded Python is
+  running, as in earlier versions, so it may call the C API directly. If it
+  waits for its own threads that use Python, it must release the GIL around
+  that wait (`Py_BEGIN_ALLOW_THREADS`), as before. Other C/C++ plugins, and R
+  and Perl steps, run without the GIL, so Python steps on parallel kitties keep
+  running meanwhile; R or Perl code that calls into Python (reticulate,
+  Inline::Python) takes the GIL itself. On kitty threads, take it with
+  `PyGILState_Ensure()`/`PyGILState_Release()`. A plugin that
+  starts Python itself (`Py_Initialize()`) must release the GIL before
+  returning (`PyEval_SaveThread()`) whenever Python plugins may run on parallel
+  kitties, on whichever thread it runs; otherwise their Python steps wait for
+  it forever.
 
 ------------------------------------------------------------------------------
 

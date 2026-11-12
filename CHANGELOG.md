@@ -36,10 +36,15 @@
   R's C API, in `pluma_r.dll`; RPluMA as `RPluMA.dll`) and Perl (Strawberry
   Perl, through a runner built with its own g++ in `pluma_perl.dll`;
   PerlPluMA likewise). R, Perl, Java and Python are optional at run time:
-  their plugins are skipped, with the reason logged, when the runtime is not
-  installed. On Windows, the embedded Python's `sys.executable` is the
-  installation's `python.exe` (not `pluma.exe`), so `multiprocessing` and
-  `subprocess` work from plugins.
+  their plugins fail with the reason when the runtime is not installed. On
+  Windows, the embedded
+  Python's `sys.executable` is the installation's `python.exe` (not
+  `pluma.exe`; `python3.Xt.exe` for a free-threaded build, where present),
+  so `multiprocessing` and `subprocess` work from plugins.
+  `PyPluMA` calls are available only in the PluMA process itself: in a
+  `multiprocessing` worker on Windows they raise `RuntimeError`. (On POSIX,
+  as before, only forked workers can import `PyPluMA`; spawned/forkserver
+  workers -- the default on macOS and on Linux from Python 3.14 -- cannot.)
 - **Behavior change:** a plugin failure now stops the pipeline (exit status 1)
   on every platform. Previously PluMA continued to later plugins unless the
   failing plugin had already written its output file, and Python exceptions
@@ -69,6 +74,15 @@
   pipeline, stops the run in order (status 1) instead of aborting. The end of
   a failed run no longer waits for a stream another thread holds (a plugin
   blocked writing to a stalled pipe).
+- A Python plugin calling `sys.exit()` / `sys.exit(0)` now ends just that
+  plugin successfully (its remaining phases are skipped) instead of ending
+  PluMA; a non-zero `sys.exit(n)` is a plugin failure.
+- Plugin precedence is unchanged (`./plugins` first, then `PLUMA_PLUGIN_PATH`;
+  the last registration picks the language; a C/C++ plugin is the last library
+  loaded; a script plugin's file is the first one in the search path), and is
+  now reported: PluMA prints a note when a plugin found later replaces or is
+  ignored in favor of another. New: a language compiled out of the build never
+  replaces one that can run.
 - `PluginManager::prefix()` is now per thread, so each parallel kitty sees
   its own prefix, and a nested `Pipeline` no longer changes the prefix seen by
   the plugins after it. After `LitterGather`, plugins again run under the
@@ -83,6 +97,21 @@
   get the real prefix. (Threads a plugin starts itself share one buffer per
   prefix: a write there reaches the other such threads holding the pointer
   until their next `prefix()` call, which returns an intact copy.)
+- After `languageUnload("Python")`, a later Python step starts the interpreter
+  again, as before (logged, since some C extension modules such as numpy cannot
+  be imported again in a re-initialized interpreter).
+- The embedded Python interpreter starts on first use, as before (not at all
+  for pipelines without Python steps), installs no SIGINT handler (Ctrl-C
+  keeps ending PluMA), and supports Python plugins on parallel kitties.
+  C/C++ plugins on PluMA's main thread that use the Python C API still run
+  holding the GIL while Python is running, as before, so they may call the
+  C API directly -- also during a parallel block, where Python steps on the
+  kitties then wait for them; other C/C++ plugins no longer hold it (see the
+  GIL entry below for how use of the C API is detected). On kitty threads,
+  C/C++ plugins take it with `PyGILState_Ensure()`/`PyGILState_Release()`.
+- `run()` and `output()` are optional for Python plugins (as they are for C++
+  plugins via the `Plugin` base class); a missing one is logged and skipped. A
+  missing `input()` is a failure that keeps existing output.
 - Without a `Prefix` line, a `Kitty` directory is now relative (`k1/`) instead
   of `/k1/` at the filesystem root, and kitty directories no longer accumulate
   (`/k1//k2/`). With a `Prefix`, kitty paths no longer contain a doubled
@@ -115,6 +144,11 @@
   rewritten during the run), so the outcome never depends on timing. Previously a point inside a
   kitty was never recognized, so every step after the parallel block was
   skipped.
+- POSIX: once Python has started, SIGPIPE and SIGXFSZ are ignored, as
+  earlier versions' `Py_Initialize()` did on the first Python step (PluMA
+  now starts Python with `Py_InitializeEx(0)`, which installs no SIGINT
+  handler, so Ctrl-C keeps ending PluMA): a Python plugin writing to a
+  closed pipe gets `BrokenPipeError` instead of PluMA being killed.
 - A pipeline file saved with a UTF-8 byte order mark (as some Windows
   editors do) is read correctly; the mark used to corrupt its first line.
 - `PluginManager::dependency()` is no longer inline in `PluginManager.h`
@@ -125,6 +159,11 @@
 - A step's output is checked and, after a failure, removed by its absolute
   path as of the step's start, so a plugin that changes the current
   directory before failing cannot make PluMA remove a different file.
+- Python plugins' `sys.stdout`/`sys.stderr` are flushed at the end of each
+  Python step, so what a step printed is not lost if a later step ends the
+  run abruptly.
+- Python plugins on parallel kitties import concurrently: only two kitties
+  importing the *same* plugin module wait for each other.
 - Building with swig no longer rewrites the git-tracked `RPluMA_wrap.cxx`: the
   wrapper is generated into `obj/`, and the tracked copy is used only when
   swig is missing. Without swig, the `PyPluMA` and `PerlPluMA` helper modules
@@ -168,6 +207,25 @@
   still has it open (Windows) is emptied instead of left partial.
 - An unmet `dependency()` outside a pipeline step (e.g. in a plugin's static
   initializer, before the log file is open) is also reported on stderr.
+- A native plugin that starts Python itself on the main thread
+  (`Py_Initialize()` leaves that thread holding the GIL) no longer makes a
+  later Python plugin on a parallel kitty hang: the GIL is released between
+  steps and taken back for each later C/C++ step on the main thread, which
+  can still use the C API as before. Such a plugin calling
+  `languageLoad("Python")` while a kitty is starting to use that
+  interpreter no longer deadlocks: the GIL is given up while it waits.
+- An abort while Python is being shut down no longer touches the
+  interpreter under the shutdown, and incomplete outputs are cleaned up
+  before Python's buffered output is flushed.
+- A C/C++ plugin in a directory that itself starts with the library prefix
+  (`plugins/libFoo/libFooPlugin.so`) is registered under the name its
+  `PluginProxy` uses -- `Foo`, as in earlier versions, or `libFoo` (judged
+  by what that library itself registers, not by another plugin's name).
+- A Python plugin's `sys.path` again has `<root>/<plugin>/` for every
+  plugin root, as in earlier versions, so a helper module can live in
+  another root's copy of the plugin directory.
+- A plugin library that starts Python while it is loaded (`Py_Initialize()`
+  in a static initializer) no longer makes Python plugins on kitties hang.
 - Linux/macOS: a working directory that cannot be read (removed, no
   permission) no longer makes PluMA retry `getcwd` with ever larger buffers.
 - `Plugin` lines with the keywords exactly swapped
@@ -175,6 +233,26 @@
   running the plugin with its files exchanged -- where a failure would then
   remove what is really its input. Other words in place of `Plugin`,
   `inputfile` and `outputfile` still run, as before, now with a warning.
+- On PluMA's main thread, only C/C++ plugins whose library uses the Python C
+  API hold the GIL during their steps (as earlier versions' main thread always
+  held it); other C/C++ steps, and R and Perl steps, run without it, so Python
+  steps on parallel kitties are no longer held up by them. R or Perl code that
+  calls into Python (reticulate, Inline::Python) takes the GIL itself.
+  A library counts as using the C API when it imports the Python runtime
+  or a library whose name contains "python" (e.g. Boost.Python; on Windows
+  also as a delay-load import; on Linux -- 32- or 64-bit -- and macOS, also
+  undefined `Py*` symbols), or links a helper library next to it that does; when its
+  imports cannot be read, it holds the GIL. (A helper that imports nothing,
+  such as a resource-only DLL, does not count.) When a library replaces an
+  earlier one of the same plugin name, its own imports decide. A GIL that
+  any other C/C++ step leaves held on the main thread (e.g. it started
+  Python through `dlopen`/`GetProcAddress`) is still released after it, and
+  from then on every C/C++ step on the main thread takes it back for its
+  duration, as in earlier versions (that plugin's later steps may rely on
+  holding it). The same for a Perl step that leaves it held
+  (Inline::Python starting Python): a Python step on a kitty
+  no longer waits for it forever. A plugin library is scanned for Python
+  use when the plugin first runs, not for every plugin at startup.
 - A pipeline file that is a directory (`pluma pipelines/`, or a `Pipeline`
   line naming one) is an error, as on Windows -- on Linux/macOS it read as
   an empty pipeline and the run ended successfully having done nothing. A
@@ -223,6 +301,14 @@
 - POSIX: a `fork()`ed child (e.g. a `multiprocessing` worker) no longer
   inherits PluMA's prefix, log or dependency locks held by another thread
   at that moment.
+- At the end of a run PluMA finalizes Python (flushing its output and
+  running its `atexit` handlers) -- but not while a non-daemon Python thread
+  a plugin started is still running, which finalization would wait for
+  forever; then it only flushes the output. So a plugin that leaves such a
+  thread running no longer keeps PluMA from exiting. The languages are shut
+  down in reverse order, Python last, so R's `.Last` and Perl's `END`
+  blocks can still call into Python (reticulate, Inline::Python); a Python
+  left unfinalized gives its GIL back first.
 - Plugins count as installed for `dependency()` after each plugin directory
   is loaded, as before: a plugin library that checks a dependency while it
   is loaded finds plugins of the directories searched before its own.
@@ -239,6 +325,14 @@
   valid string.
 - `PluginManager::log()` and `setLogFile()` are defined in pluma, like
   `dependency()`: plugins no longer compile the logger's internals in.
+- A Python step that starts while another kitty's `languageUnload("Python")`
+  is shutting the interpreter down waits for the shutdown and runs (Python
+  is started again), instead of failing -- and stopping the run -- only
+  because of when it started.
+- When a run is aborted, every language's buffered output is flushed first
+  (Python's `sys.stdout`; it waits only briefly).
+- When a run is aborted, buffered Python output is still flushed if another
+  thread holds PluMA's Python state lock for a moment.
 - The libpython version is read from the last include directory that
   `python3-config --includes` reports (e.g. `3.14t`), not from a
   `python3.14` in the install prefix.
@@ -246,6 +340,28 @@
   `PluginManager` symbols defined in the `pluma` executable, and C++/CUDA
   plugins are built as `lib<Name>Plugin.dylib`, the name PluMA looks for
   there (they were built as `.so` and never found).
+- Python plugins' single-file helper modules are per plugin: two plugins that
+  each have a `utils.py` each import their own (before, whichever was imported
+  first was used by both). The standard library and site-packages still win
+  over a same-named helper (a same-named folder without `__init__.py`
+  elsewhere on `sys.path`, e.g. a `data/` in the current directory, does not:
+  a plain import prefers a module to it too). Helper packages (directories), and helpers a
+  plugin finds only in another plugin's directory, are still shared through
+  `sys.modules`. `importlib.import_module("utils")` from a plugin's code
+  gets its own helper too (other importlib loaders do not).
+  The first plugin to import a helper of a given name has it under that
+  name, as before, so its functions and objects pickle (e.g. to
+  `multiprocessing` workers) as before; another plugin's same-named helper
+  pickles within the process and to forked workers, but not to spawned ones
+  (Windows), which import modules by name. Kitties importing the same
+  helper at once wait for it to finish loading, as with a plain import, and
+  a helper importing its own plugin's module gets that module, not a second
+  copy.
+- A Python plugin is imported from the file found in the plugin path (under
+  its usual module name), so a same-named `FooPlugin.py` in the working
+  directory or another plugin directory no longer replaces it. Plugin
+  directories are still appended to `sys.path`, so the standard library and
+  installed packages win over same-named helper files.
 - A plugin that calls `exit()` itself while parallel kitties are running now
   ends PluMA at once with status 1 (C/C++ standard output flushed; the
   outputs that the steps it cuts off on other kitties had already changed
@@ -275,6 +391,11 @@
   and empty entries are skipped instead of ending the search. Relative
   entries are resolved once at startup (on Windows including drive-relative
   ones such as `D:plugins`).
+- Windows: a C/C++ plugin linked against the Python C API loads even when
+  Python is not on `PATH` -- PluMA loads `pythonXY.dll` (and, for plugins
+  built against the stable ABI, `python3.dll`) from the Python installation,
+  as for Python plugins. (Also for a DLL whose optional header holds fewer
+  than the usual 16 data directories, which the PE format allows.)
 - SCons build (POSIX): C++ plugins are built as `lib<Name>Plugin.so` again
   (they had become `liblib<Name>Plugin.so`, which PluMA never found), and the
   `PyPluMA`/`PerlPluMA`/`RPluMA` modules under their own names
@@ -295,3 +416,5 @@
 - Julia plugins run on PluMA's main thread only: a Julia step on a parallel
   kitty fails with a clear message (the embedded Julia runtime may only be
   called from the thread that started it), instead of crashing.
+- A Rust plugin's library is no longer also loaded and listed as a C/C++
+  plugin (`pluma plugins` showed it twice).

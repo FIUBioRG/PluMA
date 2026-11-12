@@ -143,6 +143,13 @@ public:
     // Sets only the calling thread's prefix (never the shared "most recent").
     static void setThreadPrefix(const std::string& prefix);
 
+    // Whether this process is PluMA itself (set first thing in main()).  A
+    // Windows multiprocessing worker (python.exe) that imports PyPluMA maps
+    // pluma.exe like a DLL, and an EXE's static initializers do not run then:
+    // the scripting API checks this before touching PluMA's state.
+    static void markHostProcess();
+    static bool inHostProcess();
+
     // Ends the run at once with status 1, where unwinding is not possible
     // (an unmet dependency() off a pipeline thread, exit() while kitties
     // run): removes the outputs of the steps still running that changed --

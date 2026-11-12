@@ -93,9 +93,21 @@ private:
 class Language {
 public:
     Language(std::string lang, std::string ext, std::string pp, std::string pre="") {language = lang; extension = ext; pluginpath = pp; prefix = pre;}
-    // (No glob_t parameter: Windows has no glob(); plugin files are found
-    // through platform.h on every platform.)
+    // Whether the shared library at `path` uses the Python C API (itself, or
+    // through a library it links; see Language.cxx).  (Static: no vtable slot.)
+    static bool libraryUsesPython(const std::string& path);
+    // ABI: C++ plugins built against older headers call lang(), load() and
+    // unload() through this vtable (the inline languageLoad/languageUnload),
+    // so the original virtuals keep their declaration order and slots; new
+    // virtuals, including the destructor, go after them.
     virtual void loadPlugin(std::string path, std::map<std::string, std::string>* pluginLanguages, bool list = false);
+    // Each implementation holds a Py::NativeStepGuard on the main
+    // thread for the step (Compiled: active for plugins that use the Python
+    // C API; R, Perl, Java: `false`, so only a GIL a native plugin left held
+    // is taken back -- see Py::releaseForeignGil).  Taken after the
+    // language's own interpreter lock, never before: R steps on kitties hold
+    // theirs while waiting for the GIL (reticulate), so the opposite order
+    // could deadlock -- which is why it is not taken once in readConfig.
     virtual void executePlugin(std::string pluginname, std::string inputfile, std::string outputfile)=0;
     virtual void unload()=0;
     virtual std::string ext() {return extension;}
@@ -103,8 +115,12 @@ public:
     virtual std::string pre() {return prefix;}
     virtual void load()=0;
     virtual ~Language() {}
-    // False when this language's support is compiled out of this build; its
-    // plugins then fail with "not enabled" instead of being skipped.
+    // True for languages whose plugins are shared libraries that must be
+    // loaded at discovery so they can register themselves (C/C++).
+    virtual bool loadsSharedLibraries() const {return false;}
+    // False when this language's support is compiled out of this build; such
+    // a language still claims plugins nobody else can run (to report "not
+    // enabled"), but never shadows an implementation that can run.
     virtual bool enabled() const {return true;}
     // The shutdown PluMA does at the end of a run (earlier versions did none:
     // the process just exited).  Must not wait for threads the plugins left

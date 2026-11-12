@@ -32,8 +32,10 @@
 
 #include "Compiled.h"
 #include "../PluginManager.h"
-#include "../platform.h"
-#include <iostream>
+#include <map>
+#include <mutex>
+#include <set>
+#include <stdexcept>
 
 Compiled::Compiled(
     std::string lang,
@@ -42,31 +44,41 @@ Compiled::Compiled(
     std::string pre
 ) : Language(lang, ext, pp, pre) {}
 
-//void Compiled::loadPlugin(std::string path, glob_t* globbuf, std::map<std::string, std::string>* pluginLanguages) {
-//   std::string pathGlob = path + "/" + "*/*" + "." + extension;
-//   int ext_len = extension.length()+2;
-//   if (glob(pathGlob.c_str(), 0, NULL, &(*globbuf)) == 0) {
-//      for (unsigned int i = 0; i < globbuf->gl_pathc; i++) {
-//        std::string filename = globbuf->gl_pathv[i];
-//        // Get the library name
-//        std::string name;
-//        std::string::size_type pos = filename.find_last_of("/");
-//        if (pos != std::string::npos) name = filename.substr(pos + 4, filename.length()-pos-3-ext_len);
-//        else name = filename.substr(3, filename.length()-pos-ext_len);
-        // Ignore if already opened.
-//        std::cout << "Loading plugin " << name << "..." << std::endl;
-//        void *handle = dlopen(filename.c_str(), RTLD_LAZY | RTLD_GLOBAL);
-//        if (!handle) {
-//           std::cout << "Warning: Null Handle" << std::endl;
-//           std::cout << dlerror() << std::endl;
-//        }
-//        if (handle) {
-//          (*pluginLanguages)[name] = language;
-//        }
-//      }
-//   }
 
-//}
+
+// Each plugin's library (set during discovery), and whether it uses the
+// Python C API -- scanned when the plugin first runs, so plugins a pipeline
+// never uses cost no file reads.  Kitties ask too: guarded.  Never destroyed.
+struct PluginLibrary {
+    std::string path;
+    int usesPython = -1;   // -1: not scanned yet
+};
+static std::mutex& pythonUseMutex = *new std::mutex;
+static std::map<std::string, PluginLibrary>& pluginLibraries = *new std::map<std::string, PluginLibrary>;
+
+void Compiled::setPluginLibrary(const std::string& plugin, const std::string& library) {
+    std::lock_guard<std::mutex> lock(pythonUseMutex);
+    PluginLibrary entry;
+    entry.path = library;   // (a replaced library is scanned afresh)
+    pluginLibraries[plugin] = entry;
+}
+bool Compiled::usesPython(const std::string& plugin) {
+    std::string library;
+    {
+        std::lock_guard<std::mutex> lock(pythonUseMutex);
+        std::map<std::string, PluginLibrary>::const_iterator found = pluginLibraries.find(plugin);
+        if (found == pluginLibraries.end()) return false;
+        if (found->second.usesPython >= 0) return found->second.usesPython != 0;
+        library = found->second.path;
+    }
+    // The file reads without the lock: kitties starting other plugins do not
+    // wait for this one's scan.  (Two kitties may both scan it: same answer.)
+    const bool uses = Language::libraryUsesPython(library);
+    std::lock_guard<std::mutex> lock(pythonUseMutex);
+    std::map<std::string, PluginLibrary>::iterator found = pluginLibraries.find(plugin);
+    if (found != pluginLibraries.end() && found->second.path == library) found->second.usesPython = uses ? 1 : 0;
+    return uses;
+}
 
 void Compiled::executePlugin(
     std::string pluginname,
@@ -76,6 +88,17 @@ void Compiled::executePlugin(
     // The library was loaded during discovery (Language::loadPlugin), where
     // its static PluginProxy registered a maker; plugins that failed to load
     // never reach this point.
+    // A plugin whose library uses the Python C API runs inside a "native
+    // step": on PluMA's main thread, with the GIL held while Python is
+    // running, as in earlier versions (it may call the C API relying on
+    // that).  Other plugins never touch Python, so they do not hold the GIL
+    // and Python steps on parallel kitties keep running meanwhile.
+    // (Only the main thread's steps hold it: kitties skip the library scan.)
+    Py::NativeStepGuard nativeStep(Py::onMainThread() && usesPython(pluginname), true);
+    // Never deleted, as in earlier PluMA versions: existing plugins may keep
+    // `this` alive past the step (detached threads, global registries) or
+    // have destructors that never ran before, and a plugin DLL built with a
+    // different C runtime must not be freed by pluma.exe's.
     Plugin* plugin = NULL;
     // Constructor failed (e.g. an unmet dependency() there): before input(),
     // so like other languages any existing output is kept.  Any exception

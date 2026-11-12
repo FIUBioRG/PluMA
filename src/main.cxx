@@ -995,6 +995,7 @@ bool readConfig(std::string inputfile, std::string prefix, const std::string* re
 
 int main(int argc, char** argv)
 {
+    PluginManager::markHostProcess();
 #ifndef _WIN32
     plumaPid = getpid();
 #endif
@@ -1113,6 +1114,9 @@ int main(int argc, char** argv)
                 PluginManager::getInstance().add(itr->first.substr(0, itr->first.length()-6));
         }
     }
+    // A plugin library may have started Python while it was loaded (a static
+    // initializer calling Py_Initialize), leaving this thread holding the GIL.
+    Py::releaseForeignGil();
     // Registered only now, after the C/C++ plugin libraries are loaded:
     // exit() runs atexit handlers and static destructors in reverse order of
     // registration, so this guard runs before the destructors of PluMA's

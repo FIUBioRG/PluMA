@@ -32,27 +32,47 @@
 
 #include "PluMA.h"
 #include "PluginManager.h"
+#include <stdexcept>
 #include <string>
 using std::string;
 
+// A freshly started process that imported a plugin module has no pipeline,
+// log or prefix to talk to.  On Windows (where multiprocessing always
+// spawns) the module still loads, since pluma.exe is found and mapped, and
+// this check turns calls into a RuntimeError.  On POSIX a fresh python3
+// cannot even load _PyPluMA (its PluginManager symbols live in the pluma
+// executable), so "spawn"/"forkserver" workers -- the default on macOS, and
+// on Linux from Python 3.14 -- fail at import, as they always did.  Only a
+// fork()ed worker, a copy of PluMA, can use the API (sharing the log file).
+static void requireHost() {
+    if (!PluginManager::inHostProcess())
+        throw std::runtime_error("the PluMA plugin API is only available inside the PluMA process "
+                                 "(not in spawned multiprocessing workers)");
+}
+
 void log(char* msg) {
+    requireHost();
     PluginManager::log(std::string(msg));
 }
 
 // Throws when the dependency is not met; the SWIG %exception handler in
 // PluginWrapper.i converts that into a Python/Perl/R exception.
 void dependency(char* plugin) {
+    requireHost();
     PluginManager::dependency(std::string(plugin));
 }
 
 char* prefix() {
+    requireHost();
     return PluginManager::prefix();
 }
 
 void languageLoad(char* lang) {
+    requireHost();
     PluginManager::languageLoad(std::string(lang));
 }
 
 void languageUnload(char* lang) {
+    requireHost();
     PluginManager::languageUnload(std::string(lang));
 }
